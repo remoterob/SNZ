@@ -154,26 +154,84 @@ exports.handler = async (event) => {
         )
 
         if (comp) {
-          const { count: teamCount } = await withTimeout(
-            supabase.from('comp_teams').select('*', { count: 'exact', head: true }).eq('competition_id', competitionId),
-            3000
-          )
+          const [teamsResult, fishResult] = await Promise.all([
+            withTimeout(
+              supabase.from('comp_teams').select('*', { count: 'exact', head: true }).eq('competition_id', competitionId),
+              3000
+            ),
+            withTimeout(
+              supabase.from('comp_fish').select('species_name, points, max_weight_kg, allow_multiples, max_count').eq('competition_id', competitionId).order('sort_order'),
+              3000
+            ),
+          ])
+          const teamCount = teamsResult.count || 0
+          const fishList = fishResult.data || []
+
+          // Format dates
+          const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-NZ', { day: 'numeric', month: 'long', year: 'numeric' }) : null
+
+          // Format category fees (Nationals multi-event or single entry fee)
+          const EVENT_NAMES = {
+            open: 'Open Championship',
+            womens: "Women's Championship",
+            juniors: 'Junior Championship',
+            goldenoldie: 'Golden Oldie',
+            photography: 'Snorkel Photography',
+            under23: 'Under 23 Division',
+            finswim: 'Fin Swimming',
+          }
+          let feesSection = ''
+          if (comp.category_fees) {
+            const lines = []
+            for (const [key, val] of Object.entries(comp.category_fees)) {
+              if (key === 'merch') {
+                if (val.jacket?.price) lines.push(`  - Jacket: $${(val.jacket.price / 100).toFixed(2)}`)
+                if (val.shirt?.price) lines.push(`  - Shirt: $${(val.shirt.price / 100).toFixed(2)}`)
+              } else if (key === 'meal') {
+                if (val.price) lines.push(`  - Gala dinner ticket: $${(val.price / 100).toFixed(2)}`)
+              } else if (EVENT_NAMES[key]) {
+                const std = val.standard != null ? `$${(val.standard / 100).toFixed(2)} pp` : 'TBC'
+                const eb = val.early_bird != null ? ` (early bird: $${(val.early_bird / 100).toFixed(2)} pp)` : ''
+                lines.push(`  - ${EVENT_NAMES[key]}: ${std}${eb}`)
+              }
+            }
+            if (lines.length) feesSection = `- Entry fees per person:\n${lines.join('\n')}`
+          } else if (comp.entry_fee_cents) {
+            feesSection = `- Entry fee: $${(comp.entry_fee_cents / 100).toFixed(2)}`
+          }
+
+          // Fish list
+          let fishSection = ''
+          if (fishList.length > 0) {
+            const fishLines = fishList.map(f => {
+              const pts = f.points || 100
+              const cap = f.max_weight_kg ? ` (weight capped at ${f.max_weight_kg}kg)` : ''
+              const multi = f.allow_multiples && f.max_count ? ` — up to ${f.max_count} per team` : ''
+              return `  - ${f.species_name}: ${pts} pts base${cap}${multi}`
+            })
+            fishSection = `- Eligible fish list:\n${fishLines.join('\n')}`
+          } else if (comp.fish_list) {
+            fishSection = `- Fish list: ${JSON.stringify(comp.fish_list).slice(0, 500)}`
+          }
 
           compContext = `
 ## THIS COMPETITION'S DETAILS
 - Name: ${comp.name || '(no name)'}
-- Host/Club: ${comp.host_club || '(not specified)'}
+- Organiser/Club: ${comp.club_name || comp.host_club || '(not specified)'}
 - Location: ${comp.location || '(not specified)'}
-- Date: ${comp.start_date || '(not specified)'}${comp.end_date && comp.end_date !== comp.start_date ? ` to ${comp.end_date}` : ''}
+- Date: ${fmtDate(comp.date_start) || fmtDate(comp.start_date) || '(not specified)'}${(comp.date_end || comp.end_date) ? ` to ${fmtDate(comp.date_end || comp.end_date)}` : ''}
 - Status: ${comp.status || '(not specified)'}
-- Scoring: ${comp.scoring_mode || '(standard SNZ scoring)'}
-- Description: ${comp.description || '(none)'}
-- Registered teams: ${teamCount || 0}
-- Entry fee: ${comp.entry_fee_cents ? `$${(comp.entry_fee_cents / 100).toFixed(2)}` : '(not set)'}
-- Early bird cutoff: ${comp.early_bird_cutoff || 'none'}
-${comp.fish_list ? `- Fish list: ${JSON.stringify(comp.fish_list).slice(0, 500)}` : ''}
-${comp.notes ? `- Notes: ${comp.notes}` : ''}
-`.trim()
+- Scoring: ${comp.scoring_mode === 'bingo' ? 'Fish Bingo (fixed points per species)' : 'Standard SNZ scoring (100 pts per fish + 10 pts/kg)'}
+- Registered teams so far: ${teamCount}
+${comp.registration_cutoff ? `- Entries close: ${fmtDate(comp.registration_cutoff)}` : ''}
+${comp.early_bird_cutoff ? `- Early bird cutoff: ${fmtDate(comp.early_bird_cutoff)}` : ''}
+${feesSection}
+${fishSection}
+${comp.description || comp.details ? `- Description: ${comp.description || comp.details}` : ''}
+${comp.event_info ? `- Event info: ${comp.event_info}` : ''}
+${comp.rules ? `- Competition rules/notes: ${comp.rules}` : ''}
+${comp.notes ? `- Organiser notes: ${comp.notes}` : ''}
+`.replace(/\n{3,}/g, '\n\n').trim()
         }
       } catch (dbErr) {
         console.error('Supabase lookup failed:', dbErr)
