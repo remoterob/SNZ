@@ -1,0 +1,44 @@
+{
+  "name": "Spearfishing New Zealand",
+  "short_name": "SNZ Hub",
+  "description": "The official Spearfishing New Zealand membership and competition platform",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#2B6CB0",
+  "theme_color": "#2B6CB0",
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "My Membership",
+      "short_name": "Membership",
+      "url": "/membership/dashboard",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Competitions",
+      "short_name": "Comps",
+      "url": "/competitions",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "NZ Records",
+      "short_name": "Records",
+      "url": "/records",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}
