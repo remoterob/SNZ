@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import CompCopilotFAB from './CompCopilotFAB'
 
 
 const SNZ_BLUE = '#2B6CB0'
@@ -307,6 +308,7 @@ export default function CompetitionDetail() {
         )}
       </div>
       <SponsorBar comp={comp} />
+      <CompCopilotFAB competitionId={id} competitionName={comp.name} mode="competitor" />
     </div>
   )
 }

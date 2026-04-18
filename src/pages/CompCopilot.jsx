@@ -3,8 +3,7 @@ import { useState, useRef, useEffect } from 'react'
 const SNZ_BLUE = '#2B6CB0'
 const SNZ_DARK = '#1e3a5f'
 
-// Pre-built quick-action prompts
-const QUICK_ACTIONS = [
+const ADMIN_QUICK_ACTIONS = [
   { id: 'promo', label: '📣 Draft Facebook Promo', prompt: 'Draft a Facebook post to promote this competition. Include the key details (date, location, entry deadline, fees), a compelling hook, and a call-to-action. Tone: friendly, energetic, community-focused.' },
   { id: 'briefing', label: '🎤 Pre-Comp Briefing', prompt: 'Draft pre-competition briefing notes the Competition Director can read out. Cover: safety essentials from SNZ rules, competition area, timing, fish list reminder, weigh-in procedure, and emergency contacts. Keep it concise but comprehensive.' },
   { id: 'safety', label: '🛟 Safety Checklist', prompt: 'Generate a morning-of safety checklist for the CD — safety boats, medic, VHF, roll call, weather check, emergency contacts. Based on SNZ safety rules.' },
@@ -13,7 +12,17 @@ const QUICK_ACTIONS = [
   { id: 'fishlist', label: '🐟 Fish List Advice', prompt: 'Suggest considerations for setting the eligible species list for this competition — abundance, fairness, scoring balance. Reference SNZ rules.' },
 ]
 
-export default function CompCopilot({ competitionId, competitionName, isOpen, onClose }) {
+const COMPETITOR_QUICK_ACTIONS = [
+  { id: 'bring', label: '📋 What should I bring?', prompt: 'What equipment and gear do I need to bring to compete? Cover mandatory safety gear, allowed spearfishing equipment, and anything else I should have on the day.' },
+  { id: 'fish', label: '🐟 Fish & scoring rules', prompt: 'What fish can I spear in this competition, and how does scoring work? Explain the points system and any species limits.' },
+  { id: 'weighin', label: '⚖️ Weigh-in process', prompt: 'Walk me through the weigh-in process — what do I need to do, when, and what happens to my catch? Are there minimum weights or penalties for undersized fish?' },
+  { id: 'safety', label: '🛟 Safety rules', prompt: 'What are the key safety rules I need to follow as a competitor? Cover buddy rules, float requirements, hypoxic event protocol, and anything that could get me disqualified.' },
+  { id: 'penalties', label: '⚠️ Penalties & DQs', prompt: 'What can get me penalised or disqualified? List the main rule breaches and their consequences.' },
+  { id: 'area', label: '🗺️ Competition area', prompt: 'How does the competition area work? Where do we start and finish, what are the boundaries, and what are the rules about boats?' },
+]
+
+export default function CompCopilot({ competitionId, competitionName, isOpen, onClose, mode = 'admin' }) {
+  const isCompetitor = mode === 'competitor'
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
@@ -24,12 +33,12 @@ export default function CompCopilot({ competitionId, competitionName, isOpen, on
   // Welcome message on first open
   useEffect(() => {
     if (isOpen && messages.length === 0) {
-      setMessages([{
-        role: 'assistant',
-        content: `Hi! I'm Comp Copilot. I know the SNZ competition rules and I can see the details of **${competitionName || 'this competition'}**.\n\nI can help you with:\n• Promoting your comp on social media\n• Pre-comp briefings and safety checklists\n• Weather calls and postponement decisions\n• Results announcements\n• Fish list and scoring questions\n\nAsk me anything — or use the quick actions below to get started.`
-      }])
+      const welcome = isCompetitor
+        ? `Hi! I'm your competition assistant. I know the SNZ rules and the details of **${competitionName || 'this competition'}**.\n\nI can help you with:\n• What gear and equipment to bring\n• Fish species, limits, and scoring\n• Weigh-in process and rules\n• Safety requirements\n• Penalties and disqualification rules\n\nAsk me anything — or use the quick actions below.`
+        : `Hi! I'm Comp Copilot. I know the SNZ competition rules and I can see the details of **${competitionName || 'this competition'}**.\n\nI can help you with:\n• Promoting your comp on social media\n• Pre-comp briefings and safety checklists\n• Weather calls and postponement decisions\n• Results announcements\n• Fish list and scoring questions\n\nAsk me anything — or use the quick actions below to get started.`
+      setMessages([{ role: 'assistant', content: welcome }])
     }
-  }, [isOpen, competitionName, messages.length])
+  }, [isOpen, competitionName, messages.length, isCompetitor])
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -51,6 +60,7 @@ export default function CompCopilot({ competitionId, competitionName, isOpen, on
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           competitionId,
+          mode,
           messages: newMessages.map(m => ({ role: m.role, content: m.content })),
         }),
       })
@@ -77,8 +87,8 @@ export default function CompCopilot({ competitionId, competitionName, isOpen, on
         {/* Header */}
         <div style={{ background: SNZ_DARK }} className="px-5 py-4 flex items-center justify-between text-white flex-shrink-0">
           <div>
-            <h3 className="font-black text-lg flex items-center gap-2">🤖 Comp Copilot</h3>
-            <p className="text-xs text-white/60">AI advisor grounded in SNZ rules</p>
+            <h3 className="font-black text-lg flex items-center gap-2">{isCompetitor ? '🤿 Competition Assistant' : '🤖 Comp Copilot'}</h3>
+            <p className="text-xs text-white/60">{isCompetitor ? 'Ask anything about this competition' : 'AI advisor grounded in SNZ rules'}</p>
           </div>
           <button onClick={onClose} className="w-9 h-9 rounded-lg bg-white/15 hover:bg-white/25 text-xl">×</button>
         </div>
@@ -116,7 +126,7 @@ export default function CompCopilot({ competitionId, competitionName, isOpen, on
         {/* Quick actions */}
         <div className="border-t border-gray-200 px-3 py-2 bg-white flex-shrink-0">
           <div className="flex gap-1.5 overflow-x-auto pb-1">
-            {QUICK_ACTIONS.map(a => (
+            {(isCompetitor ? COMPETITOR_QUICK_ACTIONS : ADMIN_QUICK_ACTIONS).map(a => (
               <button key={a.id} onClick={() => send(a.prompt)} disabled={loading}
                 className="flex-shrink-0 text-xs font-bold px-3 py-1.5 rounded-full border border-gray-300 text-gray-700 hover:bg-gray-50 whitespace-nowrap disabled:opacity-50">
                 {a.label}
@@ -130,7 +140,7 @@ export default function CompCopilot({ competitionId, competitionName, isOpen, on
           <textarea ref={inputRef} value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(input) } }}
-            placeholder="Ask anything about running this comp…"
+            placeholder={isCompetitor ? 'Ask anything about this competition…' : 'Ask anything about running this comp…'}
             rows={1}
             className="flex-1 border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300 resize-none"
             style={{ minHeight: 40, maxHeight: 120 }}
@@ -143,7 +153,7 @@ export default function CompCopilot({ competitionId, competitionName, isOpen, on
         </div>
 
         <div className="px-4 py-1.5 text-[10px] text-gray-400 text-center bg-gray-50 border-t border-gray-100 flex-shrink-0">
-          AI assistant · Always verify critical decisions with SNZ exec
+          {isCompetitor ? 'AI assistant · Always confirm details with the competition organiser' : 'AI assistant · Always verify critical decisions with SNZ exec'}
         </div>
       </div>
     </>
