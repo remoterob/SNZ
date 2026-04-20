@@ -1,5 +1,6 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { supabase } from '../lib/supabase'
 
 const SNZ_BLUE = '#2B6CB0'
 const SNZ_DARK = '#1e3a5f'
@@ -11,6 +12,8 @@ export default function FishIDPage() {
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState(null)
   const [error, setError] = useState('')
+  const [speciesData, setSpeciesData] = useState(null)
+  const [lightbox, setLightbox] = useState(null)
   const fileInputRef = useRef(null)
   const cameraInputRef = useRef(null)
 
@@ -80,6 +83,29 @@ export default function FishIDPage() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Identification failed')
       setResult(data)
+
+      // Look up species in our DB for tips + photos (best-effort)
+      if (data.commonName && data.commonName !== 'Not a fish') {
+        try {
+          const { data: species } = await supabase
+            .from('fish_species')
+            .select('id, common_name, tips')
+            .ilike('common_name', data.commonName)
+            .maybeSingle()
+          if (species) {
+            const { data: photos } = await supabase
+              .from('fish_species_photos')
+              .select('*')
+              .eq('species_id', species.id)
+              .order('is_hero', { ascending: false })
+              .order('sort_order')
+              .limit(8)
+            setSpeciesData({ ...species, photos: photos || [] })
+          }
+        } catch (err) {
+          console.warn('Species lookup failed:', err)
+        }
+      }
     } catch (e) {
       setError(e.message)
     } finally {
@@ -91,6 +117,7 @@ export default function FishIDPage() {
     setImage(null)
     setImagePreview(null)
     setResult(null)
+    setSpeciesData(null)
     setError('')
     if (fileInputRef.current) fileInputRef.current.value = ''
     if (cameraInputRef.current) cameraInputRef.current.value = ''
@@ -218,6 +245,14 @@ export default function FishIDPage() {
               </div>
             </div>
 
+            {/* Tips section — from our DB */}
+            {speciesData?.tips && <SpeciesTips commonName={speciesData.common_name} tips={speciesData.tips} />}
+
+            {/* Photo gallery */}
+            {speciesData?.photos?.length > 0 && (
+              <SpeciesPhotos photos={speciesData.photos} onPhotoClick={setLightbox} />
+            )}
+
             {/* MPI link — Phase 2 will add local rules DB */}
             <div className="bg-white border border-gray-200 rounded-2xl p-5 space-y-3">
               <div>
@@ -249,6 +284,87 @@ export default function FishIDPage() {
           Powered by Claude vision · Spearfishing New Zealand
         </p>
       </div>
+
+      {/* Lightbox for photo viewing */}
+      {lightbox && (
+        <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4" onClick={() => setLightbox(null)}>
+          <button onClick={() => setLightbox(null)}
+            className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/10 text-white text-xl hover:bg-white/20">×</button>
+          <img src={lightbox.photo_url} alt="" className="max-w-full max-h-full object-contain rounded-lg" onClick={e => e.stopPropagation()} />
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Sub-components ─────────────────────────────────────────────────────────────
+
+function SpeciesTips({ commonName, tips }) {
+  const [expanded, setExpanded] = useState(false)
+  const isLong = tips.length > 220
+  const displayed = expanded || !isLong ? tips : tips.slice(0, 220) + '…'
+  return (
+    <div className="bg-white border border-gray-200 rounded-2xl p-5 space-y-3">
+      <div className="flex items-center gap-2">
+        <span className="text-xl">📖</span>
+        <h3 className="font-black text-sm uppercase tracking-widest" style={{ color: SNZ_BLUE }}>
+          How to target {commonName}
+        </h3>
+      </div>
+      <div className="text-sm text-gray-700 leading-relaxed">
+        <TipsMarkdown text={displayed} />
+      </div>
+      {isLong && (
+        <button onClick={() => setExpanded(e => !e)}
+          className="text-xs font-bold uppercase tracking-wide" style={{ color: SNZ_BLUE }}>
+          {expanded ? '▲ Show less' : '▼ Read more'}
+        </button>
+      )}
+    </div>
+  )
+}
+
+function SpeciesPhotos({ photos, onPhotoClick }) {
+  return (
+    <div className="bg-white border border-gray-200 rounded-2xl p-5 space-y-3">
+      <div className="flex items-center gap-2">
+        <span className="text-xl">📸</span>
+        <h3 className="font-black text-sm uppercase tracking-widest" style={{ color: SNZ_BLUE }}>
+          Example photos
+        </h3>
+      </div>
+      <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+        {photos.map(p => (
+          <button key={p.id} onClick={() => onPhotoClick(p)}
+            className="aspect-square relative overflow-hidden rounded-lg border border-gray-200 group">
+            <img src={p.photo_url} alt="" loading="lazy"
+              className="w-full h-full object-cover group-hover:scale-105 transition" />
+            {p.is_hero && (
+              <span className="absolute top-1 left-1 bg-amber-400/90 text-amber-900 text-[9px] font-black px-1.5 py-0.5 rounded">★</span>
+            )}
+          </button>
+        ))}
+      </div>
+      <p className="text-[11px] text-gray-400 text-center">Tap any photo to view larger</p>
+    </div>
+  )
+}
+
+// Minimal markdown renderer — bold, italic, line breaks
+function TipsMarkdown({ text }) {
+  const lines = text.split('\n')
+  return (
+    <div className="space-y-2">
+      {lines.map((line, i) => {
+        if (!line.trim()) return <div key={i} className="h-1" />
+        const html = line
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+          .replace(/\*([^*]+)\*/g, '<em>$1</em>')
+        return <p key={i} dangerouslySetInnerHTML={{ __html: html }} />
+      })}
     </div>
   )
 }

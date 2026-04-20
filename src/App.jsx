@@ -23,12 +23,13 @@ import NationalsPage from './pages/NationalsPage'
 import NationalsAdmin from './pages/NationalsAdmin'
 import NationalsRegister from './pages/NationalsRegister'
 import NationalsConfirm from './pages/NationalsConfirm'
-import FishIDPage from './pages/FishIDPage'
 import CatfishCullPage from './pages/CatfishCullPage'
 import CompSuperAdmin from './pages/CompSuperAdmin'
 import CompDeepLink from './pages/CompDeepLink'
 import ApplicationArchive from './pages/ApplicationArchive'
 import RecordsAdmin from './pages/RecordsAdmin'
+import FishIDPage from './pages/FishIDPage'
+import FishSpeciesAdmin from './pages/FishSpeciesAdmin'
 
 function ProtectedRoute({ children }) {
   const location = useLocation()
@@ -174,135 +175,6 @@ function PhotoModal({ url, caption, onClose }) {
 }
 
 // ── NZ Records page (enhanced) ───────────────────────────────────────────────
-// Inject highlight animation CSS once
-if (typeof document !== 'undefined' && !document.getElementById('deep-link-highlight-style')) {
-  const style = document.createElement('style')
-  style.id = 'deep-link-highlight-style'
-  style.textContent = `
-    @keyframes deepLinkFlash {
-      0% { background-color: rgba(251, 191, 36, 0); box-shadow: 0 0 0 0 rgba(251, 191, 36, 0); }
-      20% { background-color: rgba(251, 191, 36, 0.4); box-shadow: 0 0 0 4px rgba(251, 191, 36, 0.6); }
-      100% { background-color: rgba(251, 191, 36, 0); box-shadow: 0 0 0 0 rgba(251, 191, 36, 0); }
-    }
-    .deep-link-highlight {
-      animation: deepLinkFlash 2.5s ease-out;
-      position: relative;
-      z-index: 1;
-    }
-  `
-  document.head.appendChild(style)
-}
-
-// Tiny reusable share button — copies a deep link to clipboard
-function ShareButton({ id, prefix = 'record', label = 'Share', small = false }) {
-  const [copied, setCopied] = useState(false)
-  const handleCopy = async (e) => {
-    e.stopPropagation()
-    e.preventDefault()
-    const url = `${window.location.origin}/records#${prefix}-${id}`
-    try {
-      await navigator.clipboard.writeText(url)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 1500)
-    } catch {
-      // Fallback: open in a new tab with hash so user can copy manually
-      window.prompt('Copy this link:', url)
-    }
-  }
-  return (
-    <button
-      onClick={handleCopy}
-      title={copied ? 'Copied!' : 'Copy share link'}
-      className={`inline-flex items-center gap-1 rounded-md border transition text-xs font-bold ${
-        copied
-          ? 'border-green-300 bg-green-50 text-green-700'
-          : 'border-gray-200 bg-white text-gray-500 hover:border-blue-300 hover:text-blue-600'
-      } ${small ? 'px-1.5 py-1' : 'px-2 py-1'}`}
-      type="button"
-    >
-      {copied ? '✓' : (
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
-          <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
-        </svg>
-      )}
-      {!small && <span>{copied ? 'Copied' : label}</span>}
-    </button>
-  )
-}
-
-// Deep link highlight hook: scrolls to and flashes a row matching the URL hash
-// Usage: hash like #record-123 or #meritorious-456
-// `onBeforeHighlight` lets the page reset filters so the target row actually renders
-const _dlDebug = (msg) => {
-  console.log('[DeepLink]', msg)
-  if (new URLSearchParams(window.location.search).get('debug') !== '1') return
-  let panel = document.getElementById('dl-debug-panel')
-  if (!panel) {
-    panel = document.createElement('div')
-    panel.id = 'dl-debug-panel'
-    panel.style.cssText = 'position:fixed;bottom:0;left:0;right:0;background:#000;color:#0f0;font:11px monospace;padding:8px;max-height:40vh;overflow:auto;z-index:99999;border-top:2px solid #0f0'
-    document.body.appendChild(panel)
-  }
-  const line = document.createElement('div')
-  line.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`
-  panel.appendChild(line)
-}
-
-function useDeepLinkHighlight(records, prefix, onBeforeHighlight) {
-  const [triggered, setTriggered] = useState(false)
-
-  // Reset filters as soon as records are loaded and a matching hash exists
-  useEffect(() => {
-    if (!records || records.length === 0) return
-    const hash = window.location.hash
-    _dlDebug(`${prefix} hash=${hash} recordsLoaded=${records.length}`)
-    if (!hash || !hash.startsWith(`#${prefix}-`)) {
-      _dlDebug(`hash does not match prefix ${prefix}`)
-      return
-    }
-    const id = hash.replace(`#${prefix}-`, '')
-    const match = records.find(r => String(r.id) === String(id))
-    _dlDebug(`looking for id=${id} found=${!!match} division=${match?.division}`)
-    if (!match) return
-    if (onBeforeHighlight) onBeforeHighlight(match)
-    setTriggered(true)
-  }, [records, prefix])
-
-  // After filters have reset and DOM has re-rendered, scroll to and highlight the row
-  useEffect(() => {
-    if (!triggered) return
-    const hash = window.location.hash
-    const id = hash.replace(`#${prefix}-`, '')
-    let attempts = 0
-    const tryHighlight = () => {
-      // Use data attribute because same id exists on both hidden desktop row and visible mobile card
-      const els = document.querySelectorAll(`[data-deeplink="${prefix}-${id}"]`)
-      let el = null
-      for (const candidate of els) {
-        const r = candidate.getBoundingClientRect()
-        if (r.width > 0 && r.height > 0) { el = candidate; break }
-      }
-      _dlDebug(`tryHighlight attempt=${attempts + 1} elementsFound=${els.length} visibleEl=${!!el} viewport=${window.innerWidth}x${window.innerHeight}`)
-      if (el) {
-        const rect = el.getBoundingClientRect()
-        const targetY = rect.top + window.pageYOffset - (window.innerHeight / 2) + (rect.height / 2)
-        window.scrollTo(0, Math.max(0, targetY))
-        setTimeout(() => {
-          window.scrollTo({ top: Math.max(0, targetY), behavior: 'smooth' })
-        }, 50)
-        el.classList.add('deep-link-highlight')
-        setTimeout(() => el.classList.remove('deep-link-highlight'), 2600)
-        return
-      }
-      attempts++
-      if (attempts < 20) setTimeout(tryHighlight, 200)
-      else _dlDebug('gave up after 20 attempts')
-    }
-    setTimeout(tryHighlight, 300)
-  }, [triggered, prefix])
-}
-
 function NZRecordsPage() {
   const navigate = useNavigate()
   const { session } = useMemberSession()
@@ -313,16 +185,6 @@ function NZRecordsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [lightbox, setLightbox] = useState(null)
-
-  useDeepLinkHighlight(records, 'record', (match) => {
-    // Reset filters so the target row renders
-    setFilter('All')
-    setSearch('')
-    // If the record is meritorious, it won't be on this page — redirect to the meritorious hash
-    if (match.division === 'Meritorious') {
-      window.location.hash = `meritorious-${match.id}`
-    }
-  })
 
   useEffect(() => {
     supabase
@@ -429,14 +291,14 @@ function NZRecordsPage() {
                 <thead>
                   <tr className="border-b border-gray-100 bg-gray-50">
                     <th className="px-3 py-3 w-12"></th>
-                    {['Species','Record','Division','Diver','Club','Location','Date',''].map(h => (
+                    {['Species','Record','Division','Diver','Club','Location','Date'].map(h => (
                       <th key={h} className="px-4 py-3 text-left text-xs font-bold tracking-widest text-gray-400 uppercase">{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {filtered.map((r, i) => (
-                    <tr key={r.id} data-deeplink={`record-${r.id}`} className={`border-b border-gray-100 hover:bg-blue-50 transition ${i % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}>
+                    <tr key={r.id} className={`border-b border-gray-100 hover:bg-blue-50 transition ${i % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}>
                       <td className="px-3 py-2">
                         {r.photo_url ? (
                           <button
@@ -473,11 +335,10 @@ function NZRecordsPage() {
                       <td className="px-4 py-3 text-gray-400 text-sm">{r.club}</td>
                       <td className="px-4 py-3 text-gray-400 text-sm">{r.location}</td>
                       <td className="px-4 py-3 text-gray-400 text-sm">{r.date_caught}</td>
-                      <td className="px-3 py-3"><ShareButton id={r.id} prefix="record" small /></td>
                     </tr>
                   ))}
                   {filtered.length === 0 && (
-                    <tr><td colSpan={9} className="px-4 py-12 text-center text-gray-400">No records match your search</td></tr>
+                    <tr><td colSpan={8} className="px-4 py-12 text-center text-gray-400">No records match your search</td></tr>
                   )}
                 </tbody>
               </table>
@@ -487,7 +348,7 @@ function NZRecordsPage() {
             {/* Mobile cards */}
             <div className="md:hidden space-y-2 mb-6">
               {filtered.map((r) => (
-                <div key={r.id} data-deeplink={`record-${r.id}`} className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm flex items-center gap-3 p-3">
+                <div key={r.id} className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm flex items-center gap-3 p-3">
                   {/* Thumbnail */}
                   <div className="flex-shrink-0">
                     {r.photo_url ? (
@@ -521,7 +382,6 @@ function NZRecordsPage() {
                     <div className="text-xs font-semibold text-gray-700 truncate">{r.diver}</div>
                     <div className="text-xs text-gray-400 truncate">{r.location} · {r.date_caught}</div>
                   </div>
-                  <div className="flex-shrink-0 self-start"><ShareButton id={r.id} prefix="record" small /></div>
                 </div>
               ))}
             </div>
@@ -574,10 +434,6 @@ function AwardsPage() {
   const [lightbox, setLightbox] = useState(null)
   const [merSearch, setMerSearch] = useState('')
   const [merLightbox, setMerLightbox] = useState(null)
-
-  useDeepLinkHighlight(meritorious, 'meritorious', () => {
-    setMerSearch('')
-  })
 
   useEffect(() => {
     supabase.from('snz_awards').select('year').order('year', { ascending: false })
@@ -675,14 +531,14 @@ function AwardsPage() {
                   <thead>
                     <tr className="border-b border-gray-100 bg-amber-50">
                       <th className="px-3 py-3 w-12"></th>
-                      {['Species','Weight','Diver','Club','Location','Date',''].map(h => (
+                      {['Species','Weight','Diver','Club','Location','Date'].map(h => (
                         <th key={h} className="px-4 py-3 text-left text-xs font-bold tracking-widest text-amber-700 uppercase">{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
                     {filteredMer.map((r, i) => (
-                      <tr key={r.id} data-deeplink={`meritorious-${r.id}`} className={`border-b border-gray-100 hover:bg-amber-50 transition ${i % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}>
+                      <tr key={r.id} className={`border-b border-gray-100 hover:bg-amber-50 transition ${i % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}>
                         <td className="px-3 py-2">
                           {r.photo_url ? (
                             <button onClick={() => setMerLightbox({ url: r.photo_url, caption: `${r.species} — ${r.diver}${r.weight_kg ? ` · ${r.weight_kg} kg` : ''} · ${r.location}` })}
@@ -709,7 +565,6 @@ function AwardsPage() {
                         <td className="px-4 py-3 text-gray-400 text-xs">{r.club}</td>
                         <td className="px-4 py-3 text-gray-400 text-xs">{r.location}</td>
                         <td className="px-4 py-3 text-gray-400 text-xs">{r.date_caught}</td>
-                        <td className="px-3 py-3"><ShareButton id={r.id} prefix="meritorious" small /></td>
                       </tr>
                     ))}
                   </tbody>
@@ -720,7 +575,7 @@ function AwardsPage() {
               {/* Mobile cards */}
               <div className="md:hidden space-y-2 mb-4">
                 {filteredMer.map(r => (
-                  <div key={r.id} data-deeplink={`meritorious-${r.id}`} className="bg-white border border-amber-200 rounded-xl overflow-hidden shadow-sm flex items-center gap-3 p-3">
+                  <div key={r.id} className="bg-white border border-amber-200 rounded-xl overflow-hidden shadow-sm flex items-center gap-3 p-3">
                     <div className="flex-shrink-0">
                       {r.photo_url ? (
                         <button onClick={() => setMerLightbox({ url: r.photo_url, caption: `${r.species} — ${r.diver}` })}
@@ -737,7 +592,6 @@ function AwardsPage() {
                       <p className="text-xs font-semibold text-gray-700 truncate">{r.diver}</p>
                       <p className="text-xs text-gray-400 truncate">{r.location} · {r.date_caught}</p>
                     </div>
-                    <div className="flex-shrink-0 self-start"><ShareButton id={r.id} prefix="meritorious" small /></div>
                   </div>
                 ))}
               </div>
@@ -850,12 +704,6 @@ function SNZHub() {
       onClick: () => navigate('/competitions'),
       icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={SNZ_BLUE} strokeWidth="1.8" strokeLinecap="round"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"/></svg>,
     },
-    {
-      num: '06', title: 'Fish ID',
-      desc: 'AI-assisted species identification. Take or upload a photo and get an instant ID with MPI rules lookup. Experimental.',
-      onClick: () => navigate('/fish-id'),
-      icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={SNZ_BLUE} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M6.5 12c.94-3.46 4.94-6 8.5-6 3.56 0 6.06 2.54 7 6-.94 3.47-3.44 6-7 6s-7.56-2.53-8.5-6Z"/><path d="M18 12v.5"/><path d="M16 17.93a9.77 9.77 0 0 1 0-11.86"/><path d="M7 10.67C7 8 5.58 5.97 2.73 5.5c-1 1.5-1 5 .5 8 1.5 3 3.5 3.5 3.77 3.5a8.23 8.23 0 0 1 0-6.33Z"/><path d="M10.46 7.26C10.2 5.88 9.17 4.24 8 3h5.8a2 2 0 0 1 1.98 1.67l.23 1.4"/><path d="m16.01 17.93-.23 1.4A2 2 0 0 1 13.8 21H9.5a5.96 5.96 0 0 1 1.49-3.98"/></svg>,
-    },
   ]
 
 
@@ -958,11 +806,12 @@ export default function App() {
     <>
     <Routes>
       <Route path="/"              element={<SNZHub />} />
-      <Route path="/fish-id"       element={<FishIDPage />} />
       <Route path="/records"       element={<NZRecordsPage />} />
       <Route path="/apply"         element={<RecordApplication />} />
       <Route path="/records/admin"   element={<ProtectedRoute><RecordsAdmin /></ProtectedRoute>} />
       <Route path="/records/admin/archive/:id" element={<ProtectedRoute><ApplicationArchive /></ProtectedRoute>} />
+      <Route path="/fish-id"         element={<FishIDPage />} />
+      <Route path="/fish-id/admin"   element={<ProtectedRoute><FishSpeciesAdmin /></ProtectedRoute>} />
       <Route path="/awards"        element={<AwardsPage />} />
       <Route path="/news"          element={<NewsPage />} />
       <Route path="/leaderboard"   element={<PublicLeaderboard />} />
