@@ -125,13 +125,19 @@ export default function FishIDPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div style={{ background: SNZ_DARK }} className="px-6 py-3 flex items-center border-b border-blue-900">
-        <button onClick={() => navigate('/')}
+      <div style={{ background: SNZ_DARK }} className="px-6 py-3 flex items-center justify-between border-b border-blue-900">
+        <div className="flex items-center">
+          <button onClick={() => navigate('/')}
+            className="flex items-center gap-1.5 text-white font-bold text-sm bg-white/15 hover:bg-white/25 px-3 py-1.5 rounded-lg transition">
+            ← Home
+          </button>
+          <span className="text-white/50 mx-2">/</span>
+          <span className="text-white font-bold text-sm">Fish ID</span>
+        </div>
+        <button onClick={() => navigate('/fish-id/admin')}
           className="flex items-center gap-1.5 text-white font-bold text-sm bg-white/15 hover:bg-white/25 px-3 py-1.5 rounded-lg transition">
-          ← Home
+          ⚙ Admin
         </button>
-        <span className="text-white/50 mx-2">/</span>
-        <span className="text-white font-bold text-sm">Fish ID</span>
       </div>
 
       <div className="max-w-lg mx-auto px-4 py-8 space-y-5">
