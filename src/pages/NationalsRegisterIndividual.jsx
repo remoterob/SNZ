@@ -45,8 +45,8 @@ function resolveFeeCents(eventId, categoryFees, isEarlyBird) {
   if (!categoryFees) return null
   const ev = categoryFees[eventId]
   if (!ev) return 0
-  if (isEarlyBird && ev.early_bird_cents != null) return ev.early_bird_cents
-  return ev.cents || 0
+  if (isEarlyBird && ev.early_bird != null) return ev.early_bird
+  return ev.standard ?? 0
 }
 
 export default function NationalsRegisterIndividual() {
@@ -66,6 +66,11 @@ export default function NationalsRegisterIndividual() {
   // Safety diver (optional)
   const [safetyName, setSafetyName] = useState('')
   const [safetyContact, setSafetyContact] = useState('')
+
+  // Merch & meal
+  const [jacket, setJacket] = useState({ gender: '', size: '' })
+  const [shirt, setShirt] = useState({ gender: '', size: '' })
+  const [mealQty, setMealQty] = useState(0)
 
   // Safety & compliance
   const [emergencyContact, setEmergencyContact] = useState('')
@@ -99,14 +104,20 @@ export default function NationalsRegisterIndividual() {
 
   const getFee = (eventId) => resolveFeeCents(eventId, categoryFees, isEarlyBird)
 
+  const hasAnySelection = Object.values(selected).some(v => v)
+  const hasTBCFees = categoryFees === null
+
+  const getMerchFee = (type) => categoryFees?.merch?.[type]?.price ?? null
+  const getMealFee = () => categoryFees?.meal?.price ?? null
+
   const totalCents = INDIVIDUAL_EVENTS.reduce((sum, e) => {
     if (!selected[e.id]) return sum
     const fee = getFee(e.id)
     return sum + (fee || 0)
   }, 0)
-
-  const hasAnySelection = Object.values(selected).some(v => v)
-  const hasTBCFees = categoryFees === null
+    + (getMerchFee('jacket') && jacket.gender && jacket.size ? getMerchFee('jacket') : 0)
+    + (getMerchFee('shirt') && shirt.gender && shirt.size ? getMerchFee('shirt') : 0)
+    + (getMealFee() && mealQty > 0 ? getMealFee() * mealQty : 0)
 
   const fmtCents = (c) => c == null ? 'TBC' : `$${(c / 100).toFixed(2)}`
 
@@ -154,6 +165,11 @@ export default function NationalsRegisterIndividual() {
           status: 'pending_payment',
           nationals_event: nationalsEvent,
           entry_fee_cents: totalCents,
+          merch_d1: {
+            jacket: jacket.gender && jacket.size ? jacket : null,
+            shirt: shirt.gender && shirt.size ? shirt : null,
+            meal_qty: mealQty > 0 ? mealQty : 0,
+          },
         })
         .select('id')
         .single()
@@ -321,6 +337,106 @@ export default function NationalsRegisterIndividual() {
             </div>
           </div>
         </div>
+
+        {/* Merch & Meal */}
+        {(categoryFees?.merch || categoryFees?.meal) && (
+          <div className="bg-white border border-gray-200 rounded-2xl p-5 space-y-4">
+            <div>
+              <h2 className="font-black text-gray-900 text-sm uppercase tracking-widest" style={{ color: SNZ_BLUE }}>Merchandise & Meal</h2>
+              <p className="text-xs text-gray-400 mt-0.5">Optional — ordered and paid for with your entry.</p>
+            </div>
+
+            {categoryFees?.merch?.jacket && (
+              <div className="border border-gray-200 rounded-xl p-4 space-y-3">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <p className="font-bold text-gray-900 text-sm">🧥 Event Jacket</p>
+                    <p className="text-xs text-gray-400">SNZ Nationals 2027 jacket</p>
+                  </div>
+                  <p className="font-black text-gray-900 text-sm">${(categoryFees.merch.jacket.price / 100).toFixed(2)}</p>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Gender fit</label>
+                    <select value={jacket.gender} onChange={e => setJacket(j => ({ ...j, gender: e.target.value }))}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300">
+                      <option value="">No jacket</option>
+                      <option value="Male">Male</option>
+                      <option value="Female">Female</option>
+                    </select>
+                  </div>
+                  {jacket.gender && (
+                    <div>
+                      <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Size</label>
+                      <select value={jacket.size} onChange={e => setJacket(j => ({ ...j, size: e.target.value }))}
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300">
+                        <option value="">Select size</option>
+                        {['XS','S','M','L','XL','2XL','3XL','4XL'].map(s => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {categoryFees?.merch?.shirt && (
+              <div className="border border-gray-200 rounded-xl p-4 space-y-3">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <p className="font-bold text-gray-900 text-sm">👕 Event T-Shirt</p>
+                    <p className="text-xs text-gray-400">SNZ Nationals 2027 t-shirt</p>
+                  </div>
+                  <p className="font-black text-gray-900 text-sm">${(categoryFees.merch.shirt.price / 100).toFixed(2)}</p>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Gender fit</label>
+                    <select value={shirt.gender} onChange={e => setShirt(s => ({ ...s, gender: e.target.value }))}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300">
+                      <option value="">No shirt</option>
+                      <option value="Male">Male</option>
+                      <option value="Female">Female</option>
+                    </select>
+                  </div>
+                  {shirt.gender && (
+                    <div>
+                      <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Size</label>
+                      <select value={shirt.size} onChange={e => setShirt(s => ({ ...s, size: e.target.value }))}
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300">
+                        <option value="">Select size</option>
+                        {['XS','S','M','L','XL','2XL','3XL','4XL'].map(s => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {categoryFees?.meal && (
+              <div className="border border-gray-200 rounded-xl p-4">
+                <div className="flex justify-between items-center mb-3">
+                  <div>
+                    <p className="font-bold text-gray-900 text-sm">🍽️ Prize Giving Dinner</p>
+                    <p className="text-xs text-gray-400">${(categoryFees.meal.price / 100).toFixed(2)} per person — order for family &amp; friends too</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Tickets</label>
+                  <div className="flex items-center gap-2">
+                    <button type="button" onClick={() => setMealQty(q => Math.max(0, q - 1))} disabled={mealQty === 0}
+                      className="w-8 h-8 rounded-lg border border-gray-300 text-gray-600 font-bold text-lg flex items-center justify-center hover:bg-gray-50 disabled:opacity-30">−</button>
+                    <span className="w-8 text-center font-black text-gray-900">{mealQty}</span>
+                    <button type="button" onClick={() => setMealQty(q => q + 1)}
+                      className="w-8 h-8 rounded-lg border border-gray-300 text-gray-600 font-bold text-lg flex items-center justify-center hover:bg-gray-50">+</button>
+                  </div>
+                  {mealQty > 0 && (
+                    <span className="text-sm font-bold text-gray-700 ml-2">${(categoryFees.meal.price * mealQty / 100).toFixed(2)}</span>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Safety & Compliance */}
         <div className="bg-white border border-gray-200 rounded-2xl p-5 space-y-4">
