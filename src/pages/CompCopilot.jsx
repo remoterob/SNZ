@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 
 const SNZ_BLUE = '#2B6CB0'
 const SNZ_DARK = '#1e3a5f'
@@ -21,6 +21,15 @@ const COMPETITOR_QUICK_ACTIONS = [
   { id: 'area', label: '🗺️ Competition area', prompt: 'How does the competition area work? Where do we start and finish, what are the boundaries, and what are the rules about boats?' },
 ]
 
+function getSessionId() {
+  let id = sessionStorage.getItem('snz_analytics_session')
+  if (!id) {
+    id = crypto.randomUUID()
+    sessionStorage.setItem('snz_analytics_session', id)
+  }
+  return id
+}
+
 export default function CompCopilot({ competitionId, competitionName, isOpen, onClose, mode = 'admin' }) {
   const isCompetitor = mode === 'competitor'
   const [messages, setMessages] = useState([])
@@ -29,6 +38,7 @@ export default function CompCopilot({ competitionId, competitionName, isOpen, on
   const [error, setError] = useState('')
   const messagesEndRef = useRef(null)
   const inputRef = useRef(null)
+  const pendingQuickActionId = useRef(null)
 
   // Welcome message on first open
   useEffect(() => {
@@ -44,7 +54,7 @@ export default function CompCopilot({ competitionId, competitionName, isOpen, on
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, loading])
 
-  const send = async (text) => {
+  const send = async (text, quickActionId = null) => {
     const userMessage = text.trim()
     if (!userMessage || loading) return
     setInput('')
@@ -61,6 +71,8 @@ export default function CompCopilot({ competitionId, competitionName, isOpen, on
         body: JSON.stringify({
           competitionId,
           mode,
+          sessionId: getSessionId(),
+          quickActionId: quickActionId || null,
           messages: newMessages.map(m => ({ role: m.role, content: m.content })),
         }),
       })
@@ -127,7 +139,7 @@ export default function CompCopilot({ competitionId, competitionName, isOpen, on
         <div className="border-t border-gray-200 px-3 py-2 bg-white flex-shrink-0">
           <div className="flex gap-1.5 overflow-x-auto pb-1">
             {(isCompetitor ? COMPETITOR_QUICK_ACTIONS : ADMIN_QUICK_ACTIONS).map(a => (
-              <button key={a.id} onClick={() => send(a.prompt)} disabled={loading}
+              <button key={a.id} onClick={() => send(a.prompt, a.id)} disabled={loading}
                 className="flex-shrink-0 text-xs font-bold px-3 py-1.5 rounded-full border border-gray-300 text-gray-700 hover:bg-gray-50 whitespace-nowrap disabled:opacity-50">
                 {a.label}
               </button>

@@ -31,6 +31,7 @@ import ApplicationArchive from './pages/ApplicationArchive'
 import RecordsAdmin from './pages/RecordsAdmin'
 import FishIDPage from './pages/FishIDPage'
 import FishSpeciesAdmin from './pages/FishSpeciesAdmin'
+import AnalyticsDashboard from './pages/AnalyticsDashboard'
 
 function ProtectedRoute({ children }) {
   const location = useLocation()
@@ -840,6 +841,7 @@ export default function App() {
       <Route path="/checkin"       element={<CheckInDisplay />} />
       <Route path="/admin/login"   element={<AdminLogin />} />
       <Route path="/admin"         element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
+      <Route path="/admin/analytics" element={<ProtectedRoute><AnalyticsDashboard /></ProtectedRoute>} />
       <Route path="/admin/teams"   element={<ProtectedRoute><TeamManagement /></ProtectedRoute>} />
       <Route path="/admin/weighin" element={<ProtectedRoute><WeighmasterInterface /></ProtectedRoute>} />
       <Route path="/admin/results" element={<ProtectedRoute><ResultsManagement /></ProtectedRoute>} />

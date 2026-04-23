@@ -133,7 +133,7 @@ exports.handler = async (event) => {
   }
 
   try {
-    const { competitionId, messages, mode } = JSON.parse(event.body || '{}')
+    const { competitionId, messages, mode, sessionId, quickActionId } = JSON.parse(event.body || '{}')
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       return { statusCode: 400, body: JSON.stringify({ error: 'No messages provided' }) }
     }
@@ -326,6 +326,7 @@ Help club organisers with:
 - Always ground advice in the specific competition context provided above
 - If competition details are missing something important, flag it (e.g. "You haven't set an entry fee yet — worth confirming before promoting")`
 
+    const callStart = Date.now()
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), 22000) // 22s — leave buffer before 26s Netlify limit
 
@@ -338,7 +339,7 @@ Help club organisers with:
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-5-20250929',
+        model: 'claude-haiku-4-5-20251001',
         max_tokens: 1024,
         system: [
           { type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } },
@@ -362,6 +363,21 @@ Help club organisers with:
     const data = await res.json()
     const textBlock = data.content?.find(c => c.type === 'text')
     const reply = textBlock?.text?.trim() || '(no response)'
+
+    // Log the conversation turn — fire and forget
+    if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      const supabaseLog = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
+      const userMessage = messages[messages.length - 1]
+      supabaseLog.from('copilot_events').insert({
+        mode: mode || 'admin',
+        competition_id: competitionId || null,
+        session_id: sessionId || null,
+        question: userMessage?.content || '',
+        response_length_chars: reply.length,
+        quick_action_id: quickActionId || null,
+        response_time_ms: Date.now() - callStart,
+      }).then(() => {})
+    }
 
     return {
       statusCode: 200,

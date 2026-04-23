@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { clearAdminSession } from '../lib/supabase'
-import { Users, Scale, FileText, Trophy } from 'lucide-react'
+import { Users, Scale, FileText, Trophy, BarChart2 } from 'lucide-react'
 
 const SNZ_LOGO = import.meta.env.VITE_SNZ_LOGO_URL || '/api/placeholder/200/80'
 
@@ -47,6 +47,13 @@ export default function AdminDashboard() {
       icon: FileText,
       path: '/',
       color: 'bg-purple-500'
+    },
+    {
+      title: 'Analytics',
+      description: 'Page views, copilot usage, quick actions',
+      icon: BarChart2,
+      path: '/admin/analytics',
+      color: 'bg-indigo-500'
     }
   ]
 
