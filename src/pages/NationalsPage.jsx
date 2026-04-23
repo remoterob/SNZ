@@ -137,8 +137,15 @@ export default function NationalsPage() {
   const [activeTab, setActiveTab] = useState('overview')
 
   useEffect(() => {
-    // TODO: fetch from nationals table once created
-    setLoading(false)
+    supabase
+      .from('competitions')
+      .select('id, name, status, registration_cutoff, early_bird_cutoff')
+      .ilike('name', '%nationals%2027%')
+      .maybeSingle()
+      .then(({ data }) => {
+        setNationals(data)
+        setLoading(false)
+      })
   }, [])
 
   return (
@@ -182,9 +189,16 @@ export default function NationalsPage() {
             className="px-6 py-2.5 rounded-xl font-bold text-sm text-white border-2 border-white/40 hover:bg-white/10 transition">
             View Events
           </button>
-          <div className="px-6 py-2.5 rounded-xl text-sm font-black text-white/60 border-2 border-white/20 cursor-default">
-            🔒 Registration Opens Soon
-          </div>
+          {nationals?.status === 'open' ? (
+            <button onClick={() => navigate('/nationals/register')}
+              className="px-6 py-2.5 rounded-xl text-sm font-black text-white border-2 border-white/40 hover:bg-white/10 transition">
+              Register Now →
+            </button>
+          ) : (
+            <div className="px-6 py-2.5 rounded-xl text-sm font-black text-white/60 border-2 border-white/20 cursor-default">
+              🔒 Registration Opens Soon
+            </div>
+          )}
         </div>
       </div>
 
@@ -333,16 +347,26 @@ export default function NationalsPage() {
                   <li>• Merch orders can be placed at registration</li>
                 </ul>
               </div>
-              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
-                <p className="text-sm font-black text-amber-800">🗓 Registration opening date TBC — event 19–24 January 2027</p>
-                <p className="text-xs text-amber-700 mt-1">Make sure your SNZ membership is active so you're ready to register the moment entries open.</p>
-              </div>
-              {!session && (
-                <button onClick={() => navigate('/membership')}
-                  className="w-full mt-4 py-3 rounded-xl font-black text-white text-sm"
+              {nationals?.status === 'open' ? (
+                <button onClick={() => navigate('/nationals/register')}
+                  className="w-full py-3 rounded-xl font-black text-white text-sm"
                   style={{ background: SNZ_BLUE }}>
-                  Join SNZ Now — Be Ready to Enter →
+                  Register Your Team →
                 </button>
+              ) : (
+                <>
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+                    <p className="text-sm font-black text-amber-800">🗓 Registration opening date TBC — event 19–24 January 2027</p>
+                    <p className="text-xs text-amber-700 mt-1">Make sure your SNZ membership is active so you're ready to register the moment entries open.</p>
+                  </div>
+                  {!session && (
+                    <button onClick={() => navigate('/membership')}
+                      className="w-full mt-4 py-3 rounded-xl font-black text-white text-sm"
+                      style={{ background: SNZ_BLUE }}>
+                      Join SNZ Now — Be Ready to Enter →
+                    </button>
+                  )}
+                </>
               )}
             </div>
 
