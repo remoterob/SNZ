@@ -190,10 +190,16 @@ export default function NationalsPage() {
             View Events
           </button>
           {nationals?.status === 'open' ? (
-            <button onClick={() => navigate('/nationals/register')}
-              className="px-6 py-2.5 rounded-xl text-sm font-black text-white border-2 border-white/40 hover:bg-white/10 transition">
-              Register Now →
-            </button>
+            <>
+              <button onClick={() => navigate('/nationals/register')}
+                className="px-6 py-2.5 rounded-xl text-sm font-black text-white border-2 border-white/40 hover:bg-white/10 transition">
+                Register Team →
+              </button>
+              <button onClick={() => navigate('/nationals/register/individual')}
+                className="px-6 py-2.5 rounded-xl text-sm font-bold text-white border-2 border-white/30 hover:bg-white/10 transition">
+                Individual Entry →
+              </button>
+            </>
           ) : (
             <div className="px-6 py-2.5 rounded-xl text-sm font-black text-white/60 border-2 border-white/20 cursor-default">
               🔒 Registration Opens Soon

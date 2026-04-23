@@ -187,6 +187,27 @@ export default function NationalsRegisterIndividual() {
   if (loading) return <div className="min-h-screen flex items-center justify-center text-gray-400">Loading…</div>
   if (!comp) return <div className="min-h-screen flex items-center justify-center text-gray-400">Competition not found.</div>
 
+  if (comp.status !== 'open') {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <div style={{ background: SNZ_DARK }} className="px-6 py-3 flex items-center border-b border-blue-900">
+          <button onClick={() => navigate('/nationals')}
+            className="flex items-center gap-1.5 text-white font-bold text-sm bg-white/15 hover:bg-white/25 px-3 py-1.5 rounded-lg transition">
+            ← Nationals
+          </button>
+        </div>
+        <div className="max-w-md mx-auto px-4 py-12 text-center">
+          <p className="text-4xl mb-4">🔒</p>
+          <h1 className="text-xl font-black text-gray-900 mb-2">Registration not yet open</h1>
+          <p className="text-gray-500 text-sm">Entries for the 2027 Nationals will open soon. Make sure your SNZ membership is active so you're ready to register the moment entries open.</p>
+          <button onClick={() => navigate('/nationals')} className="mt-6 px-5 py-2.5 rounded-xl font-bold text-white text-sm" style={{ background: SNZ_BLUE }}>
+            Back to Nationals
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   if (!session) {
     return (
       <MemberAuthGate
