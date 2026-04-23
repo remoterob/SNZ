@@ -57,12 +57,28 @@ export default function AnalyticsDashboard() {
     const since = new Date(Date.now() - parseInt(range) * 24 * 60 * 60 * 1000).toISOString()
     setLoading(true)
 
-    Promise.all([
-      supabase.from('copilot_events').select('*').gte('created_at', since).order('created_at', { ascending: false }),
-      supabase.from('page_views').select('*').gte('created_at', since).order('created_at', { ascending: false }),
-    ]).then(([copilotRes, pageRes]) => {
-      setCopilotEvents(copilotRes.data || [])
-      setPageViews(pageRes.data || [])
+    async function fetchAll(table) {
+      const PAGE = 100
+      let all = []
+      let from = 0
+      while (true) {
+        const { data, error } = await supabase
+          .from(table)
+          .select('*')
+          .gte('created_at', since)
+          .order('created_at', { ascending: false })
+          .range(from, from + PAGE - 1)
+        if (error || !data?.length) break
+        all = all.concat(data)
+        if (data.length < PAGE) break
+        from += PAGE
+      }
+      return all
+    }
+
+    Promise.all([fetchAll('copilot_events'), fetchAll('page_views')]).then(([copilotData, pageData]) => {
+      setCopilotEvents(copilotData)
+      setPageViews(pageData)
       setLoading(false)
     })
   }, [range])
