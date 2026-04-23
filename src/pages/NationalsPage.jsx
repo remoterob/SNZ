@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useMemberSession } from '../components/MemberAuthGate'
+import CompCopilotFAB from './CompCopilotFAB'
 
 const SNZ_BLUE = '#2B6CB0'
 const SNZ_DARK = '#1e3a5f'
@@ -407,6 +408,7 @@ export default function NationalsPage() {
         )}
 
       </div>
+      <CompCopilotFAB competitionId={nationals?.id} competitionName={nationals?.name || 'SNZ Nationals 2027'} mode="competitor" />
     </div>
   )
 }
