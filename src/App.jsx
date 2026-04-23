@@ -22,6 +22,7 @@ import CompAdmin from './pages/CompAdmin'
 import NationalsPage from './pages/NationalsPage'
 import NationalsAdmin from './pages/NationalsAdmin'
 import NationalsRegister from './pages/NationalsRegister'
+import NationalsRegisterIndividual from './pages/NationalsRegisterIndividual'
 import NationalsConfirm from './pages/NationalsConfirm'
 import CatfishCullPage from './pages/CatfishCullPage'
 import CompSuperAdmin from './pages/CompSuperAdmin'
@@ -828,6 +829,7 @@ export default function App() {
       <Route path="/nationals"              element={<NationalsPage />} />
       <Route path="/nationals/admin"         element={<ProtectedRoute><NationalsAdmin /></ProtectedRoute>} />
       <Route path="/nationals/register"      element={<NationalsRegister />} />
+      <Route path="/nationals/register/individual" element={<NationalsRegisterIndividual />} />
       <Route path="/nationals/confirm"       element={<NationalsConfirm />} />
       <Route path="/competitions"           element={<CompetitionsPage />} />
       <Route path="/competitions/admin"     element={<CompSuperAdmin />} />

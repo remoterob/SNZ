@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useMemberSession } from '../components/MemberAuthGate'
-import CompCopilotFAB from './CompCopilotFAB'
 
 const SNZ_BLUE = '#2B6CB0'
 const SNZ_DARK = '#1e3a5f'
@@ -27,7 +26,7 @@ const SUB_EVENTS = [
   {
     id: 'womens',
     name: "Women's Championship",
-    emoji: '🔱',
+    emoji: '🌸',
     description: "A dedicated championship for women's competitors, run as a separate event to the Open. At least one rest day is scheduled between the Women's event and the Open Championship.",
     format: 'Pairs · 1 day · Standard SNZ scoring',
     prizes: 'Eddie Davidson Cup (1st — NZ Women\'s Champion) · GHB Cup (2nd)',
@@ -53,20 +52,6 @@ const SUB_EVENTS = [
     borderColor: '#ddd6fe',
   },
   {
-    id: 'goldenoldie',
-    name: 'Golden Oldie',
-    emoji: '🎖️',
-    description: 'A standalone boat-based competition on its own day for veteran competitors. Pairs compete for a dedicated species list confirmed prior to the event.',
-    format: 'Pairs · Boat competition · Dedicated event day · Species list confirmed prior',
-    prizes: 'Golden Oldie Trophy — TBC',
-    eligibility: 'Both divers must be aged 60+ on the day of competition.',
-    baseFee: false,
-    feeCents: 0,
-    color: '#d97706',
-    bgColor: '#fffbeb',
-    borderColor: '#fde68a',
-  },
-  {
     id: 'photography',
     name: 'Snorkel Photography',
     emoji: '📸',
@@ -80,21 +65,6 @@ const SUB_EVENTS = [
     color: '#0891b2',
     bgColor: '#ecfeff',
     borderColor: '#a5f3fc',
-  },
-  {
-    id: 'under23',
-    name: 'Under 23 Division',
-    emoji: '🎯',
-    description: 'For competitors aged 18–22 on the day of competition. An individual division scored separately from the Open — enter as a diver within your Open team.',
-    format: 'Individual · Per diver · Must be 18–22 on day of competition',
-    prizes: 'Under 23 Trophy — TBC',
-    eligibility: 'Aged 18–22 on 19 January 2027.',
-    baseFee: false,
-    feeCents: 0,
-    perDiver: true,
-    color: '#7c3aed',
-    bgColor: '#faf5ff',
-    borderColor: '#ddd6fe',
   },
   {
     id: 'finswim',
@@ -118,13 +88,28 @@ const SUB_EVENTS = [
     description: 'Scored from the Open Spearfishing Competition. If a team member is 50 years of age or over at the time of competition, they are eligible. That individual\'s team score is used as the basis. If both members are over 50, the award goes to both.',
     format: 'Included with Open entry — scored from Open results · No additional fee',
     prizes: 'Silver Oldie Trophy',
-    eligibility: 'At least one diver aged 50+ on day of competition.',
+    eligibility: 'At least one diver aged 50+ on day of competition. Cannot compete in both Silver and Golden Oldie.',
     baseFee: false,
     feeCents: 0,
     autoQualify: true,
     color: '#6b7280',
     bgColor: '#f9fafb',
     borderColor: '#e5e7eb',
+  },
+  {
+    id: 'goldenoldie',
+    name: 'Golden Oldie',
+    emoji: '🎖️',
+    description: 'Same conditions as Silver Oldie but for competitors aged 60 and over. Proving that experience beats youth — these competitors bring decades of knowledge and technique.',
+    format: 'Included with Open entry — scored from Open results · No additional fee',
+    prizes: 'Golden Oldie Cup — Timbs & Davidson (60 years of age and over)',
+    eligibility: 'At least one diver aged 60+ on day of competition. Cannot compete in both Silver and Golden Oldie.',
+    baseFee: false,
+    feeCents: 0,
+    autoQualify: true,
+    color: '#d97706',
+    bgColor: '#fffbeb',
+    borderColor: '#fde68a',
   },
   {
     id: 'superdiver',
@@ -147,43 +132,13 @@ const SUB_EVENTS = [
 export default function NationalsPage() {
   const navigate = useNavigate()
   const { member, session } = useMemberSession()
-  const [comp, setComp] = useState(null)
+  const [nationals, setNationals] = useState(null)
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('overview')
 
-  // Resolve per-person fee from live DB data
-  const isEarlyBird = comp?.early_bird_cutoff ? new Date() < new Date(comp.early_bird_cutoff) : false
-  const categoryFees = comp?.category_fees || null
-
-  const getFeeCents = (eventId) => {
-    if (!categoryFees) return null // null = TBC
-    const ev = categoryFees[eventId]
-    if (!ev) return 0
-    if (isEarlyBird && ev.early_bird != null) return ev.early_bird
-    return ev.standard ?? 0
-  }
-
-  const feeLabel = (eventId, autoQualify) => {
-    if (autoQualify) return 'No additional fee — included with Open entry'
-    const f = getFeeCents(eventId)
-    if (f === null) return 'Entry fee: TBC — register early for best price'
-    if (f === 0) return 'No entry fee'
-    const amt = `$${(f / 100).toFixed(2)} per person`
-    if (isEarlyBird) return `🐦 Early bird: ${amt}`
-    return `Entry fee: ${amt}`
-  }
-
   useEffect(() => {
-    const fetchComp = async () => {
-      const { data } = await supabase
-        .from('competitions')
-        .select('id, name, status, registration_cutoff, early_bird_cutoff, category_fees')
-        .ilike('name', '%nationals%2027%')
-        .maybeSingle()
-      setComp(data)
-      setLoading(false)
-    }
-    fetchComp()
+    // TODO: fetch from nationals table once created
+    setLoading(false)
   }, [])
 
   return (
@@ -227,16 +182,9 @@ export default function NationalsPage() {
             className="px-6 py-2.5 rounded-xl font-bold text-sm text-white border-2 border-white/40 hover:bg-white/10 transition">
             View Events
           </button>
-          {comp?.status === 'open' ? (
-            <button onClick={() => navigate('/nationals/register')}
-              className="px-6 py-2.5 rounded-xl font-black text-sm text-white border-2 border-white hover:bg-white/10 transition">
-              Register Now →
-            </button>
-          ) : (
-            <div className="px-6 py-2.5 rounded-xl text-sm font-black text-white/60 border-2 border-white/20 cursor-default">
-              🔒 Registration Opens Soon
-            </div>
-          )}
+          <div className="px-6 py-2.5 rounded-xl text-sm font-black text-white/60 border-2 border-white/20 cursor-default">
+            🔒 Registration Opens Soon
+          </div>
         </div>
       </div>
 
@@ -349,13 +297,12 @@ export default function NationalsPage() {
                   </div>
                   <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-1">
                     <p className="text-xs font-bold text-amber-700">
-                      {feeLabel(ev.id, ev.autoQualify)}
+                      {ev.feeCents > 0
+                        ? `Entry fee: $${(ev.feeCents/100).toFixed(2)} ${ev.perDiver ? 'per diver' : 'per team'}`
+                        : `Entry fee: TBC${ev.perDiver ? ' · charged per diver' : ' · charged per team'}`}
                     </p>
-                    {!ev.autoQualify && isEarlyBird && comp?.early_bird_cutoff && (
-                      <p className="text-xs text-amber-600">Early bird closes {new Date(comp.early_bird_cutoff).toLocaleDateString('en-NZ', {day:'numeric',month:'long',year:'numeric'})}</p>
-                    )}
-                    {!ev.autoQualify && !isEarlyBird && !categoryFees && (
-                      <p className="text-xs text-amber-600">🐦 Early bird pricing coming — register early to save.</p>
+                    {ev.earlyBird && (
+                      <p className="text-xs text-amber-600">🐦 Early bird discounts will be available — watch this space.</p>
                     )}
                   </div>
                 </div>
@@ -369,67 +316,54 @@ export default function NationalsPage() {
           <div className="space-y-4">
             <div className="bg-white border border-gray-200 rounded-2xl p-6">
               <h2 className="text-xl font-black text-gray-900 mb-2">Team Registration</h2>
+              <p className="text-gray-500 text-sm leading-relaxed mb-4">
+                Registration for the 2027 Nationals will open soon. When it opens, both divers must be active paid SNZ members to register.
+                You'll select your events and pay the combined entry fee in a single checkout.
+              </p>
               <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4">
                 <p className="text-sm font-black text-blue-900 mb-1">How entry works</p>
                 <ul className="text-sm text-blue-800 space-y-1.5">
                   <li>• Both divers must be active SNZ members ($10/year)</li>
                   <li>• Pick and mix — enter any events you want, no minimum</li>
-                  <li>• All events are charged per person</li>
-                  <li>• Silver Oldie and Super Diver are free — auto-qualify from your Open entry</li>
-                  <li>• Your partner will receive an invite to confirm and pay their own entry</li>
-                  {isEarlyBird && comp?.early_bird_cutoff && (
-                    <li className="font-bold text-amber-700">🐦 Early bird pricing active — closes {new Date(comp.early_bird_cutoff).toLocaleDateString('en-NZ', {day:'numeric',month:'long'})}</li>
-                  )}
+                  <li>• Juniors/Women's, Over 60s, and Open are selected per team</li>
+                  <li>• 📸 Photography and 🐟 Fin Swim are per diver — one or both can enter independently</li>
+                  <li>• You only pay for the events you choose</li>
+                  <li>• One Stripe payment covers your full entry</li>
+                  <li>• 🐦 Early bird pricing will be available — register early to save</li>
+                  <li>• Merch orders can be placed at registration</li>
                 </ul>
               </div>
-              {comp?.status === 'open' ? (
-                <button onClick={() => navigate('/nationals/register')}
-                  className="w-full py-3 rounded-xl font-black text-white text-sm"
-                  style={{ background: SNZ_BLUE }}>
-                  Register Now →
-                </button>
-              ) : (
-                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
-                  <p className="text-sm font-black text-amber-800">🗓 Registration opening soon — event 19–24 January 2027</p>
-                  <p className="text-xs text-amber-700 mt-1">Make sure your SNZ membership is active so you're ready to register the moment entries open.</p>
-                </div>
-              )}
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+                <p className="text-sm font-black text-amber-800">🗓 Registration opening date TBC — event 19–24 January 2027</p>
+                <p className="text-xs text-amber-700 mt-1">Make sure your SNZ membership is active so you're ready to register the moment entries open.</p>
+              </div>
               {!session && (
                 <button onClick={() => navigate('/membership')}
-                  className="w-full mt-3 py-3 rounded-xl font-black text-white text-sm"
+                  className="w-full mt-4 py-3 rounded-xl font-black text-white text-sm"
                   style={{ background: SNZ_BLUE }}>
                   Join SNZ Now — Be Ready to Enter →
                 </button>
               )}
             </div>
 
-            {/* Live fee summary */}
-            {categoryFees && (
-              <div className="bg-white border border-gray-200 rounded-2xl p-5">
-                <h3 className="font-black text-gray-900 text-sm mb-3">2027 Entry Fees</h3>
-                <div className="space-y-2">
-                  {SUB_EVENTS.filter(e => !e.autoQualify).map(ev => {
-                    const f = getFeeCents(ev.id)
-                    return (
-                      <div key={ev.id} className="flex justify-between items-center py-1 border-b border-gray-50 last:border-0">
-                        <span className="text-sm text-gray-700">{ev.emoji} {ev.name}</span>
-                        <span className="text-sm font-bold text-gray-900">
-                          {f === null ? 'TBC' : f === 0 ? 'Free' : `$${(f/100).toFixed(2)} pp`}
-                          {isEarlyBird && f > 0 && <span className="ml-1 text-xs text-amber-600">🐦</span>}
-                        </span>
-                      </div>
-                    )
-                  })}
-                  <div className="flex justify-between items-center pt-1">
-                    <span className="text-sm text-gray-500">Silver Oldie, Super Diver</span>
-                    <span className="text-sm font-bold text-green-600">Free</span>
-                  </div>
-                </div>
-                {isEarlyBird && comp?.early_bird_cutoff && (
-                  <p className="text-xs text-amber-600 mt-3">🐦 Early bird prices end {new Date(comp.early_bird_cutoff).toLocaleDateString('en-NZ', {day:'numeric',month:'long',year:'numeric'})}</p>
-                )}
+            {/* Individual event entry */}
+            <div className="bg-white border border-gray-200 rounded-2xl p-6">
+              <h2 className="text-xl font-black text-gray-900 mb-2">Individual Event Entry</h2>
+              <p className="text-gray-500 text-sm leading-relaxed mb-4">
+                Not entering the Open? You can enter individual events (Women's, Juniors, Photography, Fin Swim, Under 23) on their own with an optional safety diver.
+              </p>
+              <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-xs text-gray-600 space-y-1.5 mb-4">
+                <p>• Pick one or more individual events</p>
+                <p>• Name a safety diver/observer (optional)</p>
+                <p>• Same per-event pricing as team entries</p>
+                <p>• SNZ membership still required</p>
               </div>
-            )}
+              <button onClick={() => navigate('/nationals/register/individual')}
+                className="w-full py-3 rounded-xl font-black text-white text-sm"
+                style={{ background: SNZ_BLUE }}>
+                Register for Individual Events →
+              </button>
+            </div>
           </div>
         )}
 
@@ -443,7 +377,6 @@ export default function NationalsPage() {
         )}
 
       </div>
-      <CompCopilotFAB competitionId={comp?.id} competitionName={comp?.name || 'SNZ Nationals 2027'} mode="competitor" />
     </div>
   )
 }

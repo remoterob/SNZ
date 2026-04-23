@@ -509,11 +509,22 @@ function RegistrationsTab({ teams, comp, loading, onRefresh }) {
                   <div className="flex items-center gap-2 flex-wrap mb-0.5">
                     <p className="font-black text-gray-900 text-sm">{team.team_name || '(no team name)'}</p>
                     <StatusBadge status={team.status} />
+                    {team.nationals_event?.is_individual && (
+                      <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-purple-100 text-purple-700">Individual</span>
+                    )}
                   </div>
                   <p className="text-xs text-gray-600">
                     <span className="font-semibold">{team._d1?.name || '—'}</span>
-                    {' & '}
-                    <span className="font-semibold">{team._d2?.name || team.diver2_email || '—'}</span>
+                    {team.nationals_event?.is_individual ? (
+                      team.nationals_event?.safety_diver_name && (
+                        <span className="text-gray-400"> · Safety: {team.nationals_event.safety_diver_name}{team.nationals_event?.safety_diver_contact ? ` (${team.nationals_event.safety_diver_contact})` : ''}</span>
+                      )
+                    ) : (
+                      <>
+                        {' & '}
+                        <span className="font-semibold">{team._d2?.name || team.diver2_email || '—'}</span>
+                      </>
+                    )}
                   </p>
 
                   {/* Payment status row */}
