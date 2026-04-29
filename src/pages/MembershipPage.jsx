@@ -827,6 +827,8 @@ function MyCompetitions({ session, memberId, member, showToast }) {
   const [buddyLookup, setBuddyLookup] = useState(null) // found member or null
   const [checkingBuddy, setCheckingBuddy] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [editingTeamName, setEditingTeamName] = useState(null) // team id
+  const [newTeamName, setNewTeamName] = useState('')
 
   const fetchEntries = async () => {
     if (!memberId) return
@@ -963,6 +965,19 @@ function MyCompetitions({ session, memberId, member, showToast }) {
     fetchEntries()
   }
 
+  const saveTeamName = async (team) => {
+    const name = newTeamName.trim()
+    if (!name) return
+    setSaving(true)
+    const { error } = await supabase.from('comp_teams').update({ team_name: name }).eq('id', team.id)
+    setSaving(false)
+    if (error) { showToast('Failed to update team name', 'error'); return }
+    showToast('Team name updated')
+    setEditingTeamName(null)
+    setNewTeamName('')
+    fetchEntries()
+  }
+
   const statusBadge = (team) => {
     if (team.status === 'active') return <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700">✓ Active</span>
     if (team.status === 'pending_payment') return <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700">⚠ Payment required</span>
@@ -988,6 +1003,7 @@ function MyCompetitions({ session, memberId, member, showToast }) {
             const comp = team.competition
             const cutoffPassed = isCutoffPassed(comp)
             const isChanging = changingBuddy === team.id
+            const isEditingName = editingTeamName === team.id
 
             return (
               <div key={team.id} className="px-5 py-4">
@@ -1021,6 +1037,37 @@ function MyCompetitions({ session, memberId, member, showToast }) {
                     : <span className="text-gray-400 italic">No partner</span>
                   }
                 </div>
+
+                {/* Team name */}
+                <div className="bg-gray-50 rounded-xl px-3 py-2 mb-3 text-xs">
+                  <span className="text-gray-500">Team name: </span>
+                  <span className="font-semibold text-gray-800">{team.team_name || <span className="italic text-gray-400">Not set</span>}</span>
+                </div>
+
+                {/* Team name edit form */}
+                {isEditingName ? (
+                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 mb-3">
+                    <p className="text-xs font-bold text-blue-800 mb-2">Enter new team name</p>
+                    <input
+                      type="text"
+                      value={newTeamName}
+                      onChange={e => setNewTeamName(e.target.value)}
+                      placeholder="Team name"
+                      maxLength={60}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300 mb-2"
+                    />
+                    <div className="flex gap-2">
+                      <button onClick={() => { setEditingTeamName(null); setNewTeamName('') }}
+                        className="flex-1 py-2 rounded-lg text-xs font-bold border border-gray-300 text-gray-600">Cancel</button>
+                      <button onClick={() => saveTeamName(team)}
+                        disabled={saving || !newTeamName.trim()}
+                        className="flex-1 py-2 rounded-lg text-xs font-bold text-white disabled:opacity-40"
+                        style={{ background: SNZ_BLUE }}>
+                        {saving ? 'Saving…' : 'Save'}
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
 
                 {/* Buddy change form */}
                 {isChanging ? (
@@ -1073,11 +1120,17 @@ function MyCompetitions({ session, memberId, member, showToast }) {
                 )}
 
                 {/* Actions */}
-                <div className="flex gap-2">
-                  {!cutoffPassed && !isChanging && team.status !== 'pending_payment' && (
+                <div className="flex gap-2 flex-wrap">
+                  {!cutoffPassed && !isChanging && !isEditingName && team.status !== 'pending_payment' && (
                     <button onClick={() => { setChangingBuddy(team.id); setNewBuddyEmail(''); setBuddyLookup(null) }}
                       className="px-3 py-1.5 rounded-lg text-xs font-bold border border-gray-300 text-gray-600 hover:bg-gray-50">
                       Change buddy
+                    </button>
+                  )}
+                  {!cutoffPassed && !isChanging && !isEditingName && team.status !== 'pending_payment' && (
+                    <button onClick={() => { setEditingTeamName(team.id); setNewTeamName(team.team_name || '') }}
+                      className="px-3 py-1.5 rounded-lg text-xs font-bold border border-gray-300 text-gray-600 hover:bg-gray-50">
+                      Edit team name
                     </button>
                   )}
                   {cutoffPassed && (
