@@ -829,6 +829,9 @@ function MyCompetitions({ session, memberId, member, showToast }) {
   const [saving, setSaving] = useState(false)
   const [editingTeamName, setEditingTeamName] = useState(null) // team id
   const [newTeamName, setNewTeamName] = useState('')
+  const [editingBoat, setEditingBoat] = useState(null) // team id
+  const [newBoatName, setNewBoatName] = useState('')
+  const [newBoatDetails, setNewBoatDetails] = useState('')
 
   const fetchEntries = async () => {
     if (!memberId) return
@@ -978,6 +981,21 @@ function MyCompetitions({ session, memberId, member, showToast }) {
     fetchEntries()
   }
 
+  const saveBoat = async (team) => {
+    setSaving(true)
+    const { error } = await supabase.from('comp_teams').update({
+      boat_name: newBoatName.trim() || null,
+      boat_details: newBoatDetails.trim() || null,
+    }).eq('id', team.id)
+    setSaving(false)
+    if (error) { showToast('Failed to update boat details', 'error'); return }
+    showToast('Boat details updated')
+    setEditingBoat(null)
+    setNewBoatName('')
+    setNewBoatDetails('')
+    fetchEntries()
+  }
+
   const statusBadge = (team) => {
     if (team.status === 'active') return <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700">✓ Active</span>
     if (team.status === 'pending_payment') return <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700">⚠ Payment required</span>
@@ -1004,6 +1022,7 @@ function MyCompetitions({ session, memberId, member, showToast }) {
             const cutoffPassed = isCutoffPassed(comp)
             const isChanging = changingBuddy === team.id
             const isEditingName = editingTeamName === team.id
+            const isEditingBoatDetails = editingBoat === team.id
 
             return (
               <div key={team.id} className="px-5 py-4">
@@ -1044,6 +1063,16 @@ function MyCompetitions({ session, memberId, member, showToast }) {
                   <span className="font-semibold text-gray-800">{team.team_name || <span className="italic text-gray-400">Not set</span>}</span>
                 </div>
 
+                {/* Boat */}
+                <div className="bg-gray-50 rounded-xl px-3 py-2 mb-3 text-xs">
+                  <span className="text-gray-500">Boat: </span>
+                  {team.boat_name
+                    ? <><span className="font-semibold text-gray-800">{team.boat_name}</span>
+                       {team.boat_details && <span className="text-gray-400"> · {team.boat_details}</span>}</>
+                    : <span className="italic text-gray-400">Not set</span>
+                  }
+                </div>
+
                 {/* Team name edit form */}
                 {isEditingName ? (
                   <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 mb-3">
@@ -1061,6 +1090,39 @@ function MyCompetitions({ session, memberId, member, showToast }) {
                         className="flex-1 py-2 rounded-lg text-xs font-bold border border-gray-300 text-gray-600">Cancel</button>
                       <button onClick={() => saveTeamName(team)}
                         disabled={saving || !newTeamName.trim()}
+                        className="flex-1 py-2 rounded-lg text-xs font-bold text-white disabled:opacity-40"
+                        style={{ background: SNZ_BLUE }}>
+                        {saving ? 'Saving…' : 'Save'}
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
+
+                {/* Boat edit form */}
+                {isEditingBoatDetails ? (
+                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 mb-3">
+                    <p className="text-xs font-bold text-blue-800 mb-2">Enter boat details</p>
+                    <input
+                      type="text"
+                      value={newBoatName}
+                      onChange={e => setNewBoatName(e.target.value)}
+                      placeholder="Boat name (e.g. Sea Breeze)"
+                      maxLength={80}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300 mb-2"
+                    />
+                    <input
+                      type="text"
+                      value={newBoatDetails}
+                      onChange={e => setNewBoatDetails(e.target.value)}
+                      placeholder="Details (e.g. 5m aluminium, reg. NZ1234)"
+                      maxLength={200}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300 mb-2"
+                    />
+                    <div className="flex gap-2">
+                      <button onClick={() => { setEditingBoat(null); setNewBoatName(''); setNewBoatDetails('') }}
+                        className="flex-1 py-2 rounded-lg text-xs font-bold border border-gray-300 text-gray-600">Cancel</button>
+                      <button onClick={() => saveBoat(team)}
+                        disabled={saving}
                         className="flex-1 py-2 rounded-lg text-xs font-bold text-white disabled:opacity-40"
                         style={{ background: SNZ_BLUE }}>
                         {saving ? 'Saving…' : 'Save'}
@@ -1121,16 +1183,22 @@ function MyCompetitions({ session, memberId, member, showToast }) {
 
                 {/* Actions */}
                 <div className="flex gap-2 flex-wrap">
-                  {!cutoffPassed && !isChanging && !isEditingName && team.status !== 'pending_payment' && (
+                  {!cutoffPassed && !isChanging && !isEditingName && !isEditingBoatDetails && team.status !== 'pending_payment' && (
                     <button onClick={() => { setChangingBuddy(team.id); setNewBuddyEmail(''); setBuddyLookup(null) }}
                       className="px-3 py-1.5 rounded-lg text-xs font-bold border border-gray-300 text-gray-600 hover:bg-gray-50">
                       Change buddy
                     </button>
                   )}
-                  {!cutoffPassed && !isChanging && !isEditingName && team.status !== 'pending_payment' && (
+                  {!cutoffPassed && !isChanging && !isEditingName && !isEditingBoatDetails && team.status !== 'pending_payment' && (
                     <button onClick={() => { setEditingTeamName(team.id); setNewTeamName(team.team_name || '') }}
                       className="px-3 py-1.5 rounded-lg text-xs font-bold border border-gray-300 text-gray-600 hover:bg-gray-50">
                       Edit team name
+                    </button>
+                  )}
+                  {!cutoffPassed && !isChanging && !isEditingName && !isEditingBoatDetails && team.status !== 'pending_payment' && (
+                    <button onClick={() => { setEditingBoat(team.id); setNewBoatName(team.boat_name || ''); setNewBoatDetails(team.boat_details || '') }}
+                      className="px-3 py-1.5 rounded-lg text-xs font-bold border border-gray-300 text-gray-600 hover:bg-gray-50">
+                      Edit boat
                     </button>
                   )}
                   {cutoffPassed && (

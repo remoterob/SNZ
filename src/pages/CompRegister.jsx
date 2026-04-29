@@ -200,6 +200,8 @@ export default function CompRegister() {
 
   const [teamName, setTeamName] = useState('')
   const [category, setCategory] = useState('Open')
+  const [boatName, setBoatName] = useState('')
+  const [boatDetails, setBoatDetails] = useState('')
   const [p1, setP1] = useState({ ...emptyMember })
   const [p2, setP2] = useState({ ...emptyMember })
   const [teamId, setTeamId] = useState(null)
@@ -331,6 +333,8 @@ export default function CompRegister() {
           diver2_member_id: diver2MemberId,
           diver2_email: p2.email?.trim().toLowerCase() || null,
           status: initialStatus,
+          boat_name: boatName.trim() || null,
+          boat_details: boatDetails.trim() || null,
         }).select('id').single()
       if (tErr) throw tErr
 
@@ -546,6 +550,18 @@ export default function CompRegister() {
                   <option key={c} value={c}>{c}</option>
                 ))}
               </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1">Boat name</label>
+              <input value={boatName} onChange={e => setBoatName(e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
+                placeholder="e.g. Sea Breeze" maxLength={80} />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-semibold text-gray-600 mb-1">Boat details</label>
+              <input value={boatDetails} onChange={e => setBoatDetails(e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
+                placeholder="e.g. 5m aluminium, reg. NZ1234" maxLength={200} />
             </div>
           </div>
         </div>}
