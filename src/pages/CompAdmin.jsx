@@ -1141,12 +1141,12 @@ function TeamsTab({ teams, members, weighins, comp, onRefresh, showToast }) {
   }
 
   const exportCSV = () => {
-    const rows = [['Team', 'Category', 'Registered', 'Diver 1', 'Email 1', 'Phone 1', 'Club 1', 'Gender 1', 'DOB 1', 'Emergency 1', 'Emergency Phone 1', 'Fit 1', 'Diver 2', 'Email 2', 'Phone 2', 'Club 2', 'Gender 2', 'DOB 2', 'Emergency 2', 'Emergency Phone 2', 'Fit 2']]
+    const rows = [['Team', 'Category', 'Boat Name', 'Boat Details', 'Registered', 'Diver 1', 'Email 1', 'Phone 1', 'Club 1', 'Gender 1', 'DOB 1', 'Emergency 1', 'Emergency Phone 1', 'Fit 1', 'Diver 2', 'Email 2', 'Phone 2', 'Club 2', 'Gender 2', 'DOB 2', 'Emergency 2', 'Emergency Phone 2', 'Fit 2']]
     teams.forEach(t => {
       const mems = members.filter(m => m.team_id === t.id)
       const [m1, m2] = [mems[0] || {}, mems[1] || {}]
       const esc = v => { const s = String(v||''); return s.includes(',') ? `"${s}"` : s }
-      rows.push([t.team_name, t.category, new Date(t.registered_at).toLocaleDateString('en-NZ'),
+      rows.push([t.team_name, t.category, t.boat_name, t.boat_details, new Date(t.registered_at).toLocaleDateString('en-NZ'),
         m1.name, m1.email, m1.phone, m1.club, m1.gender, m1.dob, m1.emergency_contact, m1.emergency_phone, m1.fit_to_dive ? 'Yes' : 'No',
         m2.name, m2.email, m2.phone, m2.club, m2.gender, m2.dob, m2.emergency_contact, m2.emergency_phone, m2.fit_to_dive ? 'Yes' : 'No',
       ].map(esc).join(','))
@@ -1245,6 +1245,13 @@ function TeamsTab({ teams, members, weighins, comp, onRefresh, showToast }) {
               {/* Expanded member details */}
               {isExpanded && (
                 <div className="border-t border-gray-100 px-4 py-4 bg-gray-50">
+                  {(t.boat_name || t.boat_details) && (
+                    <div className="mb-3 bg-white rounded-xl border border-gray-200 p-3 text-xs text-gray-600">
+                      <p className="text-xs font-black tracking-widest uppercase mb-2" style={{ color: SNZ_BLUE }}>Boat</p>
+                      {t.boat_name && <p><span className="font-semibold text-gray-700">Name:</span> {t.boat_name}</p>}
+                      {t.boat_details && <p><span className="font-semibold text-gray-700">Details:</span> {t.boat_details}</p>}
+                    </div>
+                  )}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {mems.map((m, i) => (
                       <div key={m.id} className="bg-white rounded-xl border border-gray-200 p-3">
