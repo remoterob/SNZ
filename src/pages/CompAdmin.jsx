@@ -980,36 +980,48 @@ function TeamModal({ comp, team, members: existingMembers, onClose, onSaved, sho
   const isNew = !team
   const [teamName, setTeamName] = useState(team?.team_name || '')
   const [category, setCategory] = useState(team?.category || (comp.categories?.[0] || 'Open'))
+  const [boatName, setBoatName] = useState(team?.boat_name || '')
+  const [boatDetails, setBoatDetails] = useState(team?.boat_details || '')
   const [p1, setP1] = useState(existingMembers?.[0] ? { ...existingMembers[0] } : { ...emptyMember })
   const [p2, setP2] = useState(existingMembers?.[1] ? { ...existingMembers[1] } : { ...emptyMember })
   const [saving, setSaving] = useState(false)
   const [uploadingPhoto, setUploadingPhoto] = useState(false)
   const [photoUrl, setPhotoUrl] = useState(team?.team_photo_url || null)
+  const [pendingPhoto, setPendingPhoto] = useState(null)
+  const [pendingPhotoPreview, setPendingPhotoPreview] = useState(null)
 
   const set1 = k => v => setP1(m => ({ ...m, [k]: v }))
   const set2 = k => v => setP2(m => ({ ...m, [k]: v }))
 
-  const uploadTeamPhoto = async (file) => {
-    if (!team?.id) return
+  const uploadTeamPhoto = async (file, targetId) => {
+    const tid = targetId || team?.id
+    if (!tid) return
     setUploadingPhoto(true)
     try {
       const ext = file.name.split('.').pop().toLowerCase().replace('heic','jpg')
-      const path = `competitions/${comp.id}/teams/${team.id}.${ext}?t=${Date.now()}`
-      await supabase.storage.from('snz-media').remove([`competitions/${comp.id}/teams/${team.id}.${ext}`])
+      await supabase.storage.from('snz-media').remove([`competitions/${comp.id}/teams/${tid}.${ext}`])
       const { error } = await supabase.storage.from('snz-media').upload(
-        `competitions/${comp.id}/teams/${team.id}.${ext}`, file, { contentType: file.type }
+        `competitions/${comp.id}/teams/${tid}.${ext}`, file, { contentType: file.type }
       )
       if (error) throw error
       const { data: { publicUrl } } = supabase.storage.from('snz-media').getPublicUrl(
-        `competitions/${comp.id}/teams/${team.id}.${ext}`
+        `competitions/${comp.id}/teams/${tid}.${ext}`
       )
       const bustUrl = `${publicUrl}?t=${Date.now()}`
-      await supabase.from('comp_teams').update({ team_photo_url: bustUrl }).eq('id', team.id)
+      await supabase.from('comp_teams').update({ team_photo_url: bustUrl }).eq('id', tid)
       setPhotoUrl(bustUrl)
-      showToast('Photo uploaded')
-      // Note: parent list will refresh when modal closes via Save
+      if (!targetId) showToast('Photo uploaded')
     } catch(err) { showToast(err.message, 'error') }
     finally { setUploadingPhoto(false) }
+  }
+
+  const handlePhotoSelect = (file) => {
+    if (isNew) {
+      setPendingPhoto(file)
+      setPendingPhotoPreview(URL.createObjectURL(file))
+    } else {
+      uploadTeamPhoto(file)
+    }
   }
 
   const save = async () => {
@@ -1020,13 +1032,17 @@ function TeamModal({ comp, team, members: existingMembers, onClose, onSaved, sho
       let teamId = team?.id
       if (isNew) {
         const { data, error } = await supabase.from('comp_teams')
-          .insert({ competition_id: comp.id, team_name: teamName.trim(), category })
+          .insert({ competition_id: comp.id, team_name: teamName.trim(), category,
+            boat_name: boatName.trim() || null, boat_details: boatDetails.trim() || null })
           .select('id').single()
         if (error) throw error
         teamId = data.id
+        if (pendingPhoto) await uploadTeamPhoto(pendingPhoto, teamId)
       } else {
         const { error } = await supabase.from('comp_teams')
-          .update({ team_name: teamName.trim(), category }).eq('id', teamId)
+          .update({ team_name: teamName.trim(), category,
+            boat_name: boatName.trim() || null, boat_details: boatDetails.trim() || null })
+          .eq('id', teamId)
         if (error) throw error
       }
 
@@ -1074,22 +1090,33 @@ function TeamModal({ comp, team, members: existingMembers, onClose, onSaved, sho
                 {(comp.categories?.length > 0 ? comp.categories : CATEGORIES_ALL).map(c => <option key={c}>{c}</option>)}
               </select>
             </div>
-            {!isNew && (
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Team Photo</label>
-                <div className="flex items-center gap-2">
-                  {photoUrl
-                    ? <img src={photoUrl} alt="team" className="w-10 h-10 rounded-full object-cover border border-gray-200" />
-                    : <div className="w-10 h-10 rounded-full bg-gray-100 border-2 border-dashed border-gray-300 flex items-center justify-center text-lg">👥</div>
-                  }
-                  <label className="cursor-pointer text-xs font-bold px-2.5 py-1.5 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50">
-                    {uploadingPhoto ? '…' : photoUrl ? '📷 Replace' : '📷 Upload'}
-                    <input type="file" accept="image/*" className="hidden" disabled={uploadingPhoto}
-                      onChange={e => e.target.files[0] && uploadTeamPhoto(e.target.files[0])} />
-                  </label>
-                </div>
+            <div>
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Team Photo</label>
+              <div className="flex items-center gap-2">
+                {(photoUrl || pendingPhotoPreview)
+                  ? <img src={pendingPhotoPreview || photoUrl} alt="team" className="w-10 h-10 rounded-full object-cover border border-gray-200" />
+                  : <div className="w-10 h-10 rounded-full bg-gray-100 border-2 border-dashed border-gray-300 flex items-center justify-center text-lg">👥</div>
+                }
+                <label className="cursor-pointer text-xs font-bold px-2.5 py-1.5 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50">
+                  {uploadingPhoto ? '…' : (photoUrl || pendingPhotoPreview) ? '📷 Replace' : '📷 Upload'}
+                  <input type="file" accept="image/*" className="hidden" disabled={uploadingPhoto}
+                    onChange={e => e.target.files[0] && handlePhotoSelect(e.target.files[0])} />
+                </label>
+                {isNew && pendingPhotoPreview && <span className="text-xs text-gray-400 italic">saves on submit</span>}
               </div>
-            )}
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Boat Name</label>
+              <input value={boatName} onChange={e => setBoatName(e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
+                placeholder="e.g. Sea Breeze" maxLength={80} />
+            </div>
+            <div className="col-span-2">
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Boat Details</label>
+              <input value={boatDetails} onChange={e => setBoatDetails(e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
+                placeholder="e.g. 5m aluminium, reg. NZ1234" maxLength={200} />
+            </div>
           </div>
 
           <MemberSection label="Diver 1" data={p1} setField={set1} />
