@@ -176,6 +176,102 @@ function PhotoModal({ url, caption, onClose }) {
   )
 }
 
+if (typeof document !== 'undefined' && !document.getElementById('deep-link-highlight-style')) {
+  const style = document.createElement('style')
+  style.id = 'deep-link-highlight-style'
+  style.textContent = `
+    @keyframes deepLinkFlash {
+      0% { background-color: rgba(251, 191, 36, 0); box-shadow: 0 0 0 0 rgba(251, 191, 36, 0); }
+      20% { background-color: rgba(251, 191, 36, 0.4); box-shadow: 0 0 0 4px rgba(251, 191, 36, 0.6); }
+      100% { background-color: rgba(251, 191, 36, 0); box-shadow: 0 0 0 0 rgba(251, 191, 36, 0); }
+    }
+    .deep-link-highlight {
+      animation: deepLinkFlash 2.5s ease-out;
+      position: relative;
+      z-index: 1;
+    }
+  `
+  document.head.appendChild(style)
+}
+
+function ShareButton({ id, prefix = 'record', small = false }) {
+  const [copied, setCopied] = useState(false)
+  const handleCopy = async (e) => {
+    e.stopPropagation()
+    e.preventDefault()
+    const url = `${window.location.origin}/records#${prefix}-${id}`
+    try {
+      await navigator.clipboard.writeText(url)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    } catch {
+      window.prompt('Copy this link:', url)
+    }
+  }
+  return (
+    <button
+      onClick={handleCopy}
+      title={copied ? 'Copied!' : 'Copy share link'}
+      className={`inline-flex items-center gap-1 rounded-md border transition text-xs font-bold ${
+        copied
+          ? 'border-green-300 bg-green-50 text-green-700'
+          : 'border-gray-200 bg-white text-gray-500 hover:border-blue-300 hover:text-blue-600'
+      } ${small ? 'px-1.5 py-1' : 'px-2 py-1'}`}
+      type="button"
+    >
+      {copied ? '✓' : (
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+          <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+        </svg>
+      )}
+      {!small && <span>{copied ? 'Copied' : 'Share'}</span>}
+    </button>
+  )
+}
+
+function useDeepLinkHighlight(records, prefix, onBeforeHighlight) {
+  const [triggered, setTriggered] = useState(false)
+
+  useEffect(() => {
+    if (!records || records.length === 0) return
+    const hash = window.location.hash
+    if (!hash || !hash.startsWith(`#${prefix}-`)) return
+    const id = hash.replace(`#${prefix}-`, '')
+    const match = records.find(r => String(r.id) === String(id))
+    if (!match) return
+    if (onBeforeHighlight) onBeforeHighlight(match)
+    setTriggered(true)
+  }, [records, prefix])
+
+  useEffect(() => {
+    if (!triggered) return
+    const hash = window.location.hash
+    const id = hash.replace(`#${prefix}-`, '')
+    let attempts = 0
+    const tryHighlight = () => {
+      const els = document.querySelectorAll(`[data-deeplink="${prefix}-${id}"]`)
+      let el = null
+      for (const candidate of els) {
+        const r = candidate.getBoundingClientRect()
+        if (r.width > 0 && r.height > 0) { el = candidate; break }
+      }
+      if (el) {
+        const rect = el.getBoundingClientRect()
+        const targetY = rect.top + window.pageYOffset - (window.innerHeight / 2) + (rect.height / 2)
+        window.scrollTo(0, Math.max(0, targetY))
+        setTimeout(() => { window.scrollTo({ top: Math.max(0, targetY), behavior: 'smooth' }) }, 50)
+        el.classList.add('deep-link-highlight')
+        setTimeout(() => el.classList.remove('deep-link-highlight'), 2600)
+        return
+      }
+      attempts++
+      if (attempts < 20) setTimeout(tryHighlight, 200)
+    }
+    setTimeout(tryHighlight, 300)
+  }, [triggered, prefix])
+}
+
 // ── NZ Records page (enhanced) ───────────────────────────────────────────────
 function NZRecordsPage() {
   const navigate = useNavigate()
@@ -187,6 +283,14 @@ function NZRecordsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [lightbox, setLightbox] = useState(null)
+
+  useDeepLinkHighlight(records, 'record', (match) => {
+    setFilter('All')
+    setSearch('')
+    if (match.division === 'Meritorious') {
+      window.location.hash = `meritorious-${match.id}`
+    }
+  })
 
   useEffect(() => {
     supabase
@@ -293,14 +397,14 @@ function NZRecordsPage() {
                 <thead>
                   <tr className="border-b border-gray-100 bg-gray-50">
                     <th className="px-3 py-3 w-12"></th>
-                    {['Species','Record','Division','Diver','Club','Location','Date'].map(h => (
+                    {['Species','Record','Division','Diver','Club','Location','Date',''].map(h => (
                       <th key={h} className="px-4 py-3 text-left text-xs font-bold tracking-widest text-gray-400 uppercase">{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {filtered.map((r, i) => (
-                    <tr key={r.id} className={`border-b border-gray-100 hover:bg-blue-50 transition ${i % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}>
+                    <tr key={r.id} data-deeplink={`record-${r.id}`} className={`border-b border-gray-100 hover:bg-blue-50 transition ${i % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}>
                       <td className="px-3 py-2">
                         {r.photo_url ? (
                           <button
@@ -337,10 +441,11 @@ function NZRecordsPage() {
                       <td className="px-4 py-3 text-gray-400 text-sm">{r.club}</td>
                       <td className="px-4 py-3 text-gray-400 text-sm">{r.location}</td>
                       <td className="px-4 py-3 text-gray-400 text-sm">{r.date_caught}</td>
+                      <td className="px-3 py-3"><ShareButton id={r.id} prefix="record" small /></td>
                     </tr>
                   ))}
                   {filtered.length === 0 && (
-                    <tr><td colSpan={8} className="px-4 py-12 text-center text-gray-400">No records match your search</td></tr>
+                    <tr><td colSpan={9} className="px-4 py-12 text-center text-gray-400">No records match your search</td></tr>
                   )}
                 </tbody>
               </table>
@@ -350,7 +455,7 @@ function NZRecordsPage() {
             {/* Mobile cards */}
             <div className="md:hidden space-y-2 mb-6">
               {filtered.map((r) => (
-                <div key={r.id} className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm flex items-center gap-3 p-3">
+                <div key={r.id} data-deeplink={`record-${r.id}`} className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm flex items-center gap-3 p-3">
                   {/* Thumbnail */}
                   <div className="flex-shrink-0">
                     {r.photo_url ? (
@@ -384,6 +489,7 @@ function NZRecordsPage() {
                     <div className="text-xs font-semibold text-gray-700 truncate">{r.diver}</div>
                     <div className="text-xs text-gray-400 truncate">{r.location} · {r.date_caught}</div>
                   </div>
+                  <div className="flex-shrink-0 self-start"><ShareButton id={r.id} prefix="record" small /></div>
                 </div>
               ))}
             </div>
