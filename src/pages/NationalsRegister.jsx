@@ -40,12 +40,6 @@ const SUB_EVENTS = [
     color: '#7c3aed', bgColor: '#faf5ff', borderColor: '#ddd6fe',
   },
   {
-    id: 'silveroldie', name: 'Silver Oldie', emoji: '🥈',
-    perDiver: false, baseFee: false, feeCents: 0,
-    desc: 'Included with Open entry — no additional fee. At least one diver aged 50+.',
-    color: '#6b7280', bgColor: '#f9fafb', borderColor: '#e5e7eb',
-  },
-  {
     id: 'photography', name: 'Snorkel Photography', emoji: '📸',
     perDiver: true, baseFee: false, feeCents: 0,
     desc: 'Individual — select for each diver who wants to enter. Required for Super Diver.',
@@ -130,7 +124,7 @@ export default function NationalsRegister() {
   const [p2Error, setP2Error] = useState('')
 
   // Per-team event selection: { juniors: bool, over60: bool }
-  const [teamEvents, setTeamEvents] = useState({ open: false, womens: false, juniors: false, goldenoldie: false, silveroldie: false })
+  const [teamEvents, setTeamEvents] = useState({ open: false, womens: false, juniors: false, goldenoldie: false })
 
   // Per-diver event selection: { photography: { d1: bool, d2: bool }, finswim: { d1: bool, d2: bool } }
   const [diverEvents, setDiverEvents] = useState({

@@ -12,7 +12,6 @@ const EVENT_LABELS = {
   womens: { label: "🔱 Women's Championship", individual: false },
   juniors: { label: '🌟 Junior Championship', individual: false },
   goldenoldie: { label: '🎖️ Golden Oldie', individual: false },
-  silveroldie: { label: '🥈 Silver Oldie', individual: false },
   photography_d2: { label: '📸 Snorkel Photography', individual: true },
   finswim_d2: { label: '🐟 Fin Swimming', individual: true },
   under23_d2: { label: '🎯 Under 23 Division', individual: true },

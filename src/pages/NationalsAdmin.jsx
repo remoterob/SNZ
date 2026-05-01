@@ -26,11 +26,10 @@ const NATIONALS_EVENTS = [
   { id: 'open', label: '🏆 Open Championship' },
   { id: 'womens', label: "🔱 Women's Championship" },
   { id: 'juniors', label: '🌟 Junior Championship' },
-  { id: 'goldenoldie', label: '🎖️ Golden Oldie' },
+  { id: 'goldenoldie', label: '🎖️ Golden Oldie Day Boat (60+)' },
   { id: 'under23', label: '🎯 Under 23 Division' },
   { id: 'photography', label: '📸 Snorkel Photography' },
   { id: 'finswim', label: '🐟 Fin Swimming' },
-  { id: 'silveroldie', label: '🥈 Silver Oldie' },
 ]
 
 const SIZES = ['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL']
@@ -48,8 +47,8 @@ const STANDARD_DIVS = [
   { id: 'open',        label: '🏆 Open' },
   { id: 'womens',      label: "🔱 Women's" },
   { id: 'juniors',     label: '🌟 Juniors' },
-  { id: 'goldenoldie', label: '🎖️ Golden Oldie' },
-  { id: 'silveroldie', label: '🥈 Silver Oldie' },
+  { id: 'goldenoldie', label: '🎖️ Golden Oldie' },  // day boat comp — own fish list & weigh-in
+  { id: 'silveroldie', label: '🥈 Silver Oldie', derived: true },  // derived from Open (50+)
   { id: 'under23',     label: '🎯 Under 23' },
 ]
 const DIV_LABELS = Object.fromEntries(STANDARD_DIVS.map(d => [d.id, d.label]))
@@ -800,6 +799,50 @@ function SetupTab({ comp, onRefresh }) {
   )
 }
 
+// ── Derived Division Leaderboard (Silver/Golden Oldie ranked by Open score) ───
+function DerivedDivLeaderboard({ divId, label, teams, allWeighins }) {
+  const divTeams = teams.filter(t => t.nationals_event?.[divId])
+  const withPoints = divTeams.map(t => {
+    const tw = allWeighins.filter(w => w.team_id === t.id && w.division === 'open')
+    const total = tw.reduce((s, w) => s + (w.points_awarded || 0), 0)
+    const fishCount = tw.filter(w => !w.is_bulk).length
+    return { ...t, total, fishCount, hasEntry: tw.length > 0 }
+  }).sort((a, b) => b.total - a.total)
+  const medals = ['🥇', '🥈', '🥉']
+  return (
+    <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+      <div className="px-4 py-3 border-b border-gray-100 bg-gray-50">
+        <h3 className="font-black text-gray-900">{label} — Leaderboard</h3>
+        <p className="text-xs text-gray-400 mt-0.5">Derived from Open scores · {divTeams.length} qualifier{divTeams.length !== 1 ? 's' : ''}</p>
+      </div>
+      {divTeams.length === 0 ? (
+        <div className="p-8 text-center text-gray-400 text-sm">No {label} qualifiers registered.</div>
+      ) : (
+        <div className="divide-y divide-gray-100">
+          {withPoints.map((t, i) => (
+            <div key={t.id} className={`px-4 py-3 flex items-center gap-3 ${i === 0 && t.hasEntry ? 'bg-amber-50' : ''}`}>
+              <span className="w-7 text-center font-bold text-sm flex-shrink-0">
+                {t.hasEntry ? (medals[i] || `#${i + 1}`) : <span className="text-gray-300">–</span>}
+              </span>
+              <div className="flex-1 min-w-0">
+                <p className="font-bold text-gray-900 text-sm truncate">{t.team_name}</p>
+                <p className="text-xs text-gray-400 truncate">
+                  {t._d1?.name}{!t.nationals_event?.is_individual && t._d2?.name ? ` & ${t._d2.name}` : ''}
+                </p>
+              </div>
+              <div className="text-right flex-shrink-0">
+                {t.hasEntry
+                  ? <><p className="text-base font-black" style={{ color: SNZ_BLUE }}>{t.total} pts</p><p className="text-xs text-gray-400">{t.fishCount} fish</p></>
+                  : <p className="text-xs text-gray-300">No Open entry</p>}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Fish Lists Tab ────────────────────────────────────────────────────────────
 function AddFishModal({ onAdd, onClose }) {
   const [name, setName] = useState('')
@@ -940,7 +983,7 @@ function FishListTab({ comp, fishLists, onRefresh }) {
       {showAdd && <AddFishModal onAdd={addFish} onClose={() => setShowAdd(false)} />}
 
       <div className="flex gap-1.5 flex-wrap">
-        {STANDARD_DIVS.map(d => (
+        {STANDARD_DIVS.filter(d => !d.derived).map(d => (
           <button key={d.id} onClick={() => setSelDiv(d.id)}
             className={`px-3 py-1.5 rounded-lg text-sm font-bold transition border ${selDiv === d.id ? 'text-white border-transparent' : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300'}`}
             style={selDiv === d.id ? { background: SNZ_BLUE } : {}}>
@@ -1149,12 +1192,15 @@ function DivisionLeaderboard({ divId, teams, allWeighins }) {
     return { ...t, total, fishCount, hasEntry: tw.length > 0 }
   }).sort((a, b) => b.total - a.total)
 
-  // For Open, compute each team's rank within their other divisions
+  // For Open, compute each team's rank within other divisions
   const getDivBadges = (team) => {
     if (divId !== 'open') return []
-    return STANDARD_DIVS
-      .filter(d => d.id !== 'open' && isInDiv(team, d.id))
-      .map(d => {
+    const badges = []
+
+    // Standard sub-divisions ranked by their own weigh-ins
+    STANDARD_DIVS
+      .filter(d => d.id !== 'open' && !d.derived && isInDiv(team, d.id))
+      .forEach(d => {
         const ranked = teamsInDiv(teams, d.id)
           .map(t => {
             const tw = allWeighins.filter(w => w.team_id === t.id && w.division === d.id)
@@ -1163,9 +1209,26 @@ function DivisionLeaderboard({ divId, teams, allWeighins }) {
           .filter(t => t.hasEntry)
           .sort((a, b) => b.total - a.total)
         const rank = ranked.findIndex(t => t.id === team.id) + 1
-        return rank > 0 ? { label: d.label, rank } : null
+        if (rank > 0) badges.push({ label: d.label, rank })
       })
-      .filter(Boolean)
+
+    // Age divisions (Silver/Golden Oldie) ranked by Open score
+    ;[{ id: 'silveroldie', label: '🥈 Silver Oldie' }, { id: 'goldenoldie', label: '🎖️ Golden Oldie' }]
+      .filter(ag => team.nationals_event?.[ag.id])
+      .forEach(ag => {
+        const ranked = teams
+          .filter(t => t.nationals_event?.[ag.id])
+          .map(t => {
+            const tw = allWeighins.filter(w => w.team_id === t.id && w.division === 'open')
+            return { id: t.id, total: tw.reduce((s, w) => s + (w.points_awarded || 0), 0), hasEntry: tw.length > 0 }
+          })
+          .filter(t => t.hasEntry)
+          .sort((a, b) => b.total - a.total)
+        const rank = ranked.findIndex(t => t.id === team.id) + 1
+        if (rank > 0) badges.push({ label: ag.label, rank })
+      })
+
+    return badges
   }
 
   const medals = ['🥇', '🥈', '🥉']
@@ -1483,7 +1546,7 @@ function ResultsTab({ comp, teams, fishLists, allWeighins, onRefresh }) {
       {selEvent === 'finswim' && (
         <FinSwimResults comp={comp} teams={teams} allWeighins={allWeighins} onRefresh={onRefresh} />
       )}
-      {STANDARD_DIVS.find(d => d.id === selEvent) && (
+      {STANDARD_DIVS.find(d => d.id === selEvent && !d.derived) && (
         <StandardDivisionResults
           divId={selEvent}
           comp={comp}
@@ -1491,6 +1554,14 @@ function ResultsTab({ comp, teams, fishLists, allWeighins, onRefresh }) {
           fishLists={fishLists}
           allWeighins={allWeighins}
           onRefresh={onRefresh}
+        />
+      )}
+      {STANDARD_DIVS.find(d => d.id === selEvent && d.derived) && (
+        <DerivedDivLeaderboard
+          divId={selEvent}
+          label={STANDARD_DIVS.find(d => d.id === selEvent).label}
+          teams={teams}
+          allWeighins={allWeighins}
         />
       )}
     </div>
