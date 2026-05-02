@@ -416,12 +416,17 @@ export default function CompRegister() {
     finally { setUploadingPhoto(false) }
   }
 
-  // Category-specific entry fee
+  // Category-specific entry fee — handles both old (raw cents) and new ({standard, early_bird}) formats
+  const isEarlyBird = comp?.early_bird_cutoff ? new Date() <= new Date(comp.early_bird_cutoff + 'T23:59:59') : false
   const entryFeeCents = (() => {
     if (!comp) return 0
     const catFees = comp.category_fees || {}
-    if (category && catFees[category] != null) return catFees[category]
-    return comp.entry_fee_cents || 0  // fallback to single fee
+    const raw = (category && catFees[category] != null) ? catFees[category] : (comp.entry_fee_cents || 0)
+    if (typeof raw === 'object' && raw !== null) {
+      if (isEarlyBird && raw.early_bird != null) return raw.early_bird
+      return raw.standard || 0
+    }
+    return raw
   })()
 
   if (done) return (
@@ -459,9 +464,14 @@ export default function CompRegister() {
           <div className="w-full">
             <div className="bg-amber-50 border-2 border-amber-300 rounded-xl p-5 mb-4 text-left">
               <p className="font-black text-amber-900 mb-1">Payment required to confirm your spot</p>
-              <p className="text-sm text-amber-800 mb-4">
+              <p className="text-sm text-amber-800 mb-2">
                 Your registration is <strong>pending</strong> until the entry fee of <strong>${(entryFeeCents / 100).toFixed(2)} NZD</strong> is paid.
               </p>
+              {isEarlyBird && comp?.early_bird_cutoff && (
+                <p className="text-xs text-amber-700 bg-amber-100 rounded-lg px-3 py-1.5 mb-3 font-semibold">
+                  🐦 Early bird price — closes {new Date(comp.early_bird_cutoff).toLocaleDateString('en-NZ', { day: 'numeric', month: 'long' })}
+                </p>
+              )}
               {checkoutError && <p className="text-xs text-red-600 mb-2">{checkoutError}</p>}
               <button
                 onClick={() => checkout({

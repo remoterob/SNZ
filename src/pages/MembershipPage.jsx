@@ -745,9 +745,10 @@ function CompletePaymentButton({ team, comp, member, showToast }) {
     try {
       const isNationals = comp?.name?.toLowerCase().includes('nationals')
       const catFees = comp?.category_fees || {}
-      const cents = isNationals
+      const rawFee = isNationals
         ? (team.entry_fee_cents || comp?.entry_fee_cents || 0)
         : (catFees[team.category] != null ? catFees[team.category] : (comp?.entry_fee_cents || 0))
+      const cents = typeof rawFee === 'object' && rawFee !== null ? (rawFee.standard || 0) : rawFee
       if (!cents || cents === 0) { showToast('No fee required for this entry', 'error'); setLoading(false); return }
 
       const type = isNationals ? 'nationals_entry' : 'competition_entry'

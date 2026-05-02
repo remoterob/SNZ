@@ -762,40 +762,95 @@ function SetupTab({ comp, setComp, onSave, showToast }) {
             <p className="text-xs text-gray-400">Show leaderboard publicly during the competition (not just after it closes)</p>
           </div>
         </label>
-        <div className="border-t border-gray-100 pt-4">
-          <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Entry Fees by Category (NZD)</label>
-          <p className="text-xs text-gray-400 mb-3">Set a fee per category. $0 = free. Minimum $1.00 if charging. Competitors pay via Stripe after registering.</p>
+        <div className="border-t border-gray-100 pt-4 space-y-4">
+          <div>
+            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Entry Fees by Category (NZD)</label>
+            <p className="text-xs text-gray-400">$0 = free. Min $1.00 if charging. Competitors pay via Stripe after registering.</p>
+          </div>
+
+          {/* Early bird cutoff */}
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+            <div className="flex items-start gap-3">
+              <span className="text-amber-500 text-lg flex-shrink-0 mt-0.5">🐦</span>
+              <div className="flex-1">
+                <label className="block text-xs font-bold text-amber-800 uppercase tracking-wider mb-1">Early Bird Cutoff Date</label>
+                <p className="text-xs text-amber-700 mb-2">Early bird prices apply until end of this date. Leave blank to disable.</p>
+                <input type="date"
+                  value={form.early_bird_cutoff ? form.early_bird_cutoff.slice(0, 10) : ''}
+                  onChange={e => set('early_bird_cutoff')(e.target.value || null)}
+                  className="border border-amber-300 bg-white rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300" />
+                {form.early_bird_cutoff && (
+                  <p className="text-xs text-amber-600 mt-1.5 font-semibold">
+                    Regular pricing from {new Date(form.early_bird_cutoff + 'T23:59:59').toLocaleDateString('en-NZ', { day: 'numeric', month: 'long', year: 'numeric' })}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Fee grid */}
           <div className="space-y-2">
+            <div className="grid grid-cols-[1fr_110px_110px] gap-3 items-center">
+              <span className="text-xs font-bold text-gray-400 uppercase tracking-wide">Category</span>
+              <span className="text-xs font-bold text-gray-500 uppercase tracking-wide text-center">Standard</span>
+              <span className="text-xs font-bold text-amber-500 uppercase tracking-wide text-center">🐦 Early Bird</span>
+            </div>
             {(form.categories || ['Open']).map(cat => {
               const fees = form.category_fees || {}
-              const cents = fees[cat] || 0
+              const feeVal = fees[cat]
+              const stdCents = typeof feeVal === 'object' && feeVal !== null ? (feeVal.standard || 0) : (feeVal || 0)
+              const ebCents  = typeof feeVal === 'object' && feeVal !== null ? (feeVal.early_bird ?? null) : null
+
+              const setStd = (c) => {
+                const cur = fees[cat]
+                const existing = typeof cur === 'object' && cur !== null ? cur : {}
+                set('category_fees')({ ...fees, [cat]: { ...existing, standard: c } })
+              }
+              const setEb = (c) => {
+                const cur = fees[cat]
+                const existing = typeof cur === 'object' && cur !== null ? cur : { standard: stdCents }
+                set('category_fees')({ ...fees, [cat]: c != null ? { ...existing, early_bird: c } : { standard: existing.standard } })
+              }
+
               return (
-                <div key={cat} className="flex items-center gap-3">
-                  <span className="text-sm font-bold text-gray-700 w-28 flex-shrink-0">{cat}</span>
-                  <span className="text-gray-400 font-bold">$</span>
-                  <input
-                    type="number" min="0" step="1"
-                    value={cents > 0 ? cents / 100 : ''}
-                    placeholder="0"
-                    onChange={e => {
-                      const c = Math.round(parseFloat(e.target.value || 0) * 100)
-                      set('category_fees')({ ...(form.category_fees || {}), [cat]: c })
-                    }}
-                    onBlur={e => {
-                      const c = Math.round(parseFloat(e.target.value || 0) * 100)
-                      if (c > 0 && c < 100) set('category_fees')({ ...(form.category_fees || {}), [cat]: 100 })
-                    }}
-                    className="w-24 border border-gray-300 rounded-lg px-3 py-1.5 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-300"
-                    style={{ MozAppearance: 'textfield', WebkitAppearance: 'none' }}
-                  />
-                  <span className="text-xs text-gray-400">NZD / team</span>
-                  {cents === 0 && <span className="text-xs text-green-600 font-semibold">Free</span>}
-                  {cents >= 100 && <span className="text-xs text-blue-600 font-semibold">${(cents/100).toFixed(2)}</span>}
-                  {cents > 0 && cents < 100 && <span className="text-xs text-amber-600 font-semibold">Min $1.00</span>}
+                <div key={cat} className="grid grid-cols-[1fr_110px_110px] gap-3 items-center">
+                  <span className="text-sm font-bold text-gray-700">{cat}</span>
+
+                  {/* Standard price */}
+                  <div className="flex items-center gap-1">
+                    <span className="text-gray-400 font-bold text-sm">$</span>
+                    <input type="number" min="0" step="1"
+                      value={stdCents > 0 ? stdCents / 100 : ''}
+                      placeholder="0"
+                      onChange={e => setStd(Math.round(parseFloat(e.target.value || 0) * 100))}
+                      onBlur={e => { const c = Math.round(parseFloat(e.target.value || 0) * 100); if (c > 0 && c < 100) setStd(100) }}
+                      className="flex-1 min-w-0 border border-gray-300 rounded-lg px-2 py-1.5 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-300"
+                      style={{ MozAppearance: 'textfield', WebkitAppearance: 'none' }} />
+                  </div>
+
+                  {/* Early bird price */}
+                  <div className="flex items-center gap-1">
+                    <span className="text-amber-400 font-bold text-sm">$</span>
+                    <input type="number" min="0" step="1"
+                      value={ebCents != null && ebCents > 0 ? ebCents / 100 : ''}
+                      placeholder="—"
+                      onChange={e => {
+                        if (!e.target.value) { setEb(null); return }
+                        setEb(Math.round(parseFloat(e.target.value) * 100))
+                      }}
+                      onBlur={e => {
+                        if (!e.target.value) return
+                        const c = Math.round(parseFloat(e.target.value) * 100)
+                        if (c > 0 && c < 100) setEb(100)
+                      }}
+                      className="flex-1 min-w-0 border border-amber-200 rounded-lg px-2 py-1.5 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-amber-300 bg-amber-50/50"
+                      style={{ MozAppearance: 'textfield', WebkitAppearance: 'none' }} />
+                  </div>
                 </div>
               )
             })}
           </div>
+          <p className="text-xs text-gray-400">Amounts in NZD. Early bird price applies until end of cutoff date — leave blank to charge standard price for all entries.</p>
         </div>
       </div>
 
