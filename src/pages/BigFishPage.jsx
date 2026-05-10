@@ -108,6 +108,29 @@ export default function BigFishPage() {
     [speciesEntries, session]
   )
 
+  // Overall standings — points from placings across all species (1st=6, 2nd=4, 3rd=3, 4th=2, 5th=1)
+  const overallStandings = useMemo(() => {
+    if (!entries.length || !species.length) return []
+    const POINTS = [6, 4, 3, 2, 1]
+    const users = {}
+    species.forEach(sp => {
+      const byUser = {}
+      entries.filter(e => e.species === sp).forEach(e => {
+        if (!byUser[e.user_id]) byUser[e.user_id] = { user_id: e.user_id, display_name: e.display_name, total: 0 }
+        byUser[e.user_id].total += parseFloat(e.weight_kg)
+      })
+      Object.values(byUser)
+        .sort((a, b) => b.total - a.total)
+        .forEach((u, i) => {
+          if (!users[u.user_id]) users[u.user_id] = { user_id: u.user_id, display_name: u.display_name, points: 0, totalWeight: 0, placings: {} }
+          users[u.user_id].points += POINTS[i] || 0
+          users[u.user_id].totalWeight += u.total
+          users[u.user_id].placings[sp] = i + 1
+        })
+    })
+    return Object.values(users).sort((a, b) => b.points - a.points || b.totalWeight - a.totalWeight)
+  }, [entries, species])
+
   // Group by angler, ordered by heaviest individual fish
   const groupedEntries = useMemo(() => {
     const byUser = {}
@@ -201,6 +224,11 @@ export default function BigFishPage() {
         </div>
       ) : (
         <div className="max-w-4xl mx-auto px-6 py-6">
+
+          {/* Overall standings */}
+          {overallStandings.length > 0 && (
+            <OverallStandings standings={overallStandings} species={species} session={session} />
+          )}
 
           {/* Species tabs */}
           <div className="flex gap-2 flex-wrap mb-6">
@@ -373,6 +401,70 @@ export default function BigFishPage() {
 
       {/* Photo lightbox */}
       {lightbox && <PhotoLightbox entry={lightbox} onClose={() => setLightbox(null)} />}
+    </div>
+  )
+}
+
+// ── Overall standings ─────────────────────────────────────────────────────────
+const OVERALL_POINTS = [6, 4, 3, 2, 1]
+const RANK_EMOJI_OS = { 1: '🥇', 2: '🥈', 3: '🥉' }
+
+function spAbbr(name) {
+  const words = name.trim().split(/\s+/)
+  return words.length === 1
+    ? name.slice(0, 2).toUpperCase()
+    : (words[0][0] + words[1][0]).toUpperCase()
+}
+
+function OverallStandings({ standings, species, session }) {
+  return (
+    <div className="mb-6 bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
+      <div className="px-4 py-2.5 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
+        <span className="text-xs font-bold tracking-widest text-gray-400 uppercase">Overall standings · points from placings</span>
+        <span className="text-xs text-gray-400">{standings.length} {standings.length === 1 ? 'competitor' : 'competitors'}</span>
+      </div>
+      <div className="overflow-y-auto" style={{ maxHeight: 294 }}>
+        {standings.map((u, i) => {
+          const rank = i + 1
+          const isMe = session && u.user_id === session.user.id
+          return (
+            <div key={u.user_id}
+              className={`flex items-center gap-3 px-4 py-2.5 border-b border-gray-50 last:border-0 ${isMe ? 'bg-blue-50' : ''}`}>
+              <div className="w-7 text-center flex-shrink-0">
+                {RANK_EMOJI_OS[rank]
+                  ? <span className="text-base">{RANK_EMOJI_OS[rank]}</span>
+                  : <span className="text-xs font-bold text-gray-400">{rank}</span>}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="font-bold text-sm text-gray-900 truncate">
+                  {u.display_name}
+                  {isMe && <span className="ml-1 text-xs text-blue-500">(you)</span>}
+                </div>
+                <div className="flex gap-1 mt-1 flex-wrap">
+                  {species.map(sp => {
+                    const p = u.placings[sp]
+                    const style = p === 1 ? { background: '#fef3c7', color: '#92400e', borderColor: '#fcd34d' }
+                      : p === 2 ? { background: '#f3f4f6', color: '#4b5563', borderColor: '#d1d5db' }
+                      : p === 3 ? { background: '#fff7ed', color: '#c2410c', borderColor: '#fed7aa' }
+                      : p ? { background: '#f9fafb', color: '#6b7280', borderColor: '#e5e7eb' }
+                      : { background: '#f9fafb', color: '#d1d5db', borderColor: '#f3f4f6' }
+                    return (
+                      <span key={sp} className="text-xs font-bold px-1.5 py-0.5 rounded border"
+                        style={style}>
+                        {spAbbr(sp)}{p ? ` ${p}` : ' —'}
+                      </span>
+                    )
+                  })}
+                </div>
+              </div>
+              <div className="text-right flex-shrink-0">
+                <div className="font-black text-sm" style={{ color: SNZ_BLUE }}>{u.points} pts</div>
+                <div className="text-xs text-gray-400">{u.totalWeight.toFixed(1)} kg</div>
+              </div>
+            </div>
+          )
+        })}
+      </div>
     </div>
   )
 }
