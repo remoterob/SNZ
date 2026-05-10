@@ -139,20 +139,24 @@ Rules:
       }
     }
 
-    // Log to copilot_events — fire and forget
+    // Log to copilot_events — awaited so serverless process doesn't exit before insert completes
     if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
       const supabaseLog = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
-      supabaseLog.from('copilot_events').insert({
-        mode: 'fish_id',
-        session_id: sessionId || null,
-        question: parsed.commonName
-          ? `${parsed.commonName} (${parsed.confidence} confidence)`
-          : 'Fish identification request',
-        response_length_chars: JSON.stringify(parsed).length,
-        quick_action_id: null,
-        competition_id: null,
-        response_time_ms: Date.now() - callStart,
-      }).then(() => {})
+      try {
+        await supabaseLog.from('copilot_events').insert({
+          mode: 'fish_id',
+          session_id: sessionId || null,
+          question: parsed.commonName
+            ? `${parsed.commonName} (${parsed.confidence} confidence)`
+            : 'Fish identification request',
+          response_length_chars: JSON.stringify(parsed).length,
+          quick_action_id: null,
+          competition_id: null,
+          response_time_ms: Date.now() - callStart,
+        })
+      } catch (logErr) {
+        console.error('Failed to log fish ID event:', logErr)
+      }
     }
 
     return {

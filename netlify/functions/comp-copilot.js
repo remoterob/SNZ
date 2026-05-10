@@ -364,19 +364,23 @@ Help club organisers with:
     const textBlock = data.content?.find(c => c.type === 'text')
     const reply = textBlock?.text?.trim() || '(no response)'
 
-    // Log the conversation turn — fire and forget
+    // Log the conversation turn — awaited so serverless process doesn't exit before insert completes
     if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
       const supabaseLog = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
       const userMessage = messages[messages.length - 1]
-      supabaseLog.from('copilot_events').insert({
-        mode: mode || 'admin',
-        competition_id: competitionId || null,
-        session_id: sessionId || null,
-        question: userMessage?.content || '',
-        response_length_chars: reply.length,
-        quick_action_id: quickActionId || null,
-        response_time_ms: Date.now() - callStart,
-      }).then(() => {})
+      try {
+        await supabaseLog.from('copilot_events').insert({
+          mode: mode || 'admin',
+          competition_id: competitionId || null,
+          session_id: sessionId || null,
+          question: userMessage?.content || '',
+          response_length_chars: reply.length,
+          quick_action_id: quickActionId || null,
+          response_time_ms: Date.now() - callStart,
+        })
+      } catch (logErr) {
+        console.error('Failed to log copilot event:', logErr)
+      }
     }
 
     return {
@@ -386,6 +390,20 @@ Help club organisers with:
     }
   } catch (err) {
     console.error('Comp Copilot error:', err)
+    // Log errors too so we can see failure rates in analytics
+    if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      try {
+        const supabaseLog = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
+        await supabaseLog.from('copilot_events').insert({
+          mode: mode || 'admin',
+          competition_id: competitionId || null,
+          session_id: sessionId || null,
+          question: messages?.[messages.length - 1]?.content || '',
+          quick_action_id: quickActionId || null,
+          error: err.name === 'AbortError' ? 'timeout' : err.message,
+        })
+      } catch {}
+    }
     if (err.name === 'AbortError') {
       return { statusCode: 504, body: JSON.stringify({ error: 'Response took too long. Try a shorter question or quick action.' }) }
     }
