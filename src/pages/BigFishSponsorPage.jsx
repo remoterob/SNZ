@@ -110,7 +110,7 @@ export default function BigFishSponsorPage() {
         <div className="max-w-3xl mx-auto">
           <div className="grid grid-cols-2 sm:grid-cols-4 divide-x divide-y sm:divide-y-0 divide-gray-100">
             <STAT value="14,000+" label="Facebook followers" />
-            <STAT value="7,500+"  label="App views on our previous platform" />
+            <STAT value="150+"    label="Branded social posts this season" />
             <STAT value="12 months" label="Season-long visibility" />
             <STAT value="6"       label="Species categories" />
           </div>
@@ -129,7 +129,7 @@ export default function BigFishSponsorPage() {
               Competitors submit catches across <strong>six species</strong> — Butterfish, Blue Moki, Kingfish, Snapper, Warehou and Bluefin — throughout the season. Every entry requires three verified photos: a competitor photo, weight on scales, and measured length. It's the only NZ spearfishing comp where every catch is documented and publicly visible.
             </p>
             <p>
-              Up to three fish per species can be entered, with a running leaderboard updated in real time. Competitors share their competitor photos on Facebook throughout the season, tagging SNZ and generating organic reach around every big catch.
+              Up to three fish per species can be entered, with a running leaderboard updated in real time. We project around 20 new entries per week across the season. Rather than flooding the main SNZ Facebook page, we plan to run a <strong>dedicated competition page</strong> — updated daily whenever new entries are added — mirroring the approach that worked well for our Fish Bingo comp. The main SNZ Facebook and Instagram pages will receive around <strong>3 curated posts per week</strong>, giving over 150 branded posts across the season.
             </p>
             <p>
               At the end of the season, the top three across each species receive prizes — <strong>presented by the sponsor</strong> at a dedicated event or via the SNZ prizegiving.
@@ -161,8 +161,8 @@ export default function BigFishSponsorPage() {
               title="In-App Branding"
               desc="Your logo displayed on the Big Fish leaderboard page, seen every time competitors check standings throughout the season." />
             <Benefit icon="📣"
-              title="Social Media Promotion"
-              desc="Every competitor photo shared to our 14K+ Facebook audience tagged with your brand. Season-long organic reach with each new catch." />
+              title="150+ Branded Social Posts"
+              desc="3 curated posts per week across our main Facebook (14,000+ followers) and Instagram pages — your brand in every one. A dedicated competition page posts daily whenever new entries land, keeping the comp active in feeds all season." />
             <Benefit icon="🥇"
               title="Prize Presentation"
               desc="Your brand presents prizes to the top three places across all six species — either in person at prizegiving or featured in a social post." />
