@@ -1,6 +1,8 @@
 // Netlify Function: identify fish species from image using Claude vision
 // Requires env var: ANTHROPIC_API_KEY
 
+const { createClient } = require('@supabase/supabase-js')
+
 exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, body: JSON.stringify({ error: 'Method Not Allowed' }) }
@@ -14,10 +16,11 @@ exports.handler = async (event) => {
   }
 
   try {
-    const { imageBase64, mediaType } = JSON.parse(event.body || '{}')
+    const { imageBase64, mediaType, sessionId } = JSON.parse(event.body || '{}')
     if (!imageBase64) {
       return { statusCode: 400, body: JSON.stringify({ error: 'No image provided' }) }
     }
+    const callStart = Date.now()
 
     const prompt = `You are a New Zealand marine fish identification expert. A spearfisher has photographed a fish and needs accurate species identification.
 
@@ -134,6 +137,22 @@ Rules:
           raw: rawText.slice(0, 500),
         })
       }
+    }
+
+    // Log to copilot_events — fire and forget
+    if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      const supabaseLog = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
+      supabaseLog.from('copilot_events').insert({
+        mode: 'fish_id',
+        session_id: sessionId || null,
+        question: parsed.commonName
+          ? `${parsed.commonName} (${parsed.confidence} confidence)`
+          : 'Fish identification request',
+        response_length_chars: JSON.stringify(parsed).length,
+        quick_action_id: null,
+        competition_id: null,
+        response_time_ms: Date.now() - callStart,
+      }).then(() => {})
     }
 
     return {

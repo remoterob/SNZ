@@ -75,10 +75,11 @@ export default function FishIDPage() {
     setError('')
     setResult(null)
     try {
+      const sessionId = sessionStorage.getItem('snz_analytics_session') || null
       const res = await fetch('/.netlify/functions/identify-fish', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ imageBase64: image, mediaType: 'image/jpeg' }),
+        body: JSON.stringify({ imageBase64: image, mediaType: 'image/jpeg', sessionId }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Identification failed')

@@ -86,6 +86,7 @@ export default function AnalyticsDashboard() {
   // Copilot stats
   const adminEvents = copilotEvents.filter(e => e.mode === 'admin')
   const competitorEvents = copilotEvents.filter(e => e.mode === 'competitor')
+  const fishIdEvents = copilotEvents.filter(e => e.mode === 'fish_id')
 
   const quickActionCounts = {}
   copilotEvents.forEach(e => {
@@ -155,6 +156,7 @@ export default function AnalyticsDashboard() {
               <StatCard label="Total conversations" value={copilotEvents.length} />
               <StatCard label="Admin Copilot" value={adminEvents.length} sub="comp organiser" />
               <StatCard label="Competitor Assistant" value={competitorEvents.length} sub="competitor-side" />
+              <StatCard label="Fish ID" value={fishIdEvents.length} sub="AI identifications" />
               <StatCard label="Unique sessions" value={uniqueCopilotSessions} />
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-3">
