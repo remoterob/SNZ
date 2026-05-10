@@ -24,7 +24,7 @@ function ResetPasswordModal({ comp, onClose, showToast }) {
       <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl p-6" onClick={e => e.stopPropagation()}>
         <h2 className="font-black text-gray-900 mb-1">Reset Password</h2>
         <p className="text-xs text-gray-400 mb-4">{comp.name}</p>
-        <input type="password" value={pwd} onChange={e => setPwd(e.target.value)}
+        <input type="password" autoComplete="off" value={pwd} onChange={e => setPwd(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && save()}
           placeholder="New club admin password"
           className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-blue-300" />

@@ -32,6 +32,17 @@ import RecordsAdmin from './pages/RecordsAdmin'
 import FishIDPage from './pages/FishIDPage'
 import FishSpeciesAdmin from './pages/FishSpeciesAdmin'
 import AnalyticsDashboard from './pages/AnalyticsDashboard'
+import BingoAdmin from './pages/BingoAdmin'
+import BingoSpeciesAdmin from './pages/BingoSpeciesAdmin'
+import BingoBonusAdmin from './pages/BingoBonusAdmin'
+import InspirationPage from './pages/InspirationPage'
+import CarouselAdmin from './pages/CarouselAdmin'
+import HubCarousel from './components/HubCarousel'
+import BigFishPage from './pages/BigFishPage'
+import BigFishAdmin from './pages/BigFishAdmin'
+import BigFishSponsorPage from './pages/BigFishSponsorPage'
+import BingoApp from './pages/bingo/BingoApp'
+import BingoDiverPage from './pages/bingo/BingoDiverPage'
 
 function ProtectedRoute({ children }) {
   const location = useLocation()
@@ -778,45 +789,112 @@ function NewsPage() {
 }
 
 
+const STATUS = {
+  live:    { label: 'Live',           bg: '#f0fdf4', color: '#15803d', border: '#86efac' },
+  soon:    { label: 'Coming Soon',    bg: '#fffbeb', color: '#b45309', border: '#fcd34d' },
+  wrapped: { label: 'Season Wrapped', bg: '#f8fafc', color: '#64748b', border: '#cbd5e1' },
+  dev:     { label: 'In Development', bg: '#fff7ed', color: '#c2410c', border: '#fed7aa' },
+  concept: { label: 'New',            bg: '#faf5ff', color: '#7c3aed', border: '#ddd6fe' },
+}
+
 function SNZHub() {
   const navigate = useNavigate()
+  const [stats, setStats] = useState({})
+
+  useEffect(() => {
+    Promise.all([
+      supabase.from('members').select('id', { count: 'exact', head: true }).eq('membership_status', 'active'),
+      supabase.from('nz_records').select('id', { count: 'exact', head: true }).neq('division', 'Meritorious'),
+      supabase.from('nz_records').select('id', { count: 'exact', head: true }).eq('provisional', true),
+      supabase.from('competitions').select('id', { count: 'exact', head: true }),
+      supabase.from('competitions').select('id', { count: 'exact', head: true }).eq('status', 'active'),
+      supabase.from('snz_recipes').select('id', { count: 'exact', head: true }).eq('is_approved', true),
+    ]).then(([m, r, rp, ct, ca, rec]) => setStats({
+      members:      m.count  ?? 0,
+      records:      r.count  ?? 0,
+      provisional:  rp.count ?? 0,
+      compsTotal:   ct.count ?? 0,
+      compsActive:  ca.count ?? 0,
+      recipes:      rec.count ?? 0,
+    }))
+  }, [])
 
   const modules = [
     {
-      num: '01', title: 'Membership',
+      title: 'Membership',
       desc: 'Join SNZ — a small annual fee supports your national body. Manage your profile, track your competition history, and access member benefits.',
       onClick: () => navigate('/membership'),
       icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={SNZ_BLUE} strokeWidth="1.8" strokeLinecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>,
+      status: 'live',
+      summary: stats.members ? `${stats.members} active members` : null,
     },
     {
-      num: '02', title: 'NZ Records',
+      title: 'NZ Records',
       desc: 'Official national spearfishing records by species, division, and category. Submit and verify new claims.',
       onClick: () => navigate('/records'),
       icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={SNZ_BLUE} strokeWidth="1.8" strokeLinecap="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>,
+      status: 'live',
+      summary: stats.records
+        ? `${stats.records} ratified records${stats.provisional ? ` · ${stats.provisional} provisional` : ''}`
+        : null,
     },
     {
-      num: '03', title: 'Catfish Cull',
+      title: 'Catfish Cull',
       desc: 'Rosemergy Catfish Cull · Motuoapa, Lake Taupō · 13 Feb 2027. Registration, 2026 results, event info and admin.',
       onClick: () => navigate('/catfish'),
       icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={SNZ_BLUE} strokeWidth="1.8" strokeLinecap="round"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>,
+      status: 'soon',
+      summary: '2027 competitor registration opening soon',
     },
     {
-      num: '04', title: 'National Championships',
+      title: 'National Championships',
       desc: 'Tairua, Coromandel · 19–24 Jan 2027 · 8 events including Open, Juniors, Women\'s, Fin Swim, Photography, Silver & Golden Oldie, and Super Diver.',
       onClick: () => navigate('/nationals'),
       icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={SNZ_BLUE} strokeWidth="1.8" strokeLinecap="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2z"/></svg>,
+      status: 'soon',
+      summary: 'Registration opens soon · Fish list & zones shared 4 months prior',
     },
     {
-      num: '05', title: 'Other Competitions',
+      title: 'Big Fish',
+      desc: 'Season-long biggest fish competition across six species — Butterfish, Blue Moki, Kingfish, Snapper, Warehou and Bluefin. Submit up to 3 fish per species with three verification photos. Live leaderboard per species.',
+      onClick: () => navigate('/big-fish'),
+      icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={SNZ_BLUE} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M6.5 12c.94-3.46 4.94-6 8.5-6 3.56 0 6.06 2.54 7 6-.94 3.47-3.44 6-7 6s-7.56-2.53-8.5-6Z"/><path d="M18 12v.5"/><path d="M16 17.93a9.77 9.77 0 0 1 0-11.86"/><path d="M7 10.67C7 8 5.58 5.97 2.73 5.5c-1 1.5-1 5 .5 8 1.5 3 3.5 3.5 3.77 3.5a8.23 8.23 0 0 1 0-6.33Z"/><path d="M10.46 7.26C10.2 5.88 9.17 4.24 8 3h5.8a2 2 0 0 1 1.98 1.67l.23 1.4"/><path d="m16.01 17.93-.23 1.4A2 2 0 0 1 13.8 21H9.5a5.96 5.96 0 0 1 1.49-3.98"/></svg>,
+      status: 'soon',
+      summary: 'Launching 1 June — stay tuned!',
+    },
+    {
+      title: 'Fish Bingo',
+      desc: 'Claim species you\'ve speared, earn points, and compete on the leaderboard. Complete bonus rows for extra points. SNZ members only.',
+      onClick: () => navigate('/bingo'),
+      icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={SNZ_BLUE} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><line x1="6.5" y1="6.5" x2="6.5" y2="6.51"/><line x1="17.5" y1="6.5" x2="17.5" y2="6.51"/><path d="m15.5 15.5 3 3m0-3-3 3"/></svg>,
+      status: 'wrapped',
+      summary: 'Season wrapped · Back in October 2026',
+    },
+    {
+      title: 'Other Competitions',
       desc: 'Club competitions — register your team, view fish lists, live leaderboard, and results.',
       onClick: () => navigate('/competitions'),
       icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={SNZ_BLUE} strokeWidth="1.8" strokeLinecap="round"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"/></svg>,
+      status: 'live',
+      summary: stats.compsTotal
+        ? `${stats.compsTotal} total · ${stats.compsActive} active now`
+        : 'Club competitions',
     },
     {
-      num: '06', title: 'Fish ID',
+      title: 'Fish ID',
       desc: 'AI-assisted species identification. Take or upload a photo and get an instant ID with targeting tips, example catches, and MPI rules lookup.',
       onClick: () => navigate('/fish-id'),
       icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={SNZ_BLUE} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M6.5 12c.94-3.46 4.94-6 8.5-6 3.56 0 6.06 2.54 7 6-.94 3.47-3.44 6-7 6s-7.56-2.53-8.5-6Z"/><path d="M18 12v.5"/><path d="M16 17.93a9.77 9.77 0 0 1 0-11.86"/><path d="M7 10.67C7 8 5.58 5.97 2.73 5.5c-1 1.5-1 5 .5 8 1.5 3 3.5 3.5 3.77 3.5a8.23 8.23 0 0 1 0-6.33Z"/><path d="M10.46 7.26C10.2 5.88 9.17 4.24 8 3h5.8a2 2 0 0 1 1.98 1.67l.23 1.4"/><path d="m16.01 17.93-.23 1.4A2 2 0 0 1 13.8 21H9.5a5.96 5.96 0 0 1 1.49-3.98"/></svg>,
+      status: 'concept',
+      summary: 'New AI-powered concept · Free for members to test',
+    },
+    {
+      title: 'Inspiration',
+      desc: 'Community recipes and cooking ideas from SNZ members. Search by species, share your own dishes, and discover new ways to cook your catch.',
+      onClick: () => navigate('/inspiration'),
+      icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={SNZ_BLUE} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M15 11h.01M11 15h.01M16 16H8a4 4 0 0 1-4-4V7a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v5a4 4 0 0 1-4 4Z"/><path d="M9 9h.01"/><path d="M8 20h8"/><path d="M12 16v4"/></svg>,
+      status: 'live',
+      summary: stats.recipes ? `${stats.recipes} recipes available now` : null,
     },
   ]
 
@@ -855,42 +933,50 @@ function SNZHub() {
         </div>
       </section>
 
+      {/* Carousel */}
+      <HubCarousel />
+
       {/* Modules */}
       <section className="px-6 py-10 flex-1">
         <div className="max-w-4xl mx-auto">
           <h2 className="text-xs font-bold tracking-widest text-gray-400 uppercase mb-6">What would you like to do?</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {modules.map((m) => (
-              <button
-                key={m.num}
-                onClick={m.onClick}
-                disabled={m.soon}
-                className={`relative text-left p-6 rounded-2xl border-2 flex flex-col gap-4 transition-all group
-                  ${m.soon ? 'border-gray-100 bg-gray-50 cursor-default opacity-60' : 'border-gray-200 bg-white hover:shadow-md cursor-pointer'}
-                `}
-                style={!m.soon ? { borderColor: undefined } : {}}
-                onMouseEnter={e => { if (!m.soon) e.currentTarget.style.borderColor = SNZ_BLUE }}
-                onMouseLeave={e => { if (!m.soon) e.currentTarget.style.borderColor = '#e5e7eb' }}
-              >
-                {m.soon && (
-                  <span className="absolute top-4 right-4 text-xs font-bold tracking-widest text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full uppercase">
-                    Coming Soon
-                  </span>
-                )}
-                <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-blue-50 border border-blue-100">
-                  {m.icon}
-                </div>
-                <div>
-                  <div className="text-xl font-black text-gray-900 mb-2">{m.title}</div>
-                  <p className="text-sm text-gray-500 leading-relaxed">{m.desc}</p>
-                </div>
-                {!m.soon && (
-                  <div className="flex items-center gap-1 mt-auto font-bold text-sm" style={{ color: SNZ_BLUE }}>
+            {modules.map((m) => {
+              const st = m.status ? STATUS[m.status] : null
+              return (
+                <button
+                  key={m.title}
+                  onClick={m.onClick}
+                  className="relative text-left p-6 rounded-2xl border-2 flex flex-col gap-3 transition-all group border-gray-200 bg-white hover:shadow-md cursor-pointer"
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = SNZ_BLUE }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = '#e5e7eb' }}
+                >
+                  {/* Status badge */}
+                  {st && (
+                    <span className="absolute top-4 right-4 text-xs font-bold px-2.5 py-1 rounded-full border whitespace-nowrap"
+                      style={{ background: st.bg, color: st.color, borderColor: st.border }}>
+                      {st.label}
+                    </span>
+                  )}
+                  <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-blue-50 border border-blue-100 flex-shrink-0">
+                    {m.icon}
+                  </div>
+                  <div className="flex-1">
+                    <div className="text-xl font-black text-gray-900 mb-1 pr-28">{m.title}</div>
+                    <p className="text-sm text-gray-500 leading-relaxed">{m.desc}</p>
+                  </div>
+                  {m.summary && (
+                    <div className="text-xs font-semibold rounded-lg px-3 py-1.5 border"
+                      style={st ? { background: st.bg, color: st.color, borderColor: st.border } : { background: '#f9fafb', color: '#6b7280', borderColor: '#e5e7eb' }}>
+                      {m.summary}
+                    </div>
+                  )}
+                  <div className="flex items-center gap-1 font-bold text-sm" style={{ color: SNZ_BLUE }}>
                     Open <span className="group-hover:translate-x-1 transition-transform inline-block">→</span>
                   </div>
-                )}
-              </button>
-            ))}
+                </button>
+              )
+            })}
           </div>
         </div>
       </section>
@@ -950,7 +1036,19 @@ export default function App() {
       <Route path="/admin/analytics" element={<ProtectedRoute><AnalyticsDashboard /></ProtectedRoute>} />
       <Route path="/admin/teams"   element={<ProtectedRoute><TeamManagement /></ProtectedRoute>} />
       <Route path="/admin/weighin" element={<ProtectedRoute><WeighmasterInterface /></ProtectedRoute>} />
-      <Route path="/admin/results" element={<ProtectedRoute><ResultsManagement /></ProtectedRoute>} />
+      <Route path="/admin/results"   element={<ProtectedRoute><ResultsManagement /></ProtectedRoute>} />
+      <Route path="/admin/carousel"  element={<ProtectedRoute><CarouselAdmin /></ProtectedRoute>} />
+      <Route path="/admin/big-fish"  element={<ProtectedRoute><BigFishAdmin /></ProtectedRoute>} />
+      <Route path="/big-fish"          element={<BigFishPage />} />
+      <Route path="/big-fish/sponsor" element={<BigFishSponsorPage />} />
+      {/* Inspiration / Community Recipes */}
+      <Route path="/inspiration"          element={<InspirationPage />} />
+      {/* Fish Bingo */}
+      <Route path="/bingo"                element={<BingoApp />} />
+      <Route path="/bingo/diver"          element={<BingoDiverPage />} />
+      <Route path="/bingo/admin"          element={<ProtectedRoute><BingoAdmin /></ProtectedRoute>} />
+      <Route path="/bingo/admin/species"  element={<ProtectedRoute><BingoSpeciesAdmin /></ProtectedRoute>} />
+      <Route path="/bingo/admin/bonuses"  element={<ProtectedRoute><BingoBonusAdmin /></ProtectedRoute>} />
       <Route path="*"              element={<Navigate to="/" replace />} />
     </Routes>
     <AnalyticsTracker />

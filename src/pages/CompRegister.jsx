@@ -214,6 +214,7 @@ export default function CompRegister() {
   const [waiverAccepted, setWaiverAccepted] = useState(false)
   const [showRules, setShowRules] = useState(false)
   const [pendingPhoto, setPendingPhoto] = useState(null)
+  const [paymentDone, setPaymentDone] = useState(false)
 
   useEffect(() => {
     supabase.from('competitions').select('*').eq('id', id).single()
@@ -221,7 +222,8 @@ export default function CompRegister() {
     // Handle return from Stripe
     const params = new URLSearchParams(window.location.search)
     if (params.get('payment') === 'success') {
-      setDone(true) // show success screen
+      setDone(true)
+      setPaymentDone(true)
       window.history.replaceState({}, '', window.location.pathname)
     }
   }, [id])
@@ -432,69 +434,101 @@ export default function CompRegister() {
   if (done) return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
       <div className="max-w-md w-full bg-white border border-gray-200 rounded-2xl p-8 text-center shadow-sm">
-        {entryFeeCents > 0 ? (
+
+        {/* ── Payment just completed (returned from Stripe) ── */}
+        {paymentDone ? (
+          <>
+            <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4">
+              <span className="text-green-600 text-4xl">✓</span>
+            </div>
+            <h1 className="text-3xl font-black text-gray-900 mb-2">You're in!</h1>
+            <p className="text-gray-600 text-sm mb-1">
+              Payment confirmed — <strong>{teamName || 'your team'}</strong> is registered for <strong>{comp?.name}</strong>.
+            </p>
+            <p className="text-gray-400 text-xs mb-6">A confirmation has been sent to your email.</p>
+            {teamPhotoUrl && (
+              <div className="mb-5">
+                <img src={teamPhotoUrl} alt="Team" className="w-24 h-24 object-cover rounded-xl mx-auto border-2 border-green-300" />
+              </div>
+            )}
+            <button onClick={() => navigate(`/competitions/${id}`)}
+              className="w-full py-3 rounded-xl font-black text-white text-sm mb-3"
+              style={{ background: SNZ_BLUE }}>View Competition →</button>
+            <button onClick={() => navigate('/')}
+              className="w-full py-3 rounded-xl font-bold text-gray-600 text-sm border-2 border-gray-200 hover:border-gray-300 transition">
+              Back to SNZ Hub
+            </button>
+          </>
+
+        ) : entryFeeCents > 0 ? (
+          /* ── Entry fee required — awaiting payment ── */
           <>
             <div className="w-16 h-16 rounded-full bg-amber-100 flex items-center justify-center mx-auto mb-4">
               <span className="text-amber-600 text-2xl">⏳</span>
             </div>
             <h1 className="text-2xl font-black text-gray-900 mb-2">Almost there!</h1>
-            <p className="text-gray-500 text-sm mb-1"><strong>{teamName}</strong> is entered for <strong>{comp.name}</strong>.</p>
-            <p className="text-gray-400 text-sm mb-4">Complete payment below to confirm your registration.</p>
-          </>
-        ) : (
-          <>
-            <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4">
-              <span className="text-green-600 text-2xl font-black">✓</span>
-            </div>
-            <h1 className="text-2xl font-black text-gray-900 mb-2">Team Registered!</h1>
-            <p className="text-gray-500 text-sm mb-1"><strong>{teamName}</strong> is confirmed for <strong>{comp.name}</strong>.</p>
-            <p className="text-gray-500 text-sm mb-6">Good luck out there!</p>
-          </>
-        )}
-
-        {teamPhotoUrl && (
-          <div className="mb-5">
-            <img src={teamPhotoUrl} alt="Team" className="w-24 h-24 object-cover rounded-xl mx-auto border-2 border-green-300" />
-            <p className="text-xs text-green-600 font-semibold mt-2">✓ Team photo saved</p>
-          </div>
-        )}
-
-        {entryFeeCents > 0 && teamId ? (
-          // Entry fee required — show payment prompt, no skip
-          <div className="w-full">
-            <div className="bg-amber-50 border-2 border-amber-300 rounded-xl p-5 mb-4 text-left">
-              <p className="font-black text-amber-900 mb-1">Payment required to confirm your spot</p>
-              <p className="text-sm text-amber-800 mb-2">
-                Your registration is <strong>pending</strong> until the entry fee of <strong>${(entryFeeCents / 100).toFixed(2)} NZD</strong> is paid.
-              </p>
-              {isEarlyBird && comp?.early_bird_cutoff && (
-                <p className="text-xs text-amber-700 bg-amber-100 rounded-lg px-3 py-1.5 mb-3 font-semibold">
-                  🐦 Early bird price — closes {new Date(comp.early_bird_cutoff).toLocaleDateString('en-NZ', { day: 'numeric', month: 'long' })}
+            <p className="text-gray-500 text-sm mb-1"><strong>{teamName}</strong> is entered for <strong>{comp?.name}</strong>.</p>
+            <p className="text-gray-400 text-sm mb-5">Your spot is held — complete payment below to confirm.</p>
+            {teamPhotoUrl && (
+              <div className="mb-5">
+                <img src={teamPhotoUrl} alt="Team" className="w-24 h-24 object-cover rounded-xl mx-auto border-2 border-amber-200" />
+                <p className="text-xs text-green-600 font-semibold mt-2">✓ Team photo saved</p>
+              </div>
+            )}
+            {teamId && (
+              <div className="bg-amber-50 border-2 border-amber-300 rounded-xl p-5 mb-4 text-left">
+                <p className="font-black text-amber-900 mb-1">Payment required to confirm your spot</p>
+                <p className="text-sm text-amber-800 mb-2">
+                  Entry fee: <strong>${(entryFeeCents / 100).toFixed(2)} NZD</strong>
                 </p>
-              )}
-              {checkoutError && <p className="text-xs text-red-600 mb-2">{checkoutError}</p>}
-              <button
-                onClick={() => checkout({
-                  type: 'competition_entry',
-                  teamId,
-                  competitionId: id,
-                  competitionName: comp.name,
-                  amountCents: entryFeeCents,
-                  memberEmail: member?.email || p1.email,
-                  memberName: member?.name || p1.name,
-                })}
-                disabled={checkoutLoading}
-                className="w-full py-3 rounded-xl font-black text-white text-sm disabled:opacity-50"
-                style={{ background: '#d97706' }}>
-                {checkoutLoading ? 'Redirecting to payment…' : `Pay $${(entryFeeCents / 100).toFixed(2)} NZD now →`}
-              </button>
-            </div>
-          </div>
+                {isEarlyBird && comp?.early_bird_cutoff && (
+                  <p className="text-xs text-amber-700 bg-amber-100 rounded-lg px-3 py-1.5 mb-3 font-semibold">
+                    🐦 Early bird price — closes {new Date(comp.early_bird_cutoff).toLocaleDateString('en-NZ', { day: 'numeric', month: 'long' })}
+                  </p>
+                )}
+                {checkoutError && <p className="text-xs text-red-600 mb-2">{checkoutError}</p>}
+                <button
+                  onClick={() => checkout({
+                    type: 'competition_entry',
+                    teamId,
+                    competitionId: id,
+                    competitionName: comp.name,
+                    amountCents: entryFeeCents,
+                    memberEmail: member?.email || p1.email,
+                    memberName: member?.name || p1.name,
+                  })}
+                  disabled={checkoutLoading}
+                  className="w-full py-3 rounded-xl font-black text-white text-sm disabled:opacity-50"
+                  style={{ background: '#d97706' }}>
+                  {checkoutLoading ? 'Redirecting to payment…' : `Pay $${(entryFeeCents / 100).toFixed(2)} NZD now →`}
+                </button>
+              </div>
+            )}
+          </>
+
         ) : (
-          // Free comp — fully confirmed, go to competition
-          <button onClick={() => navigate(`/competitions/${id}`)}
-            className="w-full py-3 rounded-xl font-bold text-white text-sm"
-            style={{ background: SNZ_BLUE }}>View Competition →</button>
+          /* ── Free comp — fully confirmed ── */
+          <>
+            <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4">
+              <span className="text-green-600 text-4xl">✓</span>
+            </div>
+            <h1 className="text-3xl font-black text-gray-900 mb-2">You're in!</h1>
+            <p className="text-gray-500 text-sm mb-1"><strong>{teamName}</strong> is confirmed for <strong>{comp?.name}</strong>.</p>
+            <p className="text-gray-400 text-xs mb-6">A confirmation has been sent to your email. Good luck out there!</p>
+            {teamPhotoUrl && (
+              <div className="mb-5">
+                <img src={teamPhotoUrl} alt="Team" className="w-24 h-24 object-cover rounded-xl mx-auto border-2 border-green-300" />
+                <p className="text-xs text-green-600 font-semibold mt-2">✓ Team photo saved</p>
+              </div>
+            )}
+            <button onClick={() => navigate(`/competitions/${id}`)}
+              className="w-full py-3 rounded-xl font-black text-white text-sm mb-3"
+              style={{ background: SNZ_BLUE }}>View Competition →</button>
+            <button onClick={() => navigate('/')}
+              className="w-full py-3 rounded-xl font-bold text-gray-600 text-sm border-2 border-gray-200 hover:border-gray-300 transition">
+              Back to SNZ Hub
+            </button>
+          </>
         )}
       </div>
     </div>

@@ -6,7 +6,7 @@ import { useStripeCheckout } from '../hooks/useStripeCheckout'
 
 const SNZ_BLUE = '#2B6CB0'
 const SNZ_LOGO = import.meta.env.VITE_SNZ_LOGO_URL || null
-const MEMBERSHIP_EXPIRES = '31 December 2026'
+const MEMBERSHIP_EXPIRES = '31 March 2027'
 
 const REGIONS = [
   'Northland', 'Auckland', 'Waikato / Bay of Plenty', 'Coromandel',
@@ -49,7 +49,7 @@ function MembershipLanding({ session, navigate }) {
         {SNZ_LOGO && <img src={SNZ_LOGO} alt="SNZ" className="h-14 object-contain mb-6" />}
         <h1 className="text-4xl font-black text-gray-900 mb-3">SNZ Membership</h1>
         <p className="text-gray-500 text-lg mb-2">Join Spearfishing New Zealand — $10 annual membership.</p>
-        <p className="text-gray-400 text-sm mb-8">Annual membership is $10 NZD, valid through to <strong>31 December 2026</strong>.</p>
+        <p className="text-gray-400 text-sm mb-8">Annual membership is $10 NZD, valid through to <strong>31 March 2027</strong>.</p>
 
         <div className="space-y-3 mb-8">
           {[
@@ -220,7 +220,7 @@ function MemberSignup({ navigate }) {
         region: profile.region || null,
         fit_to_dive: profile.fit_to_dive,
         membership_year: 2026,
-        membership_expires: '2026-12-31',
+        membership_expires: '2027-03-31',
         membership_status: membershipStatus,
         membership_fee_cents: feeCents,
         payment_status: paymentStatus,
@@ -463,7 +463,7 @@ function MemberLogin({ navigate }) {
           ...(pendingProfile || {}),
           email: data.user.email, // always use confirmed email
           membership_year: 2026,
-          membership_expires: '2026-12-31',
+          membership_expires: '2027-03-31',
           membership_status: 'pending',
           membership_fee_cents: 1000,
           payment_status: 'pending',
@@ -502,10 +502,10 @@ function MemberLogin({ navigate }) {
           <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-sm text-red-600 mb-4">{error}</div>
         ) : null}
 
-        <form onSubmit={submit} className="bg-white border border-gray-200 rounded-2xl p-6 space-y-4">
+        <form onSubmit={submit} autoComplete="on" className="bg-white border border-gray-200 rounded-2xl p-6 space-y-4">
           <div>
             <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Email</label>
-            <input type="email" value={email} onChange={e => setEmail(e.target.value)} required autoFocus
+            <input type="email" name="email" autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} required autoFocus
               className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
               placeholder="you@example.com" />
           </div>
@@ -515,7 +515,7 @@ function MemberLogin({ navigate }) {
               <button type="button" onClick={() => navigate('/membership/reset')}
                 className="text-xs underline" style={{ color: SNZ_BLUE }}>Forgot password?</button>
             </div>
-            <input type="password" value={password} onChange={e => setPassword(e.target.value)} required
+            <input type="password" name="password" autoComplete="current-password" value={password} onChange={e => setPassword(e.target.value)} required
               onKeyDown={e => e.key === 'Enter' && submit(e)}
               className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
               placeholder="Your password" />
@@ -1780,7 +1780,7 @@ function InvitedMember({ navigate }) {
           email: user.email,
           name: inviteData?.name || '',
           membership_year: 2026,
-          membership_expires: '2026-12-31',
+          membership_expires: '2027-03-31',
           membership_status: 'pending',
           membership_fee_cents: 1000,
           payment_status: 'pending',

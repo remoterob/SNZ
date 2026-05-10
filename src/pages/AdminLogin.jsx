@@ -34,28 +34,39 @@ export default function AdminLogin() {
           </div>
         )}
         
-        <div className="space-y-4">
+        <form onSubmit={e => { e.preventDefault(); handleLogin() }} autoComplete="on" className="space-y-4">
+          <input
+            type="text"
+            name="username"
+            autoComplete="username"
+            value="snz-admin"
+            readOnly
+            className="hidden"
+            aria-hidden="true"
+          />
           <input
             type="password"
+            name="password"
+            autoComplete="current-password"
             placeholder="Enter admin password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && handleLogin()}
             className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none"
           />
           <button
-            onClick={handleLogin}
+            type="submit"
             className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition"
           >
             Login
           </button>
           <button
+            type="button"
             onClick={() => navigate(from === '/admin' ? '/leaderboard' : from)}
             className="w-full bg-gray-200 text-gray-700 py-3 rounded-lg font-semibold hover:bg-gray-300 transition"
           >
             Back
           </button>
-        </div>
+        </form>
       </div>
     </div>
   )

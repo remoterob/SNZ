@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { clearAdminSession } from '../lib/supabase'
-import { Users, Scale, FileText, Trophy, BarChart2 } from 'lucide-react'
+import { Users, Scale, FileText, Trophy, BarChart2, Image } from 'lucide-react'
 
 const SNZ_LOGO = import.meta.env.VITE_SNZ_LOGO_URL || '/api/placeholder/200/80'
 
@@ -54,6 +54,20 @@ export default function AdminDashboard() {
       icon: BarChart2,
       path: '/admin/analytics',
       color: 'bg-indigo-500'
+    },
+    {
+      title: 'Hub Carousel',
+      description: 'Upload and manage the photo carousel on the SNZ Hub landing page',
+      icon: Image,
+      path: '/admin/carousel',
+      color: 'bg-pink-500'
+    },
+    {
+      title: 'Big Fish',
+      description: 'Create and manage Big Fish competitions, view entries and set the overall champion',
+      icon: Trophy,
+      path: '/admin/big-fish',
+      color: 'bg-amber-500'
     }
   ]
 

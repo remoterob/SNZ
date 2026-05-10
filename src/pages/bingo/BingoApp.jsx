@@ -1,0 +1,286 @@
+import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { supabase } from '../../lib/supabase'
+import { useMemberSession, MemberAuthGate } from '../../components/MemberAuthGate'
+import { pointsMapFromSpecies, buildInfoMap, scoreForClaims } from '../../lib/bingo/helpers'
+import '../../bingo.css'
+
+import BingoPlayPage from './BingoPlayPage'
+import BingoBonusesPage from './BingoBonusesPage'
+import BingoLeaderboardPage from './BingoLeaderboardPage'
+import BingoLatestCatchesPage from './BingoLatestCatchesPage'
+import BingoDishesPage from './BingoDishesPage'
+import BingoRulesPage from './BingoRulesPage'
+
+const SNZ_BLUE = '#2B6CB0'
+
+// ── Shared closed-season UI ───────────────────────────────────────────────────
+
+function SeasonClosedHero() {
+  return (
+    <div style={{ background: 'linear-gradient(135deg, #1e3a5f 0%, #2B6CB0 100%)' }}
+      className="px-6 py-12 text-center">
+      <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/15 text-white text-xs font-bold mb-4 tracking-wide uppercase">
+        🏁 Season Closed
+      </div>
+      <h1 className="text-3xl sm:text-4xl font-black text-white mb-3 leading-tight">
+        Fish Bingo 2025–26
+      </h1>
+      <p className="text-blue-200 text-base leading-relaxed max-w-md mx-auto mb-2">
+        That's a wrap on this season — thanks to everyone who got out there and speared something worth bragging about.
+      </p>
+      <p className="text-white font-black text-lg mt-4">
+        🎣 Coming back bigger than ever later this season
+      </p>
+    </div>
+  )
+}
+
+function SeasonClosedBanner() {
+  return (
+    <div style={{ background: 'linear-gradient(135deg, #1e3a5f 0%, #2B6CB0 100%)', borderRadius: 12, marginBottom: 16, padding: '20px 20px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+        <span style={{ background: 'rgba(255,255,255,0.2)', borderRadius: 999, padding: '2px 10px', fontSize: 11, color: '#fff', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+          🏁 Season Closed
+        </span>
+      </div>
+      <p style={{ color: '#fff', fontWeight: 900, fontSize: 18, margin: '0 0 4px' }}>
+        The 2025–26 season has wrapped up
+      </p>
+      <p style={{ color: 'rgba(255,255,255,0.75)', fontSize: 14, margin: 0 }}>
+        Fish Bingo is coming back bigger than ever later this season — check the leaderboard to see how you finished.
+      </p>
+    </div>
+  )
+}
+const TABS = [
+  { id: 'play',        label: 'Play' },
+  { id: 'bonuses',     label: 'Bonuses' },
+  { id: 'leaderboard', label: 'Leaderboard' },
+  { id: 'catches',     label: 'Catches' },
+  { id: 'dishes',      label: 'Dishes' },
+  { id: 'rules',       label: 'Rules' },
+]
+
+export default function BingoApp() {
+  const navigate = useNavigate()
+  const { session, member, loading: authLoading } = useMemberSession()
+
+  const [tab, setTab] = useState(() => localStorage.getItem('bingo_tab') || 'play')
+  const changeTab = (t) => { setTab(t); localStorage.setItem('bingo_tab', t) }
+
+  // ── Data ──────────────────────────────────────────────────────────────────
+  const [species,   setSpecies]   = useState(null)
+  const [compCfg,   setCompCfg]   = useState(null)
+  const [allClaims, setAllClaims] = useState([])
+  const [myClaims,  setMyClaims]  = useState([])
+  const [dataReady, setDataReady] = useState(false)
+
+  const [firstChoice,    setFirstChoice]    = useState({})
+  const [openInfoSlug,   setOpenInfoSlug]   = useState(null)
+
+  const userId = session?.user?.id
+  const token  = session?.access_token
+  const me     = session ? {
+    id:    userId,
+    name:  member?.name || session.user.email?.split('@')[0] || 'Member',
+    email: session.user.email,
+  } : null
+  const isActiveMember = !!session && member?.membership_status === 'active'
+  const signedIn = isActiveMember
+
+  // Species
+  useEffect(() => {
+    supabase.from('bingo_species')
+      .select('*')
+      .eq('is_active', true)
+      .order('display_order', { ascending: true })
+      .then(({ data }) => setSpecies(data || []))
+  }, [])
+
+  // Comp config (active season)
+  useEffect(() => {
+    supabase.from('bingo_comp_config')
+      .select('*')
+      .eq('is_active', true)
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }) => setCompCfg(data || null))
+  }, [])
+
+  // All claims (for leaderboard + latest catches)
+  const reloadAll = useCallback(async () => {
+    if (!compCfg?.season) return
+    const { data } = await supabase
+      .from('bingo_claims')
+      .select('id, user_id, species_slug, first_time, photo_url, thumb_url, created_at, comp_season')
+      .eq('comp_season', compCfg.season)
+      .order('created_at', { ascending: false })
+    // Fetch member names for all unique user_ids
+    const rows = data || []
+    const uids = [...new Set(rows.map(c => c.user_id).filter(Boolean))]
+    if (uids.length) {
+      const { data: members } = await supabase
+        .from('members')
+        .select('id, name')
+        .in('id', uids)
+      const nameMap = Object.fromEntries((members || []).map(m => [m.id, m.name]))
+      rows.forEach(c => { c.display_name = nameMap[c.user_id] || 'Diver' })
+    }
+    setAllClaims(rows)
+  }, [compCfg?.season])
+
+  // My claims
+  const reloadMine = useCallback(async () => {
+    if (!userId || !compCfg?.season) { setMyClaims([]); return }
+    const { data } = await supabase
+      .from('bingo_claims')
+      .select('id, user_id, species_slug, first_time, photo_url, thumb_url, created_at, comp_season')
+      .eq('user_id', userId)
+      .eq('comp_season', compCfg.season)
+      .order('created_at', { ascending: false })
+    setMyClaims(data || [])
+  }, [userId, compCfg?.season])
+
+  useEffect(() => {
+    if (compCfg?.season) {
+      Promise.all([reloadAll(), reloadMine()]).then(() => setDataReady(true))
+    }
+  }, [reloadAll, reloadMine, compCfg?.season])
+
+  // ── Derived ───────────────────────────────────────────────────────────────
+  const pMap    = useMemo(() => pointsMapFromSpecies(species || []), [species])
+  const infoMap = useMemo(() => buildInfoMap(species || []),         [species])
+  const myScore = useMemo(() => scoreForClaims(myClaims, pMap),     [myClaims, pMap])
+
+  // Season status — 'open' | 'before' | 'after' | 'none' (no config)
+  const seasonStatus = useMemo(() => {
+    if (!compCfg) return 'none'
+    const now   = new Date()
+    const start = new Date(compCfg.comp_start)
+    const end   = new Date(compCfg.comp_end)
+    if (now < start) return 'before'
+    if (now > end)   return 'after'
+    return 'open'
+  }, [compCfg])
+
+  const seasonClosed = seasonStatus === 'after' || seasonStatus === 'none'
+
+  // ── Auth states ───────────────────────────────────────────────────────────
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <p className="text-gray-400 text-sm">Loading…</p>
+      </div>
+    )
+  }
+
+  if (!session) {
+    return (
+      <div className="min-h-screen bg-white">
+        <div style={{ background: SNZ_BLUE }} className="px-6 py-3 flex items-center justify-between border-b border-blue-700">
+          <button onClick={() => navigate('/')}
+            className="flex items-center gap-1.5 text-white font-bold text-sm bg-white/15 hover:bg-white/25 px-3 py-1.5 rounded-lg transition">
+            ← SNZ Hub
+          </button>
+          <button onClick={() => navigate('/bingo/admin')}
+            className="flex items-center gap-1.5 text-white font-bold text-sm bg-white/15 hover:bg-white/25 px-3 py-1.5 rounded-lg transition">
+            ⚙ Admin
+          </button>
+        </div>
+        <SeasonClosedHero />
+        <div className="max-w-sm mx-auto px-6 pb-12">
+          <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Sign in to view your results</p>
+          <MemberAuthGate message="Sign in with your SNZ membership." />
+        </div>
+      </div>
+    )
+  }
+
+  if (!isActiveMember) {
+    return (
+      <div className="min-h-screen bg-white">
+        <div style={{ background: SNZ_BLUE }} className="px-6 py-3 flex items-center justify-between border-b border-blue-700">
+          <button onClick={() => navigate('/')}
+            className="flex items-center gap-1.5 text-white font-bold text-sm bg-white/15 hover:bg-white/25 px-3 py-1.5 rounded-lg transition">
+            ← SNZ Hub
+          </button>
+          <button onClick={() => navigate('/bingo/admin')}
+            className="flex items-center gap-1.5 text-white font-bold text-sm bg-white/15 hover:bg-white/25 px-3 py-1.5 rounded-lg transition">
+            ⚙ Admin
+          </button>
+        </div>
+        <div className="max-w-sm mx-auto px-6 py-12 text-center">
+          <h1 className="text-2xl font-black text-gray-900 mb-2">Active Membership Required</h1>
+          <p className="text-gray-500 text-sm mb-6">Fish Bingo is only available to active SNZ members. Complete your membership to play.</p>
+          <button onClick={() => navigate('/membership')}
+            className="px-5 py-2.5 rounded-xl font-bold text-sm text-white transition hover:opacity-90"
+            style={{ background: SNZ_BLUE }}>
+            Complete Membership
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  // ── Game shell ────────────────────────────────────────────────────────────
+  const sharedProps = {
+    species, compCfg, allClaims, myClaims, pMap, infoMap,
+    signedIn, me, token, myScore, seasonClosed,
+    reloadAll, reloadMine,
+    firstChoice, setFirstChoice,
+    openInfoSlug, setOpenInfoSlug,
+  }
+
+  return (
+    <div className="bingo-app">
+      {/* Top nav */}
+      <div style={{ background: SNZ_BLUE, position: 'sticky', top: 0, zIndex: 20 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', borderBottom: '1px solid rgba(255,255,255,0.15)' }}>
+          <button onClick={() => navigate('/')}
+            style={{ background: 'rgba(255,255,255,0.15)', border: 'none', color: '#fff', fontWeight: 700, fontSize: 13, padding: '6px 10px', borderRadius: 8, cursor: 'pointer' }}>
+            ← SNZ Hub
+          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {signedIn && (
+              <span style={{ background: 'rgba(255,255,255,0.2)', borderRadius: 999, padding: '3px 10px', fontSize: 13, color: '#fff', fontWeight: 700 }}>
+                {myScore} pts
+              </span>
+            )}
+            <button onClick={() => navigate('/bingo/admin')}
+              style={{ background: 'rgba(255,255,255,0.15)', border: 'none', color: '#fff', fontWeight: 700, fontSize: 13, padding: '6px 10px', borderRadius: 8, cursor: 'pointer' }}>
+              ⚙ Admin
+            </button>
+          </div>
+        </div>
+        {/* Tab bar */}
+        <div className="tabs-scroll">
+          <div className="tabs">
+            {TABS.map(t => (
+              <button key={t.id} className={`tab${tab === t.id ? ' active' : ''}`} onClick={() => changeTab(t.id)}>
+                {t.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Page content */}
+      {!dataReady && species === null ? (
+        <div className="container" style={{ paddingTop: 40, textAlign: 'center' }}>
+          <p className="muted">Loading…</p>
+        </div>
+      ) : (
+        <div className="container">
+          {seasonClosed && tab === 'play' && <SeasonClosedBanner />}
+          {tab === 'play'        && <BingoPlayPage        {...sharedProps} />}
+          {tab === 'bonuses'     && <BingoBonusesPage     {...sharedProps} />}
+          {tab === 'leaderboard' && <BingoLeaderboardPage {...sharedProps} />}
+          {tab === 'catches'     && <BingoLatestCatchesPage {...sharedProps} />}
+          {tab === 'dishes'      && <BingoDishesPage      {...sharedProps} />}
+          {tab === 'rules'       && <BingoRulesPage />}
+        </div>
+      )}
+    </div>
+  )
+}
