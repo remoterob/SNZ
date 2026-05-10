@@ -1,5 +1,5 @@
 // SNZ Hub Service Worker
-const CACHE_NAME = 'snz-hub-v1'
+const CACHE_NAME = 'snz-hub-v2'
 
 // Core pages to cache for offline access
 const PRECACHE_URLS = [
@@ -45,6 +45,8 @@ self.addEventListener('fetch', event => {
         }
         return response
       })
-      .catch(() => caches.match(event.request))
+      .catch(() =>
+        caches.match(event.request).then(cached => cached || Response.error())
+      )
   )
 })
