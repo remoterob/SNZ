@@ -302,11 +302,6 @@ export default function NationalsPage() {
                     <div>
                       <h3 className="font-black text-gray-900 text-lg">{ev.name}</h3>
                       <p className="text-xs font-semibold" style={{ color: ev.color }}>{ev.format}</p>
-                      {fmtEventDateRange(nationals?.event_dates?.[ev.id]) && (
-                        <p className="text-xs font-bold text-gray-500 mt-0.5">
-                          📅 {fmtEventDateRange(nationals?.event_dates?.[ev.id])}
-                        </p>
-                      )}
                     </div>
                     {ev.earlyBird && (
                       <span className="ml-auto text-xs font-black px-2 py-1 rounded-full bg-amber-100 text-amber-700 border border-amber-200">
@@ -326,6 +321,24 @@ export default function NationalsPage() {
                   </div>
                 </div>
                 <div className="px-5 py-4 space-y-3">
+                  {fmtEventDateRange(nationals?.event_dates?.[ev.id]) ? (
+                    <div className="flex items-center gap-3 rounded-xl px-4 py-3 border"
+                      style={{ background: ev.bgColor, borderColor: ev.borderColor }}>
+                      <span className="text-xl">📅</span>
+                      <div>
+                        <p className="text-xs font-bold uppercase tracking-wide" style={{ color: ev.color }}>Date</p>
+                        <p className="font-black text-gray-900">{fmtEventDateRange(nationals?.event_dates?.[ev.id])}</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-3 rounded-xl px-4 py-3 border border-gray-100 bg-gray-50">
+                      <span className="text-xl">📅</span>
+                      <div>
+                        <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">Date</p>
+                        <p className="text-sm text-gray-400">TBC — check back soon</p>
+                      </div>
+                    </div>
+                  )}
                   <p className="text-sm text-gray-600 leading-relaxed">{ev.description}</p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="bg-gray-50 rounded-xl p-3">
