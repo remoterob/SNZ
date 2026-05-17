@@ -334,7 +334,7 @@ export default function NationalsRegister() {
         status: teamStatus,
         payment_status: 'pending',
         nationals_event: nationalsEvents,
-        entry_fee_cents: totalCents,
+        entry_fee_cents: totalCents * 100,
         merch_d1: {
           jacket: jacket.gender && jacket.size ? jacket : null,
           shirt: shirt.gender && shirt.size ? shirt : null,
@@ -384,7 +384,7 @@ export default function NationalsRegister() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             type: 'nationals_entry',
-            amountCents: totalCents,
+            amountCents: totalCents * 100,
             memberId: session.user.id,
             memberEmail: session.user.email,
             memberName: member?.name || '',
@@ -563,7 +563,7 @@ export default function NationalsRegister() {
                     <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center text-xs font-black text-blue-700 flex-shrink-0">1</div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-gray-800 truncate">{member?.name || 'Diver 1'}</p>
-                      {(() => { const f = getFee('under23'); return f === null ? <p className="text-xs text-gray-400">Fee TBC</p> : f === 0 ? <p className="text-xs text-gray-400">No additional fee</p> : <p className="text-xs text-gray-400">${(f/100).toFixed(2)}{isEarlyBird ? ' 🐦' : ''}</p> })()}
+                      {(() => { const f = getFee('under23'); return f === null ? <p className="text-xs text-gray-400">Fee TBC</p> : f === 0 ? <p className="text-xs text-gray-400">No additional fee</p> : <p className="text-xs text-gray-400">${f}{isEarlyBird ? ' 🐦' : ''}</p> })()}
                     </div>
                     <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition ${diverEvents.under23?.d1 ? 'border-transparent' : 'border-gray-300'}`}
                       style={diverEvents.under23?.d1 ? { background: ev.color } : {}}>
@@ -577,7 +577,7 @@ export default function NationalsRegister() {
                       <p className="text-sm font-semibold text-gray-800 truncate">
                         {p2Status === 'active' ? p2Member?.name : p2Status === 'inactive' ? p2Member?.name : p2Status === 'not_found' ? p2Email : 'Confirm Diver 2 email first'}
                       </p>
-                      {(() => { const f = getFee('under23'); return f === null ? <p className="text-xs text-gray-400">Fee TBC</p> : f === 0 ? <p className="text-xs text-gray-400">No additional fee</p> : <p className="text-xs text-gray-400">${(f/100).toFixed(2)}{isEarlyBird ? ' 🐦' : ''} — paid by Diver 2</p> })()}
+                      {(() => { const f = getFee('under23'); return f === null ? <p className="text-xs text-gray-400">Fee TBC</p> : f === 0 ? <p className="text-xs text-gray-400">No additional fee</p> : <p className="text-xs text-gray-400">${f}{isEarlyBird ? ' 🐦' : ''} — paid by Diver 2</p> })()}
                     </div>
                     <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition ${diverEvents.under23?.d2 ? 'border-transparent' : 'border-gray-300'}`}
                       style={diverEvents.under23?.d2 ? { background: ev.color } : {}}>
@@ -595,7 +595,7 @@ export default function NationalsRegister() {
               <div className="flex-1 min-w-0">
                 <p className="font-bold text-gray-900 text-sm">{ev.name}</p>
                 <p className="text-xs text-gray-500">{ev.desc}</p>
-                {(() => { const f = getFee(ev.id); return f === null ? <p className="text-xs text-gray-400 mt-0.5">Fee TBC</p> : f === 0 ? <p className="text-xs text-gray-400 mt-0.5">No additional fee</p> : <p className="text-xs font-bold mt-0.5" style={{ color: ev.color }}>${(f/100).toFixed(2)} per person{isEarlyBird ? <span className="ml-1 text-amber-600">🐦 Early bird</span> : ''}</p> })()}
+                {(() => { const f = getFee(ev.id); return f === null ? <p className="text-xs text-gray-400 mt-0.5">Fee TBC</p> : f === 0 ? <p className="text-xs text-gray-400 mt-0.5">No additional fee</p> : <p className="text-xs font-bold mt-0.5" style={{ color: ev.color }}>${f} per person{isEarlyBird ? <span className="ml-1 text-amber-600">🐦 Early bird</span> : ''}</p> })()}
               </div>
               <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition ${teamEvents[ev.id] ? 'border-transparent' : 'border-gray-300'}`}
                 style={teamEvents[ev.id] ? { background: ev.color } : {}}>
@@ -622,7 +622,7 @@ export default function NationalsRegister() {
                   <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center text-xs font-black text-blue-700 flex-shrink-0">1</div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-gray-800 truncate">{member?.name || 'Diver 1'}</p>
-                    {(() => { const f = getFee(ev.id); return f === null ? <p className="text-xs text-gray-400">Fee TBC</p> : f === 0 ? null : <p className="text-xs text-gray-400">${(f/100).toFixed(2)}{isEarlyBird ? ' 🐦' : ''}</p> })()}
+                    {(() => { const f = getFee(ev.id); return f === null ? <p className="text-xs text-gray-400">Fee TBC</p> : f === 0 ? null : <p className="text-xs text-gray-400">${f}{isEarlyBird ? ' 🐦' : ''}</p> })()}
                   </div>
                   <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition ${diverEvents[ev.id]?.d1 ? 'border-transparent' : 'border-gray-300'}`}
                     style={diverEvents[ev.id]?.d1 ? { background: ev.color } : {}}>
@@ -638,7 +638,7 @@ export default function NationalsRegister() {
                       {p2Status === 'active' ? p2Member?.name : p2Status === 'inactive' ? p2Member?.name : p2Status === 'not_found' ? p2Email : 'Confirm Diver 2 email first'}
                     </p>
                     {p2Status && p2Status !== 'active' && <p className="text-xs text-amber-600">Will be invited to confirm</p>}
-                    {(() => { const f = getFee(ev.id); return f === null ? <p className="text-xs text-gray-400">Fee TBC</p> : f === 0 ? null : <p className="text-xs text-gray-400">${(f/100).toFixed(2)}{isEarlyBird ? ' 🐦' : ''} — paid by Diver 2</p> })()}
+                    {(() => { const f = getFee(ev.id); return f === null ? <p className="text-xs text-gray-400">Fee TBC</p> : f === 0 ? null : <p className="text-xs text-gray-400">${f}{isEarlyBird ? ' 🐦' : ''} — paid by Diver 2</p> })()}
                   </div>
                   <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition ${diverEvents[ev.id]?.d2 ? 'border-transparent' : 'border-gray-300'}`}
                     style={diverEvents[ev.id]?.d2 ? { background: ev.color } : {}}>
@@ -662,14 +662,14 @@ export default function NationalsRegister() {
                 return (
                   <div key={ev.id} className="flex justify-between">
                     <span className="text-gray-600">{ev.emoji} {ev.name} <span className="text-gray-400">· per person</span></span>
-                    <span className="font-bold text-gray-900">{f === null ? 'TBC' : f === 0 ? 'Included' : `$${(f/100).toFixed(2)}`}</span>
+                    <span className="font-bold text-gray-900">{f === null ? 'TBC' : f === 0 ? 'Included' : `$${f}`}</span>
                   </div>
                 )
               })}
               {/* under23 summary */}
               {(diverEvents.under23?.d1 || diverEvents.under23?.d2) && (() => {
                 const f = getFee('under23')
-                const fStr = f === null ? 'TBC' : f === 0 ? 'Included' : `$${(f/100).toFixed(2)}`
+                const fStr = f === null ? 'TBC' : f === 0 ? 'Included' : `$${f}`
                 return (<>
                   {diverEvents.under23?.d1 && (
                     <div className="flex justify-between">
@@ -687,7 +687,7 @@ export default function NationalsRegister() {
               })()}
               {SUB_EVENTS.filter(e => e.perDiver && !e.groupWithTeam).map(ev => {
                 const f = getFee(ev.id)
-                const fStr = f === null ? 'TBC' : f === 0 ? 'Included' : `$${(f/100).toFixed(2)}`
+                const fStr = f === null ? 'TBC' : f === 0 ? 'Included' : `$${f}`
                 return (<>
                   {diverEvents[ev.id]?.d1 && (
                     <div key={`${ev.id}-d1`} className="flex justify-between">
@@ -707,30 +707,30 @@ export default function NationalsRegister() {
               {jacket.gender && jacket.size && getMerchFee('jacket') && (
                 <div className="flex justify-between">
                   <span className="text-gray-600">🧥 Jacket ({jacket.gender} {jacket.size})</span>
-                  <span className="font-bold text-gray-900">${(getMerchFee('jacket')/100).toFixed(2)}</span>
+                  <span className="font-bold text-gray-900">${getMerchFee('jacket')}</span>
                 </div>
               )}
               {shirt.gender && shirt.size && getMerchFee('shirt') && (
                 <div className="flex justify-between">
                   <span className="text-gray-600">👕 T-Shirt ({shirt.gender} {shirt.size})</span>
-                  <span className="font-bold text-gray-900">${(getMerchFee('shirt')/100).toFixed(2)}</span>
+                  <span className="font-bold text-gray-900">${getMerchFee('shirt')}</span>
                 </div>
               )}
               {mealQty > 0 && getMealFee() && (
                 <div className="flex justify-between">
                   <span className="text-gray-600">🍽️ Prize Giving Dinner × {mealQty}</span>
-                  <span className="font-bold text-gray-900">${(getMealFee() * mealQty / 100).toFixed(2)}</span>
+                  <span className="font-bold text-gray-900">${getMealFee() * mealQty}</span>
                 </div>
               )}
               <div className="border-t border-gray-100 pt-2 mt-2 space-y-1">
                 <div className="flex justify-between">
                   <span className="font-black text-gray-900">Your total today</span>
-                  <span className="font-black text-gray-900">{hasTBCFees ? 'TBC — fees not yet set' : totalCents > 0 ? `$${(totalCents/100).toFixed(2)} NZD` : '$0.00'}</span>
+                  <span className="font-black text-gray-900">{hasTBCFees ? 'TBC — fees not yet set' : totalCents > 0 ? `$${totalCents} NZD` : '$0.00'}</span>
                 </div>
                 {p2TotalCents > 0 && (
                   <div className="flex justify-between">
                     <span className="text-xs text-gray-400">Diver 2 pays on confirmation</span>
-                    <span className="text-xs text-gray-400">${(p2TotalCents/100).toFixed(2)} NZD</span>
+                    <span className="text-xs text-gray-400">${p2TotalCents} NZD</span>
                   </div>
                 )}
               </div>
@@ -779,7 +779,7 @@ export default function NationalsRegister() {
                     <p className="font-bold text-gray-900 text-sm">🧥 Event Jacket</p>
                     <p className="text-xs text-gray-400">SNZ Nationals 2027 jacket</p>
                   </div>
-                  <p className="font-black text-gray-900 text-sm">${(categoryFees.merch.jacket.price/100).toFixed(2)}</p>
+                  <p className="font-black text-gray-900 text-sm">${categoryFees.merch.jacket.price}</p>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
@@ -813,7 +813,7 @@ export default function NationalsRegister() {
                     <p className="font-bold text-gray-900 text-sm">👕 Event T-Shirt</p>
                     <p className="text-xs text-gray-400">SNZ Nationals 2027 t-shirt</p>
                   </div>
-                  <p className="font-black text-gray-900 text-sm">${(categoryFees.merch.shirt.price/100).toFixed(2)}</p>
+                  <p className="font-black text-gray-900 text-sm">${categoryFees.merch.shirt.price}</p>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
@@ -845,7 +845,7 @@ export default function NationalsRegister() {
                 <div className="flex justify-between items-center mb-3">
                   <div>
                     <p className="font-bold text-gray-900 text-sm">🍽️ Prize Giving Dinner</p>
-                    <p className="text-xs text-gray-400">${(categoryFees.meal.price/100).toFixed(2)} per person — order for family &amp; friends too</p>
+                    <p className="text-xs text-gray-400">${categoryFees.meal.price} per person — order for family &amp; friends too</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
@@ -861,7 +861,7 @@ export default function NationalsRegister() {
                       className="w-8 h-8 rounded-lg border border-gray-300 text-gray-600 font-bold text-lg flex items-center justify-center hover:bg-gray-50">+</button>
                   </div>
                   {mealQty > 0 && (
-                    <span className="text-sm font-bold text-gray-700 ml-2">${(categoryFees.meal.price * mealQty / 100).toFixed(2)}</span>
+                    <span className="text-sm font-bold text-gray-700 ml-2">${categoryFees.meal.price * mealQty}</span>
                   )}
                 </div>
               </div>
@@ -932,7 +932,7 @@ export default function NationalsRegister() {
           disabled={submitting || !teamName.trim() || !p2Ready}
           className="w-full py-3 rounded-xl font-black text-white text-sm disabled:opacity-40"
           style={{ background: SNZ_BLUE }}>
-          {submitting ? 'Processing…' : !hasTBCFees && totalCents > 0 ? `Register & Pay $${(totalCents/100).toFixed(2)} NZD →` : 'Complete Registration →'}
+          {submitting ? 'Processing…' : !hasTBCFees && totalCents > 0 ? `Register & Pay $${totalCents} NZD →` : 'Complete Registration →'}
         </button>
         {!hasTBCFees && totalCents > 0 && (
           <p className="text-xs text-gray-400 text-center">You will be redirected to Stripe to complete payment. Your partner will receive an invite to pay their own entry separately.</p>

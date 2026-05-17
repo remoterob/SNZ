@@ -353,7 +353,7 @@ export default function NationalsPage() {
                   <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-1">
                     <p className="text-xs font-bold text-amber-700">
                       {ev.feeCents > 0
-                        ? `Entry fee: $${(ev.feeCents/100).toFixed(2)} ${ev.perDiver ? 'per diver' : 'per team'}`
+                        ? `Entry fee: $${ev.feeCents} ${ev.perDiver ? 'per diver' : 'per team'}`
                         : `Entry fee: TBC${ev.perDiver ? ' · charged per diver' : ' · charged per team'}`}
                     </p>
                     {ev.earlyBird && (

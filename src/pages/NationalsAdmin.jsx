@@ -216,9 +216,9 @@ function TeamModal({ team, compId, onClose, onSaved }) {
               </select>
             </div>
             <div>
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Entry Fee (¢)</label>
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Entry Fee ($)</label>
               <input type="number" min="0" value={form.entry_fee_cents} onChange={e => set('entry_fee_cents')(e.target.value)}
-                placeholder="e.g. 13500"
+                placeholder="e.g. 135"
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" />
             </div>
           </div>
@@ -780,7 +780,7 @@ function SetupTab({ comp, onRefresh }) {
           <p className="text-xs text-gray-400 mt-0.5">All fees charged per person. Leave early bird blank to disable.</p>
         </div>
         <div className="grid grid-cols-3 gap-2 text-xs font-bold text-gray-400 uppercase tracking-wide pb-1 border-b border-gray-100">
-          <span>Event</span><span>Standard (¢)</span><span>Early bird (¢)</span>
+          <span>Event</span><span>Standard ($)</span><span>Early bird ($)</span>
         </div>
         {NATIONALS_EVENTS.map(ev => (
           <div key={ev.id} className="grid grid-cols-3 gap-2 items-center">
@@ -793,7 +793,7 @@ function SetupTab({ comp, onRefresh }) {
               className="border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" />
           </div>
         ))}
-        <p className="text-xs text-gray-400">Amounts in cents (8000 = $80.00). Silver Oldie auto-qualifies from Open (set to 0).</p>
+        <p className="text-xs text-gray-400">Whole dollar amounts. Silver Oldie auto-qualifies from Open (set to 0).</p>
       </div>
 
       <div className="bg-white border border-gray-200 rounded-2xl p-5 space-y-4">
@@ -805,7 +805,7 @@ function SetupTab({ comp, onRefresh }) {
           <div key={item.key} className="flex items-center gap-3">
             <span className="text-sm text-gray-700 w-36 flex-shrink-0">{item.label}</span>
             <div className="flex-1">
-              <label className="block text-xs font-bold text-gray-400 uppercase tracking-wide mb-1">Price (¢)</label>
+              <label className="block text-xs font-bold text-gray-400 uppercase tracking-wide mb-1">Price ($)</label>
               <input type="number" min="0" value={fees.merch?.[item.key]?.price ?? ''} placeholder="0"
                 onChange={e => setFees(f => ({ ...f, merch: { ...f.merch, [item.key]: { price: e.target.value } } }))}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" />
@@ -815,7 +815,7 @@ function SetupTab({ comp, onRefresh }) {
         <div className="flex items-center gap-3">
           <span className="text-sm text-gray-700 w-36 flex-shrink-0">🍽️ Prize Giving Dinner</span>
           <div className="flex-1">
-            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wide mb-1">Per ticket (¢)</label>
+            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wide mb-1">Per ticket ($)</label>
             <input type="number" min="0" value={fees.meal?.price ?? ''} placeholder="0"
               onChange={e => setFees(f => ({ ...f, meal: { price: e.target.value } }))}
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" />

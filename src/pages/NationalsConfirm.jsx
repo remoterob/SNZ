@@ -310,7 +310,7 @@ export default function NationalsConfirm() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             type: 'nationals_entry',
-            amountCents: totalCents,
+            amountCents: totalCents * 100,
             memberId: session.user.id,
             memberEmail: session.user.email,
             memberName: member?.name || '',
@@ -396,7 +396,7 @@ export default function NationalsConfirm() {
               <div key={key} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
                 <span className="text-sm text-gray-800">{ev.label}</span>
                 <span className="text-sm font-bold text-gray-900">
-                  {f === null ? 'TBC' : f === 0 ? 'Free' : `$${(f/100).toFixed(2)}`}
+                  {f === null ? 'TBC' : f === 0 ? 'Free' : `$${f}`}
                   {isEarlyBird && f > 0 && <span className="ml-1 text-xs text-amber-600">🐦</span>}
                 </span>
               </div>
@@ -427,7 +427,7 @@ export default function NationalsConfirm() {
                   <p className="text-xs text-gray-500">{ev.desc}</p>
                   {f === null ? <p className="text-xs text-gray-400 mt-0.5">Fee TBC</p>
                     : f === 0 ? <p className="text-xs text-gray-400 mt-0.5">No fee</p>
-                    : <p className="text-xs font-bold mt-0.5" style={{ color: SNZ_BLUE }}>${(f/100).toFixed(2)}{isEarlyBird ? ' 🐦' : ''}</p>}
+                    : <p className="text-xs font-bold mt-0.5" style={{ color: SNZ_BLUE }}>${f}{isEarlyBird ? ' 🐦' : ''}</p>}
                 </div>
                 <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition ${selected ? 'border-transparent' : 'border-gray-300'}`}
                   style={selected ? { background: SNZ_BLUE } : {}}>
@@ -459,7 +459,7 @@ export default function NationalsConfirm() {
                     <p className="font-bold text-gray-900 text-sm">🧥 Event Jacket</p>
                     <p className="text-xs text-gray-400">SNZ Nationals 2027</p>
                   </div>
-                  <p className="font-black text-gray-900 text-sm">${(categoryFees.merch.jacket.price/100).toFixed(2)}</p>
+                  <p className="font-black text-gray-900 text-sm">${categoryFees.merch.jacket.price}</p>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
@@ -492,7 +492,7 @@ export default function NationalsConfirm() {
                     <p className="font-bold text-gray-900 text-sm">👕 Event T-Shirt</p>
                     <p className="text-xs text-gray-400">SNZ Nationals 2027</p>
                   </div>
-                  <p className="font-black text-gray-900 text-sm">${(categoryFees.merch.shirt.price/100).toFixed(2)}</p>
+                  <p className="font-black text-gray-900 text-sm">${categoryFees.merch.shirt.price}</p>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
@@ -523,7 +523,7 @@ export default function NationalsConfirm() {
                 <div className="flex justify-between items-center mb-3">
                   <div>
                     <p className="font-bold text-gray-900 text-sm">🍽️ Prize Giving Dinner</p>
-                    <p className="text-xs text-gray-400">${(categoryFees.meal.price/100).toFixed(2)} per person — family &amp; friends welcome</p>
+                    <p className="text-xs text-gray-400">${categoryFees.meal.price} per person — family &amp; friends welcome</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
@@ -552,7 +552,7 @@ export default function NationalsConfirm() {
               return (
                 <div key={key} className="flex justify-between">
                   <span className="text-gray-600">{ev.label}</span>
-                  <span className="font-bold text-gray-900">{f === null ? 'TBC' : f === 0 ? 'Free' : `$${(f/100).toFixed(2)}`}</span>
+                  <span className="font-bold text-gray-900">{f === null ? 'TBC' : f === 0 ? 'Free' : `$${f}`}</span>
                 </div>
               )
             })}
@@ -561,32 +561,32 @@ export default function NationalsConfirm() {
               return (
                 <div key={key} className="flex justify-between">
                   <span className="text-gray-600">{EVENT_LABELS[key]?.label}</span>
-                  <span className="font-bold text-gray-900">{f === null ? 'TBC' : f === 0 ? 'Free' : `$${(f/100).toFixed(2)}`}</span>
+                  <span className="font-bold text-gray-900">{f === null ? 'TBC' : f === 0 ? 'Free' : `$${f}`}</span>
                 </div>
               )
             })}
             {jacket.gender && jacket.size && getMerchFee('jacket') && (
               <div className="flex justify-between">
                 <span className="text-gray-600">🧥 Jacket ({jacket.gender} {jacket.size})</span>
-                <span className="font-bold text-gray-900">${(getMerchFee('jacket')/100).toFixed(2)}</span>
+                <span className="font-bold text-gray-900">${getMerchFee('jacket')}</span>
               </div>
             )}
             {shirt.gender && shirt.size && getMerchFee('shirt') && (
               <div className="flex justify-between">
                 <span className="text-gray-600">👕 T-Shirt ({shirt.gender} {shirt.size})</span>
-                <span className="font-bold text-gray-900">${(getMerchFee('shirt')/100).toFixed(2)}</span>
+                <span className="font-bold text-gray-900">${getMerchFee('shirt')}</span>
               </div>
             )}
             {mealQty > 0 && getMealFee() && (
               <div className="flex justify-between">
                 <span className="text-gray-600">🍽️ Prize Giving Dinner × {mealQty}</span>
-                <span className="font-bold text-gray-900">${(getMealFee() * mealQty / 100).toFixed(2)}</span>
+                <span className="font-bold text-gray-900">${getMealFee() * mealQty}</span>
               </div>
             )}
             <div className="border-t border-gray-100 pt-2 mt-2 flex justify-between">
               <span className="font-black text-gray-900">Total</span>
               <span className="font-black text-gray-900">
-                {hasTBCFees ? 'TBC — fees not yet set' : totalCents > 0 ? `$${(totalCents/100).toFixed(2)} NZD` : '$0.00'}
+                {hasTBCFees ? 'TBC — fees not yet set' : totalCents > 0 ? `$${totalCents} NZD` : '$0.00'}
               </span>
             </div>
           </div>
@@ -659,7 +659,7 @@ export default function NationalsConfirm() {
             style={{ background: SNZ_BLUE }}>
             {submitting ? 'Processing…'
               : !hasTBCFees && totalCents > 0
-                ? `Confirm & Pay $${(totalCents/100).toFixed(2)} NZD →`
+                ? `Confirm & Pay $${totalCents} NZD →`
                 : 'Confirm Entry →'}
           </button>
         )}
