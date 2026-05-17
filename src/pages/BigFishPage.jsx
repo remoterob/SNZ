@@ -168,11 +168,7 @@ export default function BigFishPage() {
           <span className="text-blue-200 text-sm opacity-75">/ Big Fish</span>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={() => navigate('/big-fish/sponsor')}
-            className="flex items-center gap-1.5 text-white font-bold text-sm bg-white/15 hover:bg-white/25 px-3 py-1.5 rounded-lg transition">
-            🤝 Sponsor this comp
-          </button>
-          <button onClick={() => navigate('/admin/big-fish')}
+<button onClick={() => navigate('/admin/big-fish')}
             className="flex items-center gap-1.5 text-white font-bold text-sm bg-white/15 hover:bg-white/25 px-3 py-1.5 rounded-lg transition">
             ⚙ Admin
           </button>
