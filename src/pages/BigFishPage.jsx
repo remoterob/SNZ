@@ -303,12 +303,25 @@ export default function BigFishPage() {
             </div>
           )}
 
-          {!isActiveMember && isOpen && (
-            <div className="mb-4 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3">
-              <p className="text-sm text-gray-700 font-semibold">
-                Active SNZ members can enter.{' '}
-                <button onClick={() => navigate('/membership')} className="underline" style={{ color: SNZ_BLUE }}>Join SNZ</button> to compete.
-              </p>
+          {!isActiveMember && (
+            <div className="mb-4 bg-blue-50 border border-blue-200 rounded-xl px-4 py-4 flex items-start gap-3">
+              <span className="text-2xl flex-shrink-0">🎣</span>
+              <div>
+                <p className="text-sm font-bold text-gray-900 mb-0.5">
+                  {isOpen ? 'SNZ membership required to enter.' : 'Get ready — submissions open 1 June.'}
+                </p>
+                <p className="text-xs text-gray-500 mb-2">
+                  {isOpen
+                    ? 'Active SNZ members can submit catches and compete on the leaderboard.'
+                    : 'Register as an SNZ member now so you\'re ready to submit your fish when the comp opens.'}
+                </p>
+                <button
+                  onClick={() => navigate('/membership')}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-bold text-white transition hover:opacity-90"
+                  style={{ background: SNZ_BLUE }}>
+                  Join SNZ →
+                </button>
+              </div>
             </div>
           )}
 
