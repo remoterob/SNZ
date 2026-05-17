@@ -293,7 +293,7 @@ export default function NationalsPage() {
         {activeTab === 'events' && (
           <div className="space-y-6">
             <p className="text-gray-500 text-sm">Full event details, rules, and prize information will be published once confirmed by the committee.</p>
-            {SUB_EVENTS.map(ev => (
+            {SUB_EVENTS.filter(ev => ev.id !== 'silveroldie').map(ev => (
               <div key={ev.id} className="bg-white border-2 rounded-2xl overflow-hidden"
                 style={{ borderColor: ev.borderColor }}>
                 <div className="px-5 py-4" style={{ background: ev.bgColor }}>
