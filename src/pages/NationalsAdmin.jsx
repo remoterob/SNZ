@@ -421,6 +421,7 @@ function RegistrationsTab({ teams, comp, loading, onRefresh }) {
   const [search, setSearch] = useState('')
   const [modalTeam, setModalTeam] = useState(undefined)
   const [saving, setSaving] = useState(null)
+  const [deleting, setDeleting] = useState(null)
 
   const filtered = teams.filter(t => {
     if (filter === 'pending_payment') return t.status === 'pending_payment'
@@ -441,6 +442,15 @@ function RegistrationsTab({ teams, comp, loading, onRefresh }) {
       t.stripe_payment_intent_id?.toLowerCase().includes(s)
     )
   })
+
+  const deleteTeam = async (teamId, teamName, e) => {
+    e.stopPropagation()
+    if (!window.confirm(`Permanently delete "${teamName}"?\n\nThis removes the record from the database and cannot be undone.`)) return
+    setDeleting(teamId)
+    await supabase.from('comp_teams').delete().eq('id', teamId)
+    await onRefresh()
+    setDeleting(null)
+  }
 
   const quickMark = async (teamId, field, value, e) => {
     e.stopPropagation()
@@ -616,6 +626,12 @@ function RegistrationsTab({ teams, comp, loading, onRefresh }) {
                       D2 paid ✓
                     </button>
                   )}
+                  <button
+                    disabled={deleting === team.id}
+                    onClick={e => deleteTeam(team.id, team.team_name || '(no name)', e)}
+                    className="text-xs font-bold px-3 py-1.5 rounded-lg border border-red-200 text-red-500 hover:bg-red-50 disabled:opacity-40 mt-1">
+                    {deleting === team.id ? '…' : 'Delete'}
+                  </button>
                 </div>
               </div>
             </div>
