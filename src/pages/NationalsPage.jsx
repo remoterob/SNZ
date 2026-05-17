@@ -266,7 +266,7 @@ export default function NationalsPage() {
             {/* Quick event cards */}
             <div className="space-y-3">
               <h2 className="text-lg font-black text-gray-900 px-1">Events at a Glance</h2>
-              {SUB_EVENTS.map(ev => (
+              {SUB_EVENTS.filter(ev => ev.id !== 'silveroldie').map(ev => (
                 <div key={ev.id} className="bg-white border rounded-xl p-4 flex items-center gap-4"
                   style={{ borderColor: ev.borderColor }}>
                   <span className="text-2xl flex-shrink-0">{ev.emoji}</span>
