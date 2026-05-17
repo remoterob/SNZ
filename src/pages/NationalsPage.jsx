@@ -129,6 +129,17 @@ const SUB_EVENTS = [
   },
 ]
 
+function fmtEventDateRange(d) {
+  if (!d?.start) return null
+  const fmt = s => new Date(s + 'T12:00:00').toLocaleDateString('en-NZ', { day: 'numeric', month: 'short', year: 'numeric' })
+  if (!d.end) return fmt(d.start)
+  const s = new Date(d.start + 'T12:00:00')
+  const e = new Date(d.end + 'T12:00:00')
+  if (s.getMonth() === e.getMonth() && s.getFullYear() === e.getFullYear())
+    return `${s.getDate()}–${e.toLocaleDateString('en-NZ', { day: 'numeric', month: 'short', year: 'numeric' })}`
+  return `${s.toLocaleDateString('en-NZ', { day: 'numeric', month: 'short' })} – ${e.toLocaleDateString('en-NZ', { day: 'numeric', month: 'short', year: 'numeric' })}`
+}
+
 // ── Nationals Public Page ────────────────────────────────────────────────────
 export default function NationalsPage() {
   const navigate = useNavigate()
@@ -140,7 +151,7 @@ export default function NationalsPage() {
   useEffect(() => {
     supabase
       .from('competitions')
-      .select('id, name, status, registration_cutoff, early_bird_cutoff')
+      .select('id, name, status, registration_cutoff, early_bird_cutoff, event_dates')
       .ilike('name', '%nationals%2027%')
       .maybeSingle()
       .then(({ data }) => {
@@ -262,6 +273,11 @@ export default function NationalsPage() {
                   <div className="flex-1 min-w-0">
                     <p className="font-black text-gray-900 text-sm">{ev.name}</p>
                     <p className="text-xs text-gray-500 truncate">{ev.format}</p>
+                    {fmtEventDateRange(nationals?.event_dates?.[ev.id]) && (
+                      <p className="text-xs font-semibold mt-0.5" style={{ color: ev.color }}>
+                        📅 {fmtEventDateRange(nationals?.event_dates?.[ev.id])}
+                      </p>
+                    )}
                   </div>
                   <button onClick={() => setActiveTab('events')}
                     className="text-xs font-bold px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 flex-shrink-0">
@@ -286,6 +302,11 @@ export default function NationalsPage() {
                     <div>
                       <h3 className="font-black text-gray-900 text-lg">{ev.name}</h3>
                       <p className="text-xs font-semibold" style={{ color: ev.color }}>{ev.format}</p>
+                      {fmtEventDateRange(nationals?.event_dates?.[ev.id]) && (
+                        <p className="text-xs font-bold text-gray-500 mt-0.5">
+                          📅 {fmtEventDateRange(nationals?.event_dates?.[ev.id])}
+                        </p>
+                      )}
                     </div>
                     {ev.earlyBird && (
                       <span className="ml-auto text-xs font-black px-2 py-1 rounded-full bg-amber-100 text-amber-700 border border-amber-200">

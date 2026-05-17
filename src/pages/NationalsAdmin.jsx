@@ -630,6 +630,7 @@ function RegistrationsTab({ teams, comp, loading, onRefresh }) {
 function SetupTab({ comp, onRefresh }) {
   const [form, setForm] = useState(null)
   const [fees, setFees] = useState({})
+  const [eventDates, setEventDates] = useState({})
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [saveError, setSaveError] = useState('')
@@ -658,9 +659,11 @@ function SetupTab({ comp, onRefresh }) {
       if (existing.merch) merged.merch = { jacket: { price: existing.merch.jacket?.price ?? '' }, shirt: { price: existing.merch.shirt?.price ?? '' } }
       if (existing.meal) merged.meal = { price: existing.meal.price ?? '' }
       setFees(merged)
+      setEventDates(comp.event_dates || {})
     } else {
       setForm({ name: 'SNZ Nationals 2027', date_start: '2027-01-19', registration_cutoff: '', early_bird_cutoff: '', club_name: 'Spearfishing New Zealand', status: 'upcoming' })
       setFees(defaultFees())
+      setEventDates({})
     }
   }, [comp])
 
@@ -683,12 +686,21 @@ function SetupTab({ comp, onRefresh }) {
     const mealPrice = parseInt(fees.meal?.price) || 0
     if (mealPrice > 0) category_fees.meal = { price: mealPrice }
 
+    const event_dates = {}
+    for (const ev of NATIONALS_EVENTS) {
+      const d = eventDates[ev.id] || {}
+      if (d.start) {
+        event_dates[ev.id] = { start: d.start }
+        if (d.end && d.end !== d.start) event_dates[ev.id].end = d.end
+      }
+    }
+
     const payload = {
       name: form.name, club_name: form.club_name,
       date_start: form.date_start || null,
       registration_cutoff: form.registration_cutoff || null,
       early_bird_cutoff: form.early_bird_cutoff || null,
-      status: form.status, category_fees,
+      status: form.status, category_fees, event_dates,
       scoring_mode: 'standard', public_leaderboard: false,
     }
     try {
@@ -710,6 +722,7 @@ function SetupTab({ comp, onRefresh }) {
 
   const set = k => v => setForm(f => ({ ...f, [k]: v }))
   const setFee = (id, field) => v => setFees(f => ({ ...f, [id]: { ...f[id], [field]: v } }))
+  const setEvDate = (id, field) => v => setEventDates(d => ({ ...d, [id]: { ...(d[id] || {}), [field]: v } }))
 
   return (
     <div className="max-w-lg space-y-5">
@@ -738,6 +751,27 @@ function SetupTab({ comp, onRefresh }) {
             <option value="completed">Completed</option>
           </select>
         </div>
+      </div>
+
+      <div className="bg-white border border-gray-200 rounded-2xl p-5 space-y-4">
+        <div>
+          <h3 className="font-black text-gray-900">Event Dates</h3>
+          <p className="text-xs text-gray-400 mt-0.5">Set the date(s) for each sub-event. Leave End blank for single-day events.</p>
+        </div>
+        <div className="grid grid-cols-3 gap-2 text-xs font-bold text-gray-400 uppercase tracking-wide pb-1 border-b border-gray-100">
+          <span>Event</span><span>Start</span><span>End (optional)</span>
+        </div>
+        {NATIONALS_EVENTS.map(ev => (
+          <div key={ev.id} className="grid grid-cols-3 gap-2 items-center">
+            <span className="text-sm text-gray-700">{ev.label}</span>
+            <input type="date" value={eventDates[ev.id]?.start || ''}
+              onChange={e => setEvDate(ev.id, 'start')(e.target.value)}
+              className="border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" />
+            <input type="date" value={eventDates[ev.id]?.end || ''}
+              onChange={e => setEvDate(ev.id, 'end')(e.target.value)}
+              className="border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" />
+          </div>
+        ))}
       </div>
 
       <div className="bg-white border border-gray-200 rounded-2xl p-5 space-y-4">
