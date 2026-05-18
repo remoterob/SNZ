@@ -252,31 +252,29 @@ export default function CompetitionDetail() {
         {tab === 'teams' && (
           <div>
             {teams.length === 0 && <div className="text-center py-12 text-gray-400">No teams registered yet.</div>}
-            <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
-              <table className="w-full min-w-[500px] text-sm">
-                <thead>
-                  <tr className="border-b border-gray-100 bg-gray-50">
-                    {['Team','Category','Members','Registered'].map(h => (
-                      <th key={h} className="px-4 py-3 text-left text-xs font-bold tracking-widest text-gray-400 uppercase">{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {teams.map((t, i) => {
-                    const mems = members.filter(m => m.team_id === t.id)
-                    return (
-                      <tr key={t.id} className={`border-b border-gray-100 ${i % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}>
-                        <td className="px-4 py-3 font-bold text-gray-900">{t.team_name}</td>
-                        <td className="px-4 py-3">
-                          <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${CATEGORY_COLORS[t.category] || CATEGORY_COLORS['Open']}`}>{t.category}</span>
-                        </td>
-                        <td className="px-4 py-3 text-gray-600">{mems.map(m => m.name).join(' & ')}</td>
-                        <td className="px-4 py-3 text-gray-400 text-xs">{new Date(t.registered_at).toLocaleDateString('en-NZ')}</td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {teams.map(t => {
+                const mems = members.filter(m => m.team_id === t.id)
+                return (
+                  <div key={t.id} className="bg-white border border-gray-200 rounded-xl p-4 flex items-center gap-4">
+                    <div className="w-14 h-14 rounded-xl flex-shrink-0 overflow-hidden bg-gray-100 border border-gray-200 flex items-center justify-center text-2xl">
+                      {t.team_photo_url
+                        ? <img src={t.team_photo_url} alt={t.team_name} className="w-full h-full object-cover" />
+                        : '👥'}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-black text-gray-900 text-sm truncate">{t.team_name}</p>
+                      {mems.length > 0 && (
+                        <p className="text-xs text-gray-500 truncate mt-0.5">{mems.map(m => m.name).join(' & ')}</p>
+                      )}
+                      <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                        <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${CATEGORY_COLORS[t.category] || CATEGORY_COLORS['Open']}`}>{t.category}</span>
+                        <span className="text-xs text-gray-400">{new Date(t.registered_at).toLocaleDateString('en-NZ', { day: 'numeric', month: 'short' })}</span>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
             </div>
           </div>
         )}
@@ -342,8 +340,8 @@ function MemberBadge() {
 
   const medals = ['🥇','🥈','🥉']
   return (
-    <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
-      <table className="w-full min-w-[500px] text-sm">
+    <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm overflow-x-auto">
+      <table className="w-full min-w-[380px] text-sm">
         <thead>
           <tr className="border-b border-gray-100 bg-gray-50">
             <th className="px-4 py-3 text-left text-xs font-bold tracking-widest text-gray-400 uppercase w-12">Rank</th>
