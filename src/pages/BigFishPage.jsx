@@ -367,7 +367,7 @@ export default function BigFishPage() {
               <span className="text-2xl flex-shrink-0">🎣</span>
               <div>
                 <p className="text-sm font-bold text-gray-900 mb-0.5">
-                  {isOpen ? 'SNZ membership required to enter.' : 'Get ready — submissions open 1 June.'}
+                  {isOpen ? 'SNZ membership required to enter.' : 'Get ready — submissions open 30 May.'}
                 </p>
                 <p className="text-xs text-gray-500 mb-2">
                   {isOpen
