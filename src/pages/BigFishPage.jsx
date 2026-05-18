@@ -213,7 +213,7 @@ export default function BigFishPage() {
             </p>
             {competitorCount > 0 && (
               <p className="text-sm font-semibold mt-1" style={{ color: SNZ_BLUE }}>
-                🤿 {competitorCount} competitor{competitorCount === 1 ? '' : 's'} registered
+                🤿 {competitorCount} competitor{competitorCount === 1 ? '' : 's'} preregistered
               </p>
             )}
           </div>
