@@ -139,9 +139,10 @@ export default function PublicLeaderboard() {
 
   const rankedCatches = filteredCatches.map((c, index, arr) => {
     if (c.status === 'disqualified') return { ...c, rank: '-' }
+    if (!c.catfish_count) return { ...c, rank: '-' }
     const eligibleAbove = arr
       .slice(0, index)
-      .filter(x => x.status !== 'disqualified' && x.catfish_count > c.catfish_count)
+      .filter(x => x.status !== 'disqualified' && x.catfish_count && x.catfish_count > c.catfish_count)
     return { ...c, rank: eligibleAbove.length + 1 }
   })
 
@@ -385,7 +386,7 @@ export default function PublicLeaderboard() {
                     }`}
                   >
                     <td className="px-4 py-3 font-bold text-lg">
-                      {c.rank === 1 ? '🥇' : c.rank === 2 ? '🥈' : c.rank === 3 ? '🥉' : c.rank}
+                      {c.rank === 1 ? '🥇' : c.rank === 2 ? '🥈' : c.rank === 3 ? '🥉' : c.rank === '-' ? '—' : c.rank}
                     </td>
                     <td className="px-4 py-3 font-medium">#{c.team_number}</td>
                     <td className="px-4 py-3">{c.team_names}</td>
