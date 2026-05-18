@@ -213,7 +213,7 @@ export default function BigFishPage() {
             </p>
             {competitorCount > 0 && (
               <p className="text-sm font-semibold mt-1" style={{ color: SNZ_BLUE }}>
-                🎣 {competitorCount} competitor{competitorCount === 1 ? '' : 's'} registered
+                🤿 {competitorCount} competitor{competitorCount === 1 ? '' : 's'} registered
               </p>
             )}
           </div>
@@ -314,7 +314,7 @@ export default function BigFishPage() {
           {/* Pre-comp registration CTA */}
           {isActiveMember && activeComp && isBefore && (
             <div className="mb-4 bg-blue-50 border border-blue-200 rounded-xl px-4 py-4 flex items-start gap-3">
-              <span className="text-2xl flex-shrink-0">🎣</span>
+              <span className="text-2xl flex-shrink-0">🤿</span>
               <div className="flex-1">
                 {isRegistered ? (
                   <>
@@ -364,7 +364,7 @@ export default function BigFishPage() {
 
           {!isActiveMember && (
             <div className="mb-4 bg-blue-50 border border-blue-200 rounded-xl px-4 py-4 flex items-start gap-3">
-              <span className="text-2xl flex-shrink-0">🎣</span>
+              <span className="text-2xl flex-shrink-0">🤿</span>
               <div>
                 <p className="text-sm font-bold text-gray-900 mb-0.5">
                   {isOpen ? 'SNZ membership required to enter.' : 'Get ready — submissions open 30 May.'}
@@ -735,7 +735,7 @@ function EntryModal({ comp, species, existingEntries, allEntries, session, membe
 
       const { error: dbErr } = await supabase.from('bigfish_entries').insert(payload)
       if (dbErr) throw dbErr
-      notify(replaceTarget ? 'Entry replaced! 🎣' : 'Entry submitted — good fish! 🎣', 'success')
+      notify(replaceTarget ? 'Entry replaced! 🤿' : 'Entry submitted — good fish! 🤿', 'success')
       onSuccess()
     } catch (err) {
       setError(err.message || 'Submission failed.')
