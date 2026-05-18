@@ -43,13 +43,15 @@ export default function BigFishPage() {
   const { session, member } = useMemberSession()
   const isActiveMember = !!session && member?.membership_status === 'active'
 
-  const [comps,      setComps]      = useState([])
-  const [activeComp, setActiveComp] = useState(null)
-  const [entries,    setEntries]    = useState([])
-  const [activeTab,  setActiveTab]  = useState(0)
-  const [lightbox,   setLightbox]   = useState(null)
-  const [showEntry,  setShowEntry]  = useState(false)
-  const [loading,    setLoading]    = useState(true)
+  const [comps,          setComps]          = useState([])
+  const [activeComp,     setActiveComp]     = useState(null)
+  const [entries,        setEntries]        = useState([])
+  const [registrations,  setRegistrations]  = useState([])
+  const [registering,    setRegistering]    = useState(false)
+  const [activeTab,      setActiveTab]      = useState(0)
+  const [lightbox,       setLightbox]       = useState(null)
+  const [showEntry,      setShowEntry]      = useState(false)
+  const [loading,        setLoading]        = useState(true)
 
   useEffect(() => {
     supabase.from('bigfish_comps').select('*')
@@ -65,15 +67,29 @@ export default function BigFishPage() {
   const loadEntries = async (comp) => {
     if (!comp) return
     setLoading(true)
-    const { data } = await supabase.from('bigfish_entries')
-      .select('*')
-      .eq('comp_id', comp.id)
-      .order('weight_kg', { ascending: false })
-    setEntries(data || [])
+    const [{ data: entriesData }, { data: regsData }] = await Promise.all([
+      supabase.from('bigfish_entries').select('*').eq('comp_id', comp.id).order('weight_kg', { ascending: false }),
+      supabase.from('bigfish_registrations').select('user_id, display_name').eq('comp_id', comp.id),
+    ])
+    setEntries(entriesData || [])
+    setRegistrations(regsData || [])
     setLoading(false)
   }
 
   useEffect(() => { loadEntries(activeComp) }, [activeComp])
+
+  const handleRegister = async () => {
+    if (!session || !activeComp || registering) return
+    setRegistering(true)
+    await supabase.from('bigfish_registrations').upsert({
+      comp_id: activeComp.id,
+      user_id: session.user.id,
+      display_name: member?.name || session.user.email,
+    }, { onConflict: 'comp_id,user_id' })
+    const { data } = await supabase.from('bigfish_registrations').select('user_id, display_name').eq('comp_id', activeComp.id)
+    setRegistrations(data || [])
+    setRegistering(false)
+  }
 
   // Deep-link: /big-fish#catch-[entryId] → switch tab + highlight row
   useEffect(() => {
@@ -151,6 +167,16 @@ export default function BigFishPage() {
   const isOpen = activeComp
     ? new Date() >= new Date(activeComp.start_date) && new Date() <= new Date(activeComp.end_date)
     : false
+  const isBefore = activeComp ? new Date() < new Date(activeComp.start_date) : false
+
+  const hasAnyEntry   = session ? entries.some(e => e.user_id === session.user.id) : false
+  const isRegistered  = session
+    ? registrations.some(r => r.user_id === session.user.id) || hasAnyEntry
+    : false
+  const competitorCount = useMemo(() => {
+    const ids = new Set([...registrations.map(r => r.user_id), ...entries.map(e => e.user_id)])
+    return ids.size
+  }, [registrations, entries])
 
   const myTotal = myEntries.reduce((s, e) => s + parseFloat(e.weight_kg), 0)
   const myBest  = myEntries.length ? Math.max(...myEntries.map(e => parseFloat(e.weight_kg))) : 0
@@ -185,6 +211,11 @@ export default function BigFishPage() {
                 ? `${activeComp.name} · ${fmtDate(activeComp.start_date)} – ${fmtDate(activeComp.end_date)}`
                 : 'No active competition'}
             </p>
+            {competitorCount > 0 && (
+              <p className="text-sm font-semibold mt-1" style={{ color: SNZ_BLUE }}>
+                🎣 {competitorCount} competitor{competitorCount === 1 ? '' : 's'} registered
+              </p>
+            )}
           </div>
           {comps.length > 1 && (
             <select
@@ -280,6 +311,32 @@ export default function BigFishPage() {
             </div>
           )}
 
+          {/* Pre-comp registration CTA */}
+          {isActiveMember && activeComp && isBefore && (
+            <div className="mb-4 bg-blue-50 border border-blue-200 rounded-xl px-4 py-4 flex items-start gap-3">
+              <span className="text-2xl flex-shrink-0">🎣</span>
+              <div className="flex-1">
+                {isRegistered ? (
+                  <>
+                    <p className="text-sm font-bold text-gray-900 mb-0.5">You're registered!</p>
+                    <p className="text-xs text-gray-500">Check back from {fmtDate(activeComp.start_date)} to log your fish.</p>
+                    <span className="inline-flex items-center gap-1 mt-2 text-sm font-bold text-green-700">✓ Registered</span>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-sm font-bold text-gray-900 mb-0.5">Register for the Big Fish Competition</p>
+                    <p className="text-xs text-gray-500 mb-2">Lock in your spot now — submissions open {fmtDate(activeComp.start_date)}.</p>
+                    <button onClick={handleRegister} disabled={registering}
+                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-bold text-white transition hover:opacity-90 disabled:opacity-50"
+                      style={{ background: SNZ_BLUE }}>
+                      {registering ? 'Registering…' : 'Register Now →'}
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Submit / manage button */}
           {isActiveMember && isOpen && (
             <div className="mb-4 flex items-center gap-3 flex-wrap">
@@ -291,7 +348,9 @@ export default function BigFishPage() {
                   ? `Manage entries (${currentSpecies})`
                   : myEntries.length > 0
                     ? `Add another ${currentSpecies} (${myEntries.length}/3)`
-                    : `Enter your ${currentSpecies}`}
+                    : hasAnyEntry
+                      ? `Enter your ${currentSpecies}`
+                      : `Log your first fish — start with ${currentSpecies}`}
               </button>
               {myEntries.length > 0 && (
                 <span className="text-xs text-gray-400">
