@@ -51,10 +51,21 @@ exports.handler = async (event) => {
           payment_status: 'paid',
           status: 'active',
           stripe_session_id: session.id,
-          stripe_payment_intent: paymentIntent,
+          stripe_payment_intent_id: paymentIntent,
           paid_at: paidAt,
         }).eq('id', parseInt(team_id))
         console.log(`Competition entry paid for team ${team_id}`)
+      }
+
+      if (type === 'nationals_entry' && team_id) {
+        await supabase.from('comp_teams').update({
+          payment_status: 'paid',
+          status: 'active',
+          stripe_session_id: session.id,
+          stripe_payment_intent_id: paymentIntent,
+          paid_at: paidAt,
+        }).eq('id', team_id)
+        console.log(`Nationals entry paid for team ${team_id}`)
       }
     } catch (err) {
       console.error('Supabase update error:', err)

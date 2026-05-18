@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useLocation, Navigate } from 'react-router-dom'
-import { supabase, isAdmin, setAdminSession } from '../lib/supabase'
+import { supabase, isAdmin, setAdminSession, ADMIN_PASSWORD } from '../lib/supabase'
 
 const SNZ_BLUE = '#2B6CB0'
 const SNZ_LOGO = import.meta.env.VITE_SNZ_LOGO_URL || null
@@ -88,13 +88,18 @@ function MemberAdminInner() {
 
   const activateMember = async (m) => {
     if (!confirm(`Mark ${m.name || m.email} as active (paid)?`)) return
-    const { error } = await supabase.from('members').update({
-      payment_status: 'paid',
-      membership_status: 'active',
-      paid_at: new Date().toISOString(),
-    }).eq('id', m.id)
-    if (error) showToast(error.message, 'error')
-    else { showToast(`${m.name || m.email} activated`); fetchMembers() }
+    try {
+      const res = await fetch('/.netlify/functions/admin-activate-member', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ adminPassword: ADMIN_PASSWORD, memberId: m.id }),
+      })
+      const data = await res.json()
+      if (!res.ok) showToast(data.error || 'Activation failed', 'error')
+      else { showToast(`${m.name || m.email} activated`); fetchMembers() }
+    } catch (e) {
+      showToast(e.message, 'error')
+    }
   }
 
   const resetPassword = async () => {
