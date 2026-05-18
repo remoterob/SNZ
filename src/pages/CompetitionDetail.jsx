@@ -353,14 +353,19 @@ function MemberBadge() {
           </tr>
         </thead>
         <tbody>
-          {board.map((t, i) => (
-            <tr key={t.id} className={`border-b border-gray-100 ${i === 0 ? 'bg-amber-50' : i % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}>
-              <td className="px-4 py-3 text-lg">{medals[i] || i + 1}</td>
-              <td className="px-4 py-3 font-bold text-gray-900">{t.team_name}</td>
-              <td className="px-4 py-3 text-gray-500">{t.fishCount}</td>
-              <td className="px-4 py-3 text-2xl font-black" style={{ color: SNZ_BLUE }}>{t.total}</td>
-            </tr>
-          ))}
+          {board.map((t, i) => {
+            const hasScore = t.total > 0
+            const scoredBoard = board.filter(x => x.total > 0)
+            const rank = hasScore ? scoredBoard.indexOf(t) : -1
+            return (
+              <tr key={t.id} className={`border-b border-gray-100 ${hasScore && rank === 0 ? 'bg-amber-50' : i % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}>
+                <td className="px-4 py-3 text-lg">{hasScore ? (medals[rank] || rank + 1) : '—'}</td>
+                <td className="px-4 py-3 font-bold text-gray-900">{t.team_name}</td>
+                <td className="px-4 py-3 text-gray-500">{hasScore ? t.fishCount : '—'}</td>
+                <td className="px-4 py-3 text-2xl font-black" style={{ color: hasScore ? SNZ_BLUE : '#d1d5db' }}>{hasScore ? t.total : '—'}</td>
+              </tr>
+            )
+          })}
           {board.length === 0 && (
             <tr><td colSpan={4} className="px-4 py-12 text-center text-gray-400">No scores yet.</td></tr>
           )}
