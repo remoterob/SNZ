@@ -358,7 +358,15 @@ function MemberBadge() {
             return (
               <tr key={t.id} className={`border-b border-gray-100 ${hasScore && rank === 0 ? 'bg-amber-50' : i % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}>
                 <td className="px-4 py-3 text-lg">{hasScore ? (medals[rank] || rank + 1) : '—'}</td>
-                <td className="px-4 py-3 font-bold text-gray-900">{t.team_name}</td>
+                <td className="px-4 py-3">
+                  <div className="flex items-center gap-3">
+                    {t.team_photo_url
+                      ? <img src={t.team_photo_url} alt={t.team_name} className="w-9 h-9 rounded-lg object-cover border border-gray-200 flex-shrink-0" />
+                      : <div className="w-9 h-9 rounded-lg bg-gray-100 border border-gray-200 flex items-center justify-center text-base flex-shrink-0">👥</div>
+                    }
+                    <span className="font-bold text-gray-900">{t.team_name}</span>
+                  </div>
+                </td>
                 <td className="px-4 py-3 text-gray-500">{hasScore ? t.fishCount : '—'}</td>
                 <td className="px-4 py-3 text-2xl font-black" style={{ color: hasScore ? SNZ_BLUE : '#d1d5db' }}>{hasScore ? t.total : '—'}</td>
               </tr>
