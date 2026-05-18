@@ -80,12 +80,20 @@ export default function AdminDashboard() {
               <img src={SNZ_LOGO} alt="Spearfishing New Zealand" className="h-12 object-contain" />
               <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
             </div>
-            <button
-              onClick={handleLogout}
-              className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700"
-            >
-              Logout
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => navigate('/')}
+                className="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 font-semibold text-sm"
+              >
+                ← SNZ Hub
+              </button>
+              <button
+                onClick={handleLogout}
+                className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700"
+              >
+                Logout
+              </button>
+            </div>
           </div>
         </div>
 
