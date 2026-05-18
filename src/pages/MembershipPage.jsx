@@ -833,6 +833,7 @@ function MyCompetitions({ session, memberId, member, showToast }) {
   const [editingBoat, setEditingBoat] = useState(null) // team id
   const [newBoatName, setNewBoatName] = useState('')
   const [newBoatDetails, setNewBoatDetails] = useState('')
+  const [uploadingPhoto, setUploadingPhoto] = useState(null) // team id
 
   const fetchEntries = async () => {
     if (!memberId) return
@@ -997,6 +998,25 @@ function MyCompetitions({ session, memberId, member, showToast }) {
     fetchEntries()
   }
 
+  const uploadTeamPhoto = async (team, file) => {
+    setUploadingPhoto(team.id)
+    try {
+      const ext = file.name.split('.').pop().toLowerCase().replace('heic','jpg').replace('heif','jpg')
+      const path = `competitions/${team.competition_id}/teams/${team.id}.${ext}`
+      await supabase.storage.from('snz-media').remove([path])
+      const { error } = await supabase.storage.from('snz-media').upload(path, file, { contentType: file.type })
+      if (error) throw error
+      const { data: { publicUrl } } = supabase.storage.from('snz-media').getPublicUrl(path)
+      await supabase.from('comp_teams').update({ team_photo_url: publicUrl }).eq('id', team.id)
+      showToast('Team photo updated')
+      fetchEntries()
+    } catch (e) {
+      showToast('Photo upload failed: ' + e.message, 'error')
+    } finally {
+      setUploadingPhoto(null)
+    }
+  }
+
   const statusBadge = (team) => {
     if (team.status === 'active') return <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700">✓ Active</span>
     if (team.status === 'pending_payment') return <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700">⚠ Payment required</span>
@@ -1072,6 +1092,14 @@ function MyCompetitions({ session, memberId, member, showToast }) {
                        {team.boat_details && <span className="text-gray-400"> · {team.boat_details}</span>}</>
                     : <span className="italic text-gray-400">Not set</span>
                   }
+                </div>
+
+                {/* Team photo */}
+                <div className="bg-gray-50 rounded-xl px-3 py-2 mb-3 text-xs flex items-center gap-3">
+                  <span className="text-gray-500">Team photo:</span>
+                  {team.team_photo_url
+                    ? <img src={team.team_photo_url} alt="Team" className="w-10 h-10 rounded-lg object-cover border border-gray-200 flex-shrink-0" />
+                    : <span className="italic text-gray-400">Not uploaded</span>}
                 </div>
 
                 {/* Team name edit form */}
@@ -1201,6 +1229,14 @@ function MyCompetitions({ session, memberId, member, showToast }) {
                       className="px-3 py-1.5 rounded-lg text-xs font-bold border border-gray-300 text-gray-600 hover:bg-gray-50">
                       Edit boat
                     </button>
+                  )}
+                  {!cutoffPassed && !isChanging && !isEditingName && !isEditingBoatDetails && team.status !== 'pending_payment' && (
+                    <label className={`px-3 py-1.5 rounded-lg text-xs font-bold border border-gray-300 text-gray-600 hover:bg-gray-50 cursor-pointer ${uploadingPhoto === team.id ? 'opacity-50' : ''}`}>
+                      {uploadingPhoto === team.id ? '⏳ Uploading…' : team.team_photo_url ? '📷 Change photo' : '📷 Upload photo'}
+                      <input type="file" accept="image/*" className="hidden"
+                        disabled={uploadingPhoto === team.id}
+                        onChange={e => e.target.files[0] && uploadTeamPhoto(team, e.target.files[0])} />
+                    </label>
                   )}
                   {cutoffPassed && (
                     <span className="text-xs text-gray-400 italic">Registration closed</span>
