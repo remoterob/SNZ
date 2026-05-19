@@ -1860,14 +1860,17 @@ function SocialsTab({ comp, teams, members, weighins }) {
     })
     .filter(Boolean)
 
+  const MAX_SELECT = 15
+
   const toggleSelect = (teamId) => {
     setSelected(s => {
       const n = new Set(s)
-      n.has(teamId) ? n.delete(teamId) : n.add(teamId)
+      if (n.has(teamId)) n.delete(teamId)
+      else if (n.size < MAX_SELECT) n.add(teamId)
       return n
     })
   }
-  const selectAll = () => setSelected(new Set(catchCards.map(c => c.teamId)))
+  const selectAll = () => setSelected(new Set(catchCards.slice(0, MAX_SELECT).map(c => c.teamId)))
   const clearAll = () => setSelected(new Set())
 
   const generateCard = async (card) => {
@@ -1878,46 +1881,109 @@ function SocialsTab({ comp, teams, members, weighins }) {
       canvas.height = 1080
       const ctx = canvas.getContext('2d')
 
-      const img = await new Promise((resolve, reject) => {
-        const i = new Image()
-        i.crossOrigin = 'anonymous'
-        i.onload = () => resolve(i)
-        i.onerror = reject
-        i.src = card.catch_photo_url
-      })
+      // Rounded-rect helper (fallback for browsers without roundRect)
+      const rRect = (x, y, w, h, r) => {
+        ctx.beginPath()
+        ctx.moveTo(x + r, y)
+        ctx.lineTo(x + w - r, y)
+        ctx.arcTo(x + w, y, x + w, y + r, r)
+        ctx.lineTo(x + w, y + h - r)
+        ctx.arcTo(x + w, y + h, x + w - r, y + h, r)
+        ctx.lineTo(x + r, y + h)
+        ctx.arcTo(x, y + h, x, y + h - r, r)
+        ctx.lineTo(x, y + r)
+        ctx.arcTo(x, y, x + r, y, r)
+        ctx.closePath()
+      }
 
+      // Catch photo (cover)
+      const img = await new Promise((resolve, reject) => {
+        const i = new Image(); i.crossOrigin = 'anonymous'
+        i.onload = () => resolve(i); i.onerror = reject; i.src = card.catch_photo_url
+      })
       const scale = Math.max(canvas.width / img.width, canvas.height / img.height)
       const w = img.width * scale, h = img.height * scale
-      ctx.drawImage(img, (canvas.width-w)/2, (canvas.height-h)/2, w, h)
+      ctx.drawImage(img, (canvas.width - w) / 2, (canvas.height - h) / 2, w, h)
 
-      const grad = ctx.createLinearGradient(0, canvas.height-280, 0, canvas.height)
+      // Dark gradient overlay
+      const overlayH = 310
+      const grad = ctx.createLinearGradient(0, canvas.height - overlayH, 0, canvas.height)
       grad.addColorStop(0, 'rgba(0,0,0,0)')
-      grad.addColorStop(0.4, 'rgba(0,0,0,0.7)')
-      grad.addColorStop(1, 'rgba(0,0,0,0.92)')
+      grad.addColorStop(0.3, 'rgba(0,0,0,0.65)')
+      grad.addColorStop(1, 'rgba(0,0,0,0.93)')
       ctx.fillStyle = grad
-      ctx.fillRect(0, canvas.height-280, canvas.width, 280)
+      ctx.fillRect(0, canvas.height - overlayH, canvas.width, overlayH)
 
+      // SNZ blue accent line
       ctx.fillStyle = '#2B6CB0'
-      ctx.fillRect(0, canvas.height-280, canvas.width, 4)
+      ctx.fillRect(0, canvas.height - overlayH, canvas.width, 4)
 
-      const pad = 48
-      const names = card.teamMembers.map(m => m.name).join(' & ') || card.team?.team_name || ''
+      // Team photo thumbnail (bottom-left)
+      const pad = 44
+      const ts = 120
+      const tx = pad
+      const ty = canvas.height - pad - ts
+      let thumbDrawn = false
+      if (card.team?.team_photo_url) {
+        try {
+          const ti = await new Promise((res, rej) => {
+            const i = new Image(); i.crossOrigin = 'anonymous'
+            i.onload = () => res(i); i.onerror = rej; i.src = card.team.team_photo_url
+          })
+          ctx.save()
+          rRect(tx, ty, ts, ts, 14)
+          ctx.clip()
+          ctx.drawImage(ti, tx, ty, ts, ts)
+          ctx.restore()
+          ctx.strokeStyle = 'rgba(255,255,255,0.85)'
+          ctx.lineWidth = 3
+          rRect(tx, ty, ts, ts, 14)
+          ctx.stroke()
+          thumbDrawn = true
+        } catch (_) {}
+      }
+
+      const textX = thumbDrawn ? tx + ts + 20 : pad
+      const maxW = canvas.width - textX - pad
+
+      const truncate = (text, font) => {
+        ctx.font = font
+        if (ctx.measureText(text).width <= maxW) return text
+        let t = text
+        while (t.length > 0 && ctx.measureText(t + '…').width > maxW) t = t.slice(0, -1)
+        return t + '…'
+      }
+
+      const teamName = card.team?.team_name || ''
+      const memberNames = card.teamMembers.map(m => m.name).join(' & ') || ''
+
+      // Team name
+      const nameFont = 'bold 50px system-ui, sans-serif'
       ctx.fillStyle = '#ffffff'
-      ctx.font = 'bold 52px system-ui, sans-serif'
-      ctx.fillText(names, pad, canvas.height - 120)
+      ctx.font = nameFont
+      ctx.fillText(truncate(teamName, nameFont), textX, canvas.height - 178)
 
-      ctx.fillStyle = 'rgba(255,255,255,0.75)'
-      ctx.font = 'bold 32px system-ui, sans-serif'
-      ctx.fillText(`${card.fishClaimed} fish  ·  ${card.team?.category || ''}`, pad, canvas.height - 175)
+      // Member names
+      const membersFont = 'bold 32px system-ui, sans-serif'
+      ctx.fillStyle = 'rgba(255,255,255,0.82)'
+      ctx.font = membersFont
+      ctx.fillText(truncate(memberNames, membersFont), textX, canvas.height - 120)
 
-      ctx.fillStyle = 'rgba(255,255,255,0.8)'
-      ctx.font = '30px system-ui, sans-serif'
-      ctx.fillText(`Total score: ${card.teamTotal} pts`, pad, canvas.height - 62)
+      // Fish count + category (small)
+      ctx.fillStyle = 'rgba(255,255,255,0.55)'
+      ctx.font = '26px system-ui, sans-serif'
+      ctx.fillText(`${card.fishClaimed} fish · ${card.team?.category || ''}`, textX, canvas.height - 76)
 
+      // Score (prominent, amber)
+      ctx.fillStyle = '#F6E05E'
+      ctx.font = 'bold 44px system-ui, sans-serif'
+      ctx.fillText(`${card.teamTotal} pts`, textX, canvas.height - 34)
+
+      // Comp name watermark (top-right)
       ctx.fillStyle = 'rgba(255,255,255,0.45)'
       ctx.font = 'bold 22px system-ui, sans-serif'
       ctx.textAlign = 'right'
-      ctx.fillText(comp.name, canvas.width-pad, pad+24)
+      ctx.fillText(comp.name, canvas.width - pad, pad + 24)
       ctx.textAlign = 'left'
 
       const dataUrl = canvas.toDataURL('image/jpeg', 0.92)
@@ -1958,7 +2024,7 @@ function SocialsTab({ comp, teams, members, weighins }) {
     <div className="space-y-5">
       <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-800">
         <p className="font-bold mb-1">Social Media Export</p>
-        <p className="text-xs">One 1080×1080 card per team. Competitor names and total score stamped at the bottom. Select multiple to bulk download.</p>
+        <p className="text-xs">One 1080×1080 card per team. Team photo, names and score stamped at the bottom-left. Select up to 15 to bulk download.</p>
       </div>
 
       {catchCards.length === 0 && (
@@ -1975,7 +2041,8 @@ function SocialsTab({ comp, teams, members, weighins }) {
             <div className="flex items-center gap-3">
               <button onClick={selectAll} className="text-xs font-bold px-3 py-1.5 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50">Select All</button>
               {selected.size > 0 && <button onClick={clearAll} className="text-xs font-bold px-3 py-1.5 rounded-lg border border-gray-300 text-gray-500 hover:bg-gray-50">Clear</button>}
-              {selected.size > 0 && <span className="text-xs text-gray-500">{selected.size} selected</span>}
+              {selected.size > 0 && <span className="text-xs text-gray-500">{selected.size} / {MAX_SELECT} selected</span>}
+              {selected.size >= MAX_SELECT && <span className="text-xs text-amber-600 font-semibold">Max {MAX_SELECT} reached</span>}
             </div>
             {selected.size > 0 && (
               <button onClick={exportSelected} disabled={bulkExporting}
