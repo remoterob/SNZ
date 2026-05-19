@@ -1916,10 +1916,6 @@ function SocialsTab({ comp, teams, members, weighins }) {
       ctx.fillStyle = grad
       ctx.fillRect(0, canvas.height - overlayH, canvas.width, overlayH)
 
-      // SNZ blue accent line
-      ctx.fillStyle = '#2B6CB0'
-      ctx.fillRect(0, canvas.height - overlayH, canvas.width, 4)
-
       // Team photo thumbnail (bottom-left)
       const pad = 44
       const ts = 120
