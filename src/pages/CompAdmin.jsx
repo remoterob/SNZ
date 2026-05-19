@@ -1503,6 +1503,7 @@ function WeighInTab({ comp, teams, members, fish, weighins: initialWeighins, onR
       setWeights({})
       setTeamCatchPhotoUrl(null)
       await refreshWeighins()
+      onRefresh()
       showToast('Weigh-in saved')
     } catch (err) {
       showToast(err.message, 'error')
@@ -1514,6 +1515,7 @@ function WeighInTab({ comp, teams, members, fish, weighins: initialWeighins, onR
   const deleteEntry = async (weighinId) => {
     await supabase.from('comp_weighins').delete().eq('id', weighinId)
     await refreshWeighins()
+    onRefresh()
     showToast('Entry removed')
   }
 
