@@ -1979,11 +1979,31 @@ function SocialsTab({ comp, teams, members, weighins }) {
       ctx.font = 'bold 44px system-ui, sans-serif'
       ctx.fillText(`${card.teamTotal} pts`, textX, canvas.height - 34)
 
-      // Comp name watermark (top-right)
+      // SNZ logo (top-right)
+      if (SNZ_LOGO) {
+        try {
+          const logo = await new Promise((res, rej) => {
+            const i = new Image(); i.crossOrigin = 'anonymous'
+            i.onload = () => res(i); i.onerror = rej; i.src = SNZ_LOGO
+          })
+          const logoH = 72
+          const logoW = Math.round(logo.width * (logoH / logo.height))
+          const lx = canvas.width - pad - logoW
+          const ly = pad
+          // Soft white pill behind logo for contrast
+          ctx.fillStyle = 'rgba(255,255,255,0.18)'
+          ctx.beginPath()
+          ctx.roundRect(lx - 12, ly - 8, logoW + 24, logoH + 16, 12)
+          ctx.fill()
+          ctx.drawImage(logo, lx, ly, logoW, logoH)
+        } catch (_) {}
+      }
+
+      // Comp name watermark (top-right, below logo)
       ctx.fillStyle = 'rgba(255,255,255,0.45)'
       ctx.font = 'bold 22px system-ui, sans-serif'
       ctx.textAlign = 'right'
-      ctx.fillText(comp.name, canvas.width - pad, pad + 24)
+      ctx.fillText(comp.name, canvas.width - pad, pad + 110)
       ctx.textAlign = 'left'
 
       const dataUrl = canvas.toDataURL('image/jpeg', 0.92)
