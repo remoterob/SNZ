@@ -10,6 +10,7 @@ export default function BigFishAdmin() {
   const [species, setSpecies] = useState([])
   const [editing, setEditing] = useState(null)   // null = list, object = form
   const [entries, setEntries] = useState([])
+  const [registrations, setRegistrations] = useState([])
   const [viewComp, setViewComp] = useState(null) // viewing entries for this comp
   const [loading, setLoading] = useState(true)
 
@@ -26,9 +27,14 @@ export default function BigFishAdmin() {
   }
 
   const loadEntries = async (comp) => {
-    const { data } = await supabase.from('bigfish_entries').select('*')
-      .eq('comp_id', comp.id).order('species').order('weight_kg', { ascending: false })
-    setEntries(data || [])
+    const [{ data: entriesData }, { data: regsData }] = await Promise.all([
+      supabase.from('bigfish_entries').select('*')
+        .eq('comp_id', comp.id).order('species').order('weight_kg', { ascending: false }),
+      supabase.from('bigfish_registrations').select('*')
+        .eq('comp_id', comp.id).order('registered_at'),
+    ])
+    setEntries(entriesData || [])
+    setRegistrations(regsData || [])
     setViewComp(comp)
   }
 
@@ -90,7 +96,9 @@ export default function BigFishAdmin() {
           <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
             <div>
               <h1 className="text-2xl font-black text-gray-900">{viewComp.name} — Entries</h1>
-              <p className="text-sm text-gray-400 mt-0.5">{entries.length} total entries</p>
+              <p className="text-sm text-gray-400 mt-0.5">
+                {entries.length} entries · {registrations.length} preregistered
+              </p>
             </div>
             <button onClick={() => setEditing(viewComp)}
               className="px-4 py-2 rounded-xl font-bold text-sm border-2 border-gray-200 text-gray-600 hover:border-blue-300 hover:text-blue-600 transition">
@@ -119,6 +127,41 @@ export default function BigFishAdmin() {
             </div>
             <p className="text-xs text-gray-400 mt-1.5">Leave blank to hide. Use your judgment on overall winner based on species placings.</p>
           </div>
+
+          {/* Preregistrations */}
+          {registrations.length > 0 && (
+            <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm mb-6">
+              <div className="px-4 py-3 border-b border-gray-100 bg-blue-50 flex items-center justify-between">
+                <h3 className="font-black text-blue-800">🤿 Preregistered ({registrations.length})</h3>
+                <span className="text-xs text-blue-500">Signed up before comp opens</span>
+              </div>
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-100">
+                    {['Name', 'Registered', 'Has entries?'].map(h => (
+                      <th key={h} className="px-4 py-2 text-left text-xs font-bold text-gray-400 uppercase">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {registrations.map((r, i) => {
+                    const hasEntry = entries.some(e => e.user_id === r.user_id)
+                    return (
+                      <tr key={r.id} className={`border-b border-gray-50 ${i % 2 === 0 ? '' : 'bg-gray-50/50'}`}>
+                        <td className="px-4 py-2 font-bold text-gray-900">{r.display_name}</td>
+                        <td className="px-4 py-2 text-xs text-gray-400">{new Date(r.registered_at).toLocaleDateString('en-NZ', { day: 'numeric', month: 'short', year: 'numeric' })}</td>
+                        <td className="px-4 py-2">
+                          {hasEntry
+                            ? <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-green-50 text-green-700 border border-green-200">✓ Yes</span>
+                            : <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-400 border border-gray-200">Not yet</span>}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
 
           {/* Entries by species */}
           {Object.keys(bySpecies).length === 0 ? (
