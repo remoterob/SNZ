@@ -19,17 +19,28 @@ export default function HubCarousel() {
   const touchStartX = useRef(null)
 
   useEffect(() => {
-    supabase
-      .from('snz_carousel')
-      .select('id, photo_url')
-      .eq('is_active', true)
-      .then(({ data }) => {
-        if (!data?.length) return
-        const shuffled = shuffle(data)
-        setSlides(shuffled)
-        // Preload all images immediately so transitions are instant
-        shuffled.forEach(s => { const img = new Image(); img.src = s.photo_url })
-      })
+    async function loadSlides() {
+      const [carouselRes, teamsRes, weighinsRes, bigfishRes] = await Promise.all([
+        supabase.from('snz_carousel').select('id, photo_url').eq('is_active', true),
+        supabase.from('comp_teams').select('id, team_photo_url').not('team_photo_url', 'is', null),
+        supabase.from('comp_weighins').select('id, catch_photo_url').not('catch_photo_url', 'is', null),
+        supabase.from('bigfish_entries').select('id, photo_glory_url').not('photo_glory_url', 'is', null),
+      ])
+
+      const all = [
+        ...(carouselRes.data || []).map(r => ({ id: r.id, photo_url: r.photo_url })),
+        ...(teamsRes.data || []).map(r => ({ id: `t-${r.id}`, photo_url: r.team_photo_url })),
+        ...(weighinsRes.data || []).map(r => ({ id: `w-${r.id}`, photo_url: r.catch_photo_url })),
+        ...(bigfishRes.data || []).map(r => ({ id: `b-${r.id}`, photo_url: r.photo_glory_url })),
+      ].filter(s => s.photo_url)
+
+      if (!all.length) return
+      const shuffled = shuffle(all)
+      setSlides(shuffled)
+      shuffled.forEach(s => { const img = new Image(); img.src = s.photo_url })
+    }
+
+    loadSlides()
   }, [])
 
   const next = useCallback(() => setCurrent(c => (c + 1) % slides.length), [slides.length])
