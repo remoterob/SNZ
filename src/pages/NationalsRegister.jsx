@@ -884,7 +884,7 @@ export default function NationalsRegister() {
               <li>⚠️ All competitors must attend the mandatory safety briefing before competing</li>
               <li>🤿 The Open Championship is a pairs event — no individual diving permitted</li>
               <li>📋 Full rules: <a href="https://www.spearfishingnz.co.nz/_files/ugd/b3c400_e310eb5a265b4259a4b3c18d2c9afb87.pdf" target="_blank" rel="noopener noreferrer" className="underline font-bold">SNZ Competition Rules PDF</a></li>
-              <li>🎣 Eligible species list will be published prior to the event</li>
+              <li>🤿 Eligible species list will be published prior to the event</li>
             </ul>
           </div>
 

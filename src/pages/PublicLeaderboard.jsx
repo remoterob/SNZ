@@ -237,7 +237,7 @@ export default function PublicLeaderboard() {
                         ) : (
                           <div className="w-24 h-24 bg-gradient-to-br from-blue-100 to-blue-200 rounded-lg border-4 border-gray-300 shadow-lg flex items-center justify-center">
                             <div className="text-center">
-                              <div className="text-2xl mb-1">🎣</div>
+                              <div className="text-2xl mb-1">🤿</div>
                               <p className="text-xs text-gray-600">No photo</p>
                             </div>
                           </div>

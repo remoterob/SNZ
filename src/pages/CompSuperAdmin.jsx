@@ -538,7 +538,7 @@ export default function CompSuperAdmin() {
             {loading && <div className="text-center py-12 text-gray-400">Loading…</div>}
             {!loading && comps.length === 0 && (
               <div className="text-center py-16 bg-white border border-gray-200 rounded-2xl text-gray-400">
-                <div className="text-4xl mb-3">🎣</div>
+                <div className="text-4xl mb-3">🤿</div>
                 <p>No competitions yet. Create the first one.</p>
               </div>
             )}

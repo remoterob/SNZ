@@ -2,7 +2,7 @@ export default function BingoRulesPage() {
   return (
     <div className="card" style={{ padding: 20 }}>
       <div style={{ maxWidth: 800, margin: '0 auto' }}>
-        <h1>🎣 Fish Bingo Rules</h1>
+        <h1>🤿 Fish Bingo Rules</h1>
         <p><em>(a.k.a. The Fine Print You Will Pretend to Read)</em></p>
 
         <h2>📅 Dates</h2>

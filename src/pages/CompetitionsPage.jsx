@@ -54,7 +54,7 @@ export default function CompetitionsPage() {
 
         {!loading && comps.length === 0 && (
           <div className="text-center py-16 text-gray-400 bg-gray-50 rounded-2xl">
-            <div className="text-4xl mb-3">🎣</div>
+            <div className="text-4xl mb-3">🤿</div>
             <p className="font-semibold text-gray-600">No competitions running right now.</p>
             <p className="text-sm mt-1">Check back soon or contact your club.</p>
           </div>
@@ -89,7 +89,7 @@ export default function CompetitionsPage() {
               </div>
 
               <p className="text-sm font-semibold text-blue-800">
-                Only requirement — be a Spearfishing New Zealand member, and you're away laughing. 🎣
+                Only requirement — be a Spearfishing New Zealand member, and you're away laughing. 🤿
               </p>
             </div>
           </div>

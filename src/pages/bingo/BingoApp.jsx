@@ -30,7 +30,7 @@ function SeasonClosedHero() {
         That's a wrap on this season — thanks to everyone who got out there and speared something worth bragging about.
       </p>
       <p className="text-white font-black text-lg mt-4">
-        🎣 Coming back bigger than ever later this season
+        🤿 Coming back bigger than ever later this season
       </p>
     </div>
   )

@@ -924,10 +924,21 @@ function SNZHub() {
           {SNZ_LOGO
             ? <img src={SNZ_LOGO} alt="Spearfishing NZ" className="h-16 w-auto object-contain" />
             : <svg width="56" height="56" viewBox="0 0 56 56" fill="none">
-                <path d="M18 48 Q10 36 13 26 Q16 16 24 11" stroke="#111" strokeWidth="2" fill="none" strokeLinecap="round"/>
-                <path d="M18 48 L23 45 L20 37 L27 34 L25 27 L30 24" stroke={SNZ_BLUE} strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
-                <line x1="8" y1="7" x2="30" y2="42" stroke="#111" strokeWidth="2.5" strokeLinecap="round"/>
-                <circle cx="8" cy="7" r="3" fill={SNZ_BLUE}/>
+                {/* Mask lens frame */}
+                <rect x="8" y="18" width="40" height="22" rx="11" stroke="#111" strokeWidth="2.5" fill="white"/>
+                {/* Left lens */}
+                <rect x="11" y="21" width="15" height="16" rx="6" fill={SNZ_BLUE} opacity="0.15" stroke={SNZ_BLUE} strokeWidth="1.5"/>
+                {/* Right lens */}
+                <rect x="30" y="21" width="15" height="16" rx="6" fill={SNZ_BLUE} opacity="0.15" stroke={SNZ_BLUE} strokeWidth="1.5"/>
+                {/* Nose bridge */}
+                <path d="M26 29 L30 29" stroke="#111" strokeWidth="2" strokeLinecap="round"/>
+                {/* Strap left */}
+                <path d="M8 24 Q4 22 4 18 Q4 14 8 14" stroke="#111" strokeWidth="2" fill="none" strokeLinecap="round"/>
+                {/* Strap right */}
+                <path d="M48 24 Q52 22 52 18 Q52 14 48 14" stroke="#111" strokeWidth="2" fill="none" strokeLinecap="round"/>
+                {/* Snorkel */}
+                <path d="M48 26 Q56 26 56 18 L56 10" stroke="#111" strokeWidth="2.5" fill="none" strokeLinecap="round"/>
+                <circle cx="56" cy="10" r="2.5" fill={SNZ_BLUE}/>
               </svg>
           }
           <div>
