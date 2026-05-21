@@ -138,7 +138,7 @@ export default function CompetitionDetail() {
                 </span>
                 <span className="text-xs text-gray-400">{comp.club_name}</span>
               </div>
-              <h1 className="text-3xl font-black text-gray-900">{comp.name}</h1>
+              <h1 className="text-2xl sm:text-3xl font-black text-gray-900">{comp.name}</h1>
               {comp.location && <p className="text-gray-500 mt-1">📍 {comp.location}</p>}
             </div>
             {comp.status === 'active' && (
@@ -168,10 +168,10 @@ export default function CompetitionDetail() {
 
       {/* Tabs */}
       <div className="border-b border-gray-200 px-6 bg-white">
-        <div className="max-w-4xl mx-auto flex gap-1">
+        <div className="max-w-4xl mx-auto flex gap-1 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {tabs.map(t => (
             <button key={t.id} onClick={() => setTab(t.id)}
-              className={`py-3 px-4 text-sm font-bold border-b-2 transition ${tab === t.id ? 'border-blue-600 text-blue-700' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
+              className={`py-3 px-4 text-sm font-bold border-b-2 transition whitespace-nowrap ${tab === t.id ? 'border-blue-600 text-blue-700' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
             >{t.label}</button>
           ))}
         </div>

@@ -205,7 +205,7 @@ export default function BigFishPage() {
       <header className="border-b border-gray-200 px-6 py-6 bg-white">
         <div className="max-w-4xl mx-auto flex items-start justify-between flex-wrap gap-4">
           <div>
-            <h1 className="text-3xl font-black text-gray-900">Big Fish Competition</h1>
+            <h1 className="text-2xl sm:text-3xl font-black text-gray-900">Big Fish Competition</h1>
             <p className="text-gray-400 text-sm mt-1">
               {activeComp
                 ? `${activeComp.name} · ${fmtDate(activeComp.start_date)} – ${fmtDate(activeComp.end_date)}`

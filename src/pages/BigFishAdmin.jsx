@@ -135,7 +135,8 @@ export default function BigFishAdmin() {
                 <h3 className="font-black text-blue-800">🤿 Preregistered ({registrations.length})</h3>
                 <span className="text-xs text-blue-500">Signed up before comp opens</span>
               </div>
-              <table className="w-full text-sm">
+              <div className="overflow-x-auto">
+              <table className="w-full text-sm min-w-[400px]">
                 <thead>
                   <tr className="border-b border-gray-100">
                     {['Name', 'Registered', 'Has entries?'].map(h => (
@@ -160,6 +161,7 @@ export default function BigFishAdmin() {
                   })}
                 </tbody>
               </table>
+              </div>
             </div>
           )}
 
@@ -173,7 +175,8 @@ export default function BigFishAdmin() {
                   <h3 className="font-black text-gray-800">{sp}</h3>
                   <span className="text-xs text-gray-400">{list.length} entr{list.length === 1 ? 'y' : 'ies'}</span>
                 </div>
-                <table className="w-full text-sm">
+                <div className="overflow-x-auto">
+                <table className="w-full text-sm min-w-[560px]">
                   <thead>
                     <tr className="border-b border-gray-100">
                       {['#', 'Angler', 'Weight', 'Length', 'Photos', 'Date', ''].map(h => (
@@ -208,6 +211,7 @@ export default function BigFishAdmin() {
                     ))}
                   </tbody>
                 </table>
+                </div>
               </div>
             ))
           )}

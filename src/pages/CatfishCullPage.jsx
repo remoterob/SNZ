@@ -127,7 +127,7 @@ function Leaderboard2026() {
       )}
 
       {/* Division filter */}
-      <div className="grid grid-cols-4 gap-2">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
         {[
           { id: 'All',     label: `All (${lbCounts?.total_teams ?? catches.length})` },
           { id: 'Juniors', label: `Juniors (${lbCounts?.junior_teams ?? allTeams.filter(t => t.is_junior).length})` },

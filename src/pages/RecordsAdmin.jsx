@@ -397,7 +397,8 @@ export default function RecordsAdmin() {
 
             {!loading && (
               <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
-                <table className="w-full text-sm">
+                <div className="overflow-x-auto">
+                <table className="w-full text-sm min-w-[640px]">
                   <thead>
                     <tr className="border-b border-gray-100 bg-gray-50">
                       <th className="px-3 py-3 w-12 text-left text-xs font-bold tracking-wider text-gray-400 uppercase">Photo</th>
@@ -484,6 +485,7 @@ export default function RecordsAdmin() {
                     )}
                   </tbody>
                 </table>
+                </div>
               </div>
             )}
           </>
@@ -648,7 +650,7 @@ export default function RecordsAdmin() {
                                                        'bg-red-100 text-red-600'
                         }`}>{uploadedPhotos.length}/9 submitted</span>
                       </div>
-                      <div className="grid grid-cols-3 md:grid-cols-5 gap-3">
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
                         {photoEntries.map(({ key, label }) => (
                           <div key={key} className="flex flex-col gap-1.5">
                             {a[key] ? (

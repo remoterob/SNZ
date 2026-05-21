@@ -534,18 +534,18 @@ export default function CompAdmin() {
           className="text-xs text-blue-200 hover:text-white transition">Sign out</button>
       </div>
 
-      <header className="bg-white border-b border-gray-200 px-6 py-4">
-        <div className="max-w-5xl mx-auto flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-black text-gray-900">{comp.name}</h1>
-            <div className="flex items-center gap-2 mt-0.5">
+      <header className="bg-white border-b border-gray-200 px-4 sm:px-6 py-4">
+        <div className="max-w-5xl mx-auto flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h1 className="text-xl sm:text-2xl font-black text-gray-900 truncate">{comp.name}</h1>
+            <div className="flex items-center gap-2 mt-0.5 flex-wrap">
               <p className="text-xs text-gray-400">Competition Admin · {comp.club_name}</p>
               {comp.compliance_accepted && (
                 <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700 border border-green-300">✓ SNZ Compliant</span>
               )}
             </div>
           </div>
-          <div className="flex items-center gap-2 flex-wrap justify-end">
+          <div className="flex items-center gap-2 flex-wrap">
             {['draft','active','closed'].map(s => (
               <button key={s} onClick={async () => {
                 // Require compliance gate before going active
@@ -589,7 +589,7 @@ export default function CompAdmin() {
         </div>
       </div>
 
-      <div className="max-w-5xl mx-auto p-6">
+      <div className="max-w-5xl mx-auto p-4 sm:p-6">
         {tab === 'setup' && <SetupTab comp={comp} setComp={setComp} onSave={fetchAll} showToast={showToast} />}
         {tab === 'fish' && <FishTab fish={fish} comp={comp} onOpenPicker={() => setShowFishPicker(true)} />}
         {tab === 'teams' && <TeamsTab teams={teams} members={members} weighins={weighins} comp={comp} onRefresh={fetchAll} showToast={showToast} />}
@@ -1547,12 +1547,12 @@ function WeighInTab({ comp, teams, members, fish, weighins: initialWeighins, onR
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-4">
-        <p className="text-sm text-gray-500">
+      <div className="flex items-start justify-between gap-3 mb-4 flex-wrap">
+        <p className="text-sm text-gray-500 flex-1 min-w-0">
           {isStandard ? 'Tick species claimed, enter bulk weight below. Separately-weighed fish (e.g. Kingfish) get their own weight entry.' : 'Tick each species claimed. Points are fixed.'}
         </p>
         <button onClick={exportWeighInCSV}
-          className="px-4 py-2 rounded-lg text-sm font-bold border border-gray-300 text-gray-700 hover:bg-gray-50 transition">
+          className="px-4 py-2 rounded-lg text-sm font-bold border border-gray-300 text-gray-700 hover:bg-gray-50 transition flex-shrink-0">
           ↓ Export CSV
         </button>
       </div>
@@ -1795,7 +1795,8 @@ function AdminLeaderboard({ comp, teams, weighins, fish }) {
 
   const renderBoard = (board) => (
     <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm mb-6">
-      <table className="w-full min-w-[600px] text-sm">
+      <div className="overflow-x-auto">
+      <table className="w-full min-w-[500px] text-sm">
         <thead>
           <tr className="border-b border-gray-100 bg-gray-50">
             <th className="px-4 py-3 text-left text-xs font-bold tracking-widest text-gray-400 uppercase w-12">Rank</th>
@@ -1820,6 +1821,7 @@ function AdminLeaderboard({ comp, teams, weighins, fish }) {
           {board.length === 0 && <tr><td colSpan={5} className="px-4 py-12 text-center text-gray-400">No scores entered yet</td></tr>}
         </tbody>
       </table>
+      </div>
     </div>
   )
 

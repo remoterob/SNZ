@@ -176,7 +176,7 @@ export default function CompDeepLink() {
         {fish.length > 0 && (
           <div className="bg-white rounded-2xl border border-gray-200 p-4">
             <h2 className="font-black text-gray-900 mb-3 text-sm">Fish List ({fish.length} species)</h2>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {fish.map(f => (
                 <div key={f.id} className="rounded-xl overflow-hidden border border-gray-100">
                   {f.photo_url

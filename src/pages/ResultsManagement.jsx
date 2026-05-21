@@ -290,7 +290,8 @@ export default function ResultsManagement() {
 
         {/* Results Table */}
         <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-          <table className="w-full">
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-[560px]">
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-4 py-3 text-left">Team</th>
@@ -354,6 +355,7 @@ export default function ResultsManagement() {
               )}
             </tbody>
           </table>
+          </div>
         </div>
 
         <div className="mt-6 bg-blue-50 border-2 border-blue-200 rounded-lg p-4">

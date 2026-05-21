@@ -27,10 +27,8 @@ function MemberAdminInner() {
   const [members, setMembers] = useState([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
-  const [filter, setFilter] = useState('all') // 'all'|'active'|'pending'
+  const [filter, setFilter] = useState('all')
   const [toast, setToast] = useState(null)
-
-  // Password reset state
   const [resetTarget, setResetTarget] = useState(null)
   const [tempPwd, setTempPwd] = useState('')
   const [resetting, setResetting] = useState(false)
@@ -106,18 +104,13 @@ function MemberAdminInner() {
     if (!resetTarget || tempPwd.length < 8) return
     setResetting(true)
     try {
-      // Try sessionStorage first, fall back to VITE_ADMIN_PASSWORD env var
-      const adminPassword = sessionStorage.getItem('snz_admin_session') || 
+      const adminPassword = sessionStorage.getItem('snz_admin_session') ||
                            sessionStorage.getItem('admin_password') ||
                            import.meta.env.VITE_ADMIN_PASSWORD
       const res = await fetch('/.netlify/functions/admin-reset-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          adminPassword,
-          memberId: resetTarget.id,
-          tempPassword: tempPwd,
-        })
+        body: JSON.stringify({ adminPassword, memberId: resetTarget.id, tempPassword: tempPwd })
       })
       const result = await res.json()
       if (!res.ok) throw new Error(result.error)
@@ -137,29 +130,29 @@ function MemberAdminInner() {
   return (
     <div className="min-h-screen bg-gray-50">
       {toast && (
-        <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-xl text-sm font-semibold shadow-lg max-w-sm ${toast.type === 'error' ? 'bg-red-600 text-white' : 'bg-green-600 text-white'}`}>
+        <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-xl text-sm font-semibold shadow-lg max-w-xs ${toast.type === 'error' ? 'bg-red-600 text-white' : 'bg-green-600 text-white'}`}>
           {toast.msg}
         </div>
       )}
 
       {/* Header */}
-      <div style={{ background: SNZ_BLUE }} className="px-6 py-3 flex items-center justify-between border-b border-blue-700">
-        <div className="flex items-center gap-3">
+      <div style={{ background: SNZ_BLUE }} className="px-4 py-3 flex items-center justify-between border-b border-blue-700">
+        <div className="flex items-center gap-2 min-w-0">
           <button onClick={() => navigate('/membership')}
-            className="flex items-center gap-1.5 text-white font-bold text-sm bg-white/15 hover:bg-white/25 px-3 py-1.5 rounded-lg transition">
-            ← Membership
+            className="flex items-center gap-1 text-white font-bold text-sm bg-white/15 hover:bg-white/25 px-3 py-1.5 rounded-lg transition whitespace-nowrap">
+            ← Members
           </button>
-          <span className="text-blue-200 text-sm opacity-75">/ Member Admin</span>
+          <span className="text-blue-200 text-sm opacity-75 hidden sm:inline">/ Member Admin</span>
         </div>
-        {SNZ_LOGO && <img src={SNZ_LOGO} alt="SNZ" className="h-8 object-contain" style={{ filter: 'brightness(0) invert(1)' }} />}
+        {SNZ_LOGO && <img src={SNZ_LOGO} alt="SNZ" className="h-8 object-contain flex-shrink-0" style={{ filter: 'brightness(0) invert(1)' }} />}
       </div>
 
-      <div className="max-w-5xl mx-auto px-6 py-8">
+      <div className="max-w-5xl mx-auto px-4 py-6">
         {/* Tabs */}
-        <div className="flex gap-1 mb-6 border-b border-gray-200">
+        <div className="flex gap-0.5 mb-6 border-b border-gray-200 overflow-x-auto">
           {[['members','Members'],['whitelist','Fee Whitelist'],['analytics','Analytics']].map(([t,label]) => (
             <button key={t} onClick={() => setTab(t)}
-              className={`px-5 py-2.5 text-sm font-bold border-b-2 transition -mb-px ${tab===t ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+              className={`px-4 py-2.5 text-sm font-bold border-b-2 transition -mb-px whitespace-nowrap ${tab===t ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
               {label}
             </button>
           ))}
@@ -169,122 +162,160 @@ function MemberAdminInner() {
         {tab === 'whitelist' && <WhitelistAdmin />}
         {tab === 'members' && (
           <div>
-            <div className="flex items-center justify-between mb-6">
-            <div>
-              <h1 className="text-2xl font-black text-gray-900">Member Administration</h1>
-              <p className="text-sm text-gray-400 mt-0.5">
-                {members.length} total · {activeCount} active · {pendingCount} pending payment
-              </p>
-            </div>
-            <div className="flex gap-2">
-              <button onClick={exportCSV}
-                className="px-4 py-2 rounded-lg text-sm font-bold border border-gray-300 text-gray-700 bg-white hover:bg-gray-50 transition">
-                ↓ Export CSV
-              </button>
-              <RunBackupButton showToast={showToast} />
-            </div>
-          </div>
-
-        {/* Filters */}
-        <div className="bg-white border border-gray-200 rounded-xl p-4 mb-5 flex flex-wrap gap-3 items-center">
-          <input value={search} onChange={e => setSearch(e.target.value)}
-            placeholder="Search name, email, number, club…"
-            className="flex-1 min-w-48 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" />
-          <div className="flex gap-2">
-            {[['all', 'All'], ['active', 'Active'], ['pending', 'Pending payment']].map(([val, lbl]) => (
-              <button key={val} onClick={() => setFilter(val)}
-                className={`px-3 py-1.5 rounded-lg text-sm font-bold border transition ${filter === val ? 'text-white border-transparent' : 'border-gray-300 text-gray-500 hover:border-gray-400'}`}
-                style={filter === val ? { background: SNZ_BLUE } : {}}>
-                {lbl}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Password reset modal */}
-        {resetTarget && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.6)' }}
-            onClick={e => e.target === e.currentTarget && setResetTarget(null)}>
-            <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl">
-              <h3 className="font-black text-gray-900 mb-1">Set Temporary Password</h3>
-              <p className="text-sm text-gray-500 mb-1">{resetTarget.name}</p>
-              <p className="text-xs text-gray-400 mb-4">{resetTarget.email}</p>
-              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-4 text-xs text-amber-800">
-                Tell the member their temporary password directly — by phone or in person. They can change it from their membership dashboard.
-              </div>
-              <input type="text" value={tempPwd} onChange={e => setTempPwd(e.target.value)}
-                placeholder="Temporary password (min 8 chars)"
-                className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300 mb-4" />
-              <div className="flex gap-3">
-                <button onClick={() => { setResetTarget(null); setTempPwd('') }}
-                  className="flex-1 py-2.5 rounded-xl border border-gray-300 text-sm font-bold text-gray-600">Cancel</button>
-                <button onClick={resetPassword} disabled={resetting || tempPwd.length < 8}
-                  className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white disabled:opacity-50"
-                  style={{ background: '#d97706' }}>
-                  {resetting ? 'Setting…' : 'Set Password'}
-                </button>
+            {/* Title row */}
+            <div className="mb-5">
+              <div className="flex items-start justify-between gap-3 mb-1">
+                <div className="min-w-0">
+                  <h1 className="text-xl font-black text-gray-900">Member Administration</h1>
+                  <p className="text-sm text-gray-400 mt-0.5">
+                    {members.length} total · {activeCount} active · {pendingCount} pending
+                  </p>
+                </div>
+                <div className="flex gap-2 flex-shrink-0">
+                  <button onClick={exportCSV}
+                    className="px-3 py-2 rounded-lg text-xs font-bold border border-gray-300 text-gray-700 bg-white hover:bg-gray-50 transition whitespace-nowrap">
+                    ↓ CSV
+                  </button>
+                  <RunBackupButton showToast={showToast} />
+                </div>
               </div>
             </div>
-          </div>
-        )}
 
-        {/* Members table */}
-        {loading ? (
-          <div className="text-center py-16 text-gray-400">Loading members…</div>
-        ) : (
-          <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
-            <table className="w-full min-w-[640px] text-sm">
-              <thead>
-                <tr className="border-b border-gray-100 bg-gray-50">
-                  {['Number', 'Name', 'Email', 'Club', 'Joined', 'Status', ''].map(h => (
-                    <th key={h} className="px-4 py-3 text-left text-xs font-bold tracking-widest text-gray-400 uppercase">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((m, i) => (
-                  <tr key={m.id} className={`border-b border-gray-100 ${i % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}>
-                    <td className="px-4 py-3 text-xs font-mono text-gray-500">{m.member_number || '—'}</td>
-                    <td className="px-4 py-3">
-                      <p className="font-bold text-gray-900">{m.name || '—'}</p>
-                      <p className="text-xs text-gray-400">{m.phone || ''}</p>
-                    </td>
-                    <td className="px-4 py-3 text-gray-600 text-xs">{m.email}</td>
-                    <td className="px-4 py-3 text-gray-500 text-xs">{m.club || '—'}</td>
-                    <td className="px-4 py-3 text-gray-400 text-xs">
-                      {m.created_at ? new Date(m.created_at).toLocaleDateString('en-NZ', { day: 'numeric', month: 'short' }) : '—'}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${m.payment_status === 'paid' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
-                        {m.payment_status === 'paid' ? '● Active' : '⏳ Pending'}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
+            {/* Filters */}
+            <div className="bg-white border border-gray-200 rounded-xl p-3 mb-4 space-y-2">
+              <input value={search} onChange={e => setSearch(e.target.value)}
+                placeholder="Search name, email, number, club…"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" />
+              <div className="flex gap-2">
+                {[['all', 'All'], ['active', 'Active'], ['pending', 'Pending']].map(([val, lbl]) => (
+                  <button key={val} onClick={() => setFilter(val)}
+                    className={`flex-1 py-1.5 rounded-lg text-sm font-bold border transition ${filter === val ? 'text-white border-transparent' : 'border-gray-300 text-gray-500 hover:border-gray-400'}`}
+                    style={filter === val ? { background: SNZ_BLUE } : {}}>
+                    {lbl}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Password reset modal */}
+            {resetTarget && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.6)' }}
+                onClick={e => e.target === e.currentTarget && setResetTarget(null)}>
+                <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl">
+                  <h3 className="font-black text-gray-900 mb-1">Set Temporary Password</h3>
+                  <p className="text-sm text-gray-500 mb-1">{resetTarget.name}</p>
+                  <p className="text-xs text-gray-400 mb-4">{resetTarget.email}</p>
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-4 text-xs text-amber-800">
+                    Tell the member their temporary password directly — by phone or in person. They can change it from their membership dashboard.
+                  </div>
+                  <input type="text" value={tempPwd} onChange={e => setTempPwd(e.target.value)}
+                    placeholder="Temporary password (min 8 chars)"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300 mb-4" />
+                  <div className="flex gap-3">
+                    <button onClick={() => { setResetTarget(null); setTempPwd('') }}
+                      className="flex-1 py-2.5 rounded-xl border border-gray-300 text-sm font-bold text-gray-600">Cancel</button>
+                    <button onClick={resetPassword} disabled={resetting || tempPwd.length < 8}
+                      className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white disabled:opacity-50"
+                      style={{ background: '#d97706' }}>
+                      {resetting ? 'Setting…' : 'Set Password'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Members list */}
+            {loading ? (
+              <div className="text-center py-16 text-gray-400">Loading members…</div>
+            ) : filtered.length === 0 ? (
+              <div className="text-center py-12 text-gray-400 bg-white border border-gray-200 rounded-xl">No members found</div>
+            ) : (
+              <>
+                {/* Mobile cards */}
+                <div className="sm:hidden space-y-3">
+                  {filtered.map(m => (
+                    <div key={m.id} className="bg-white border border-gray-200 rounded-xl p-4">
+                      <div className="flex items-start justify-between gap-2 mb-2">
+                        <div className="min-w-0">
+                          <p className="font-bold text-gray-900 truncate">{m.name || '—'}</p>
+                          <p className="text-xs text-gray-400 font-mono">{m.member_number || 'No number'}</p>
+                        </div>
+                        <span className={`text-xs font-bold px-2 py-0.5 rounded-full flex-shrink-0 ${m.payment_status === 'paid' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                          {m.payment_status === 'paid' ? '● Active' : '⏳ Pending'}
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-500 mb-0.5 truncate">{m.email}</p>
+                      <div className="flex items-center gap-3 text-xs text-gray-400 mb-3">
+                        {m.club && <span>{m.club}</span>}
+                        {m.created_at && <span>Joined {new Date(m.created_at).toLocaleDateString('en-NZ', { day:'numeric', month:'short' })}</span>}
+                      </div>
                       <div className="flex gap-2">
                         {m.payment_status !== 'paid' && (
                           <button onClick={() => activateMember(m)}
-                            className="text-xs font-bold px-3 py-1.5 rounded-lg border border-green-300 text-green-700 hover:bg-green-50 whitespace-nowrap">
+                            className="flex-1 text-xs font-bold px-3 py-2 rounded-lg border border-green-300 text-green-700 bg-green-50 hover:bg-green-100">
                             Activate
                           </button>
                         )}
                         <button onClick={() => { setResetTarget(m); setTempPwd('') }}
-                          className="text-xs font-bold px-3 py-1.5 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50 whitespace-nowrap">
+                          className="flex-1 text-xs font-bold px-3 py-2 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50">
                           Reset pwd
                         </button>
                       </div>
-                    </td>
-                  </tr>
-                ))}
-                {filtered.length === 0 && (
-                  <tr><td colSpan={7} className="px-4 py-12 text-center text-gray-400">No members found</td></tr>
-                )}
-              </tbody>
-            </table>
-            </div>
-          )}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Desktop table */}
+                <div className="hidden sm:block bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-gray-100 bg-gray-50">
+                        {['Number', 'Name', 'Email', 'Club', 'Joined', 'Status', ''].map(h => (
+                          <th key={h} className="px-4 py-3 text-left text-xs font-bold tracking-widest text-gray-400 uppercase">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filtered.map((m, i) => (
+                        <tr key={m.id} className={`border-b border-gray-100 ${i % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}>
+                          <td className="px-4 py-3 text-xs font-mono text-gray-500">{m.member_number || '—'}</td>
+                          <td className="px-4 py-3">
+                            <p className="font-bold text-gray-900">{m.name || '—'}</p>
+                            <p className="text-xs text-gray-400">{m.phone || ''}</p>
+                          </td>
+                          <td className="px-4 py-3 text-gray-600 text-xs">{m.email}</td>
+                          <td className="px-4 py-3 text-gray-500 text-xs">{m.club || '—'}</td>
+                          <td className="px-4 py-3 text-gray-400 text-xs">
+                            {m.created_at ? new Date(m.created_at).toLocaleDateString('en-NZ', { day: 'numeric', month: 'short' }) : '—'}
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${m.payment_status === 'paid' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                              {m.payment_status === 'paid' ? '● Active' : '⏳ Pending'}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex gap-2">
+                              {m.payment_status !== 'paid' && (
+                                <button onClick={() => activateMember(m)}
+                                  className="text-xs font-bold px-3 py-1.5 rounded-lg border border-green-300 text-green-700 hover:bg-green-50 whitespace-nowrap">
+                                  Activate
+                                </button>
+                              )}
+                              <button onClick={() => { setResetTarget(m); setTempPwd('') }}
+                                className="text-xs font-bold px-3 py-1.5 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50 whitespace-nowrap">
+                                Reset pwd
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
           </div>
         )}
-
       </div>
     </div>
   )
@@ -298,7 +329,7 @@ function AnalyticsDashboard() {
   const [devices, setDevices] = useState([])
   const [browsers, setBrowsers] = useState([])
   const [loading, setLoading] = useState(true)
-  const [dateRange, setDateRange] = useState('7') // days
+  const [dateRange, setDateRange] = useState('7')
 
   useEffect(() => { fetchAnalytics() }, [dateRange])
 
@@ -309,52 +340,27 @@ function AnalyticsDashboard() {
     const sinceISO = since.toISOString()
 
     const [totalRes, pagesRes, recentRes, deviceRes, browserRes] = await Promise.all([
-      // Total views + unique sessions
-      supabase.from('page_views').select('id, session_id, member_id', { count: 'exact' })
-        .gte('created_at', sinceISO),
-      // Top pages
-      supabase.from('page_views').select('path')
-        .gte('created_at', sinceISO)
-        .limit(500),
-      // Recent views with detail
-      supabase.from('page_views')
-        .select('path, created_at, device_type, browser, os, screen_width, member_id, duration_ms')
-        .gte('created_at', sinceISO)
-        .order('created_at', { ascending: false })
-        .limit(200),
-      // Device breakdown
-      supabase.from('page_views').select('device_type')
-        .gte('created_at', sinceISO).limit(1000),
-      // Browser breakdown
-      supabase.from('page_views').select('browser')
-        .gte('created_at', sinceISO).limit(1000),
+      supabase.from('page_views').select('id, session_id, member_id', { count: 'exact' }).gte('created_at', sinceISO),
+      supabase.from('page_views').select('path').gte('created_at', sinceISO).limit(500),
+      supabase.from('page_views').select('path, created_at, device_type, browser, os, screen_width, member_id, duration_ms')
+        .gte('created_at', sinceISO).order('created_at', { ascending: false }).limit(200),
+      supabase.from('page_views').select('device_type').gte('created_at', sinceISO).limit(1000),
+      supabase.from('page_views').select('browser').gte('created_at', sinceISO).limit(1000),
     ])
 
     const views = totalRes.data || []
     const uniqueSessions = new Set(views.map(v => v.session_id)).size
     const loggedInViews = views.filter(v => v.member_id).length
 
-    // Aggregate top pages
     const pageCounts = {}
-    ;(pagesRes.data || []).forEach(v => {
-      pageCounts[v.path] = (pageCounts[v.path] || 0) + 1
-    })
-    const sortedPages = Object.entries(pageCounts)
-      .sort((a,b) => b[1] - a[1]).slice(0, 15)
+    ;(pagesRes.data || []).forEach(v => { pageCounts[v.path] = (pageCounts[v.path] || 0) + 1 })
+    const sortedPages = Object.entries(pageCounts).sort((a,b) => b[1]-a[1]).slice(0, 15)
 
-    // Device breakdown
     const devCounts = {}
-    ;(deviceRes.data || []).forEach(v => {
-      const k = v.device_type || 'unknown'
-      devCounts[k] = (devCounts[k] || 0) + 1
-    })
+    ;(deviceRes.data || []).forEach(v => { const k = v.device_type || 'unknown'; devCounts[k] = (devCounts[k] || 0) + 1 })
 
-    // Browser breakdown
     const brCounts = {}
-    ;(browserRes.data || []).forEach(v => {
-      const k = v.browser || 'Unknown'
-      brCounts[k] = (brCounts[k] || 0) + 1
-    })
+    ;(browserRes.data || []).forEach(v => { const k = v.browser || 'Unknown'; brCounts[k] = (brCounts[k] || 0) + 1 })
 
     setStats({ total: views.length, uniqueSessions, loggedInViews })
     setTopPages(sortedPages)
@@ -367,16 +373,15 @@ function AnalyticsDashboard() {
   const fmtPath = p => p === '/' ? 'Home' : p.replace(/^\//, '')
   const fmtDuration = ms => ms ? `${Math.round(ms/1000)}s` : '—'
   const fmtTime = ts => new Date(ts).toLocaleString('en-NZ', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' })
-
   const maxPageCount = topPages[0]?.[1] || 1
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* Date range */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-black text-gray-900">Analytics</h1>
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="text-xl font-black text-gray-900">Analytics</h1>
         <div className="flex gap-2">
-          {[['7','7 days'],['30','30 days'],['90','90 days']].map(([val,label]) => (
+          {[['7','7d'],['30','30d'],['90','90d']].map(([val,label]) => (
             <button key={val} onClick={() => setDateRange(val)}
               className={`px-3 py-1.5 rounded-lg text-sm font-bold border transition ${dateRange===val ? 'text-white border-transparent' : 'border-gray-300 text-gray-500 hover:border-gray-400'}`}
               style={dateRange===val ? { background: SNZ_BLUE } : {}}>
@@ -391,23 +396,24 @@ function AnalyticsDashboard() {
       ) : (
         <>
           {/* Summary cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-3 gap-3">
             {[
-              ['Total Page Views', stats?.total?.toLocaleString(), 'Views in period'],
-              ['Unique Sessions', stats?.uniqueSessions?.toLocaleString(), 'Distinct visitors'],
-              ['Logged-in Views', stats?.loggedInViews?.toLocaleString(), 'Views by members'],
+              ['Page Views', stats?.total?.toLocaleString(), 'In period'],
+              ['Sessions', stats?.uniqueSessions?.toLocaleString(), 'Unique visitors'],
+              ['Member Views', stats?.loggedInViews?.toLocaleString(), 'Logged in'],
             ].map(([title, value, sub]) => (
-              <div key={title} className="bg-white border border-gray-200 rounded-xl p-5">
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">{title}</p>
-                <p className="text-3xl font-black text-gray-900">{value}</p>
-                <p className="text-xs text-gray-400 mt-1">{sub}</p>
+              <div key={title} className="bg-white border border-gray-200 rounded-xl p-3 sm:p-5">
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1 hidden sm:block">{title}</p>
+                <p className="text-xs font-bold text-gray-400 mb-0.5 sm:hidden">{title}</p>
+                <p className="text-2xl sm:text-3xl font-black text-gray-900">{value}</p>
+                <p className="text-xs text-gray-400 mt-1 hidden sm:block">{sub}</p>
               </div>
             ))}
           </div>
 
-          <div className="grid grid-cols-2 gap-6">
-            {/* Top pages */}
-            <div className="bg-white border border-gray-200 rounded-xl p-5">
+          {/* Top pages + devices/browsers */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="bg-white border border-gray-200 rounded-xl p-4">
               <h3 className="font-black text-gray-900 mb-4">Top Pages</h3>
               <div className="space-y-2">
                 {topPages.map(([path, count]) => (
@@ -426,9 +432,8 @@ function AnalyticsDashboard() {
               </div>
             </div>
 
-            <div className="space-y-6">
-              {/* Devices */}
-              <div className="bg-white border border-gray-200 rounded-xl p-5">
+            <div className="space-y-4">
+              <div className="bg-white border border-gray-200 rounded-xl p-4">
                 <h3 className="font-black text-gray-900 mb-3">Devices</h3>
                 <div className="space-y-2">
                   {devices.map(([type, count]) => {
@@ -446,8 +451,7 @@ function AnalyticsDashboard() {
                 </div>
               </div>
 
-              {/* Browsers */}
-              <div className="bg-white border border-gray-200 rounded-xl p-5">
+              <div className="bg-white border border-gray-200 rounded-xl p-4">
                 <h3 className="font-black text-gray-900 mb-3">Browsers</h3>
                 <div className="space-y-2">
                   {browsers.map(([br, count]) => {
@@ -469,11 +473,33 @@ function AnalyticsDashboard() {
 
           {/* Recent views */}
           <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-            <div className="px-5 py-4 border-b border-gray-100">
+            <div className="px-4 py-4 border-b border-gray-100">
               <h3 className="font-black text-gray-900">Recent Page Views</h3>
               <p className="text-xs text-gray-400 mt-0.5">Last 200 views — most recent first</p>
             </div>
-            <div className="overflow-x-auto">
+
+            {/* Mobile: cards */}
+            <div className="sm:hidden divide-y divide-gray-100">
+              {recentViews.map((v, i) => (
+                <div key={i} className="px-4 py-3">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-sm font-semibold text-gray-800">{fmtPath(v.path)}</span>
+                    {v.member_id
+                      ? <span className="text-xs text-green-600 font-bold">Member</span>
+                      : <span className="text-xs text-gray-300">Guest</span>}
+                  </div>
+                  <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-gray-400">
+                    <span>{fmtTime(v.created_at)}</span>
+                    {v.device_type && <span className="capitalize">{v.device_type}</span>}
+                    {v.browser && <span>{v.browser}</span>}
+                    {v.duration_ms && <span>{fmtDuration(v.duration_ms)}</span>}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop: table */}
+            <div className="hidden sm:block overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-gray-100 bg-gray-50">
@@ -559,77 +585,103 @@ function WhitelistAdmin() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {toast && <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-xl text-sm font-semibold shadow-lg ${toast.type==='error'?'bg-red-600':'bg-green-600'} text-white`}>{toast.msg}</div>}
 
-      <div className="flex items-center justify-between">
+      <div className="flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-black text-gray-900">Fee Whitelist</h1>
-          <p className="text-sm text-gray-400 mt-0.5">Members on this list sign up with the fee automatically waived</p>
+          <h1 className="text-xl font-black text-gray-900">Fee Whitelist</h1>
+          <p className="text-sm text-gray-400 mt-0.5">Members on this list sign up with the fee waived</p>
         </div>
-        <button onClick={exportCSV} className="px-4 py-2 rounded-lg text-sm font-bold border border-gray-300 text-gray-700 bg-white hover:bg-gray-50">↓ Export</button>
+        <button onClick={exportCSV} className="px-3 py-2 rounded-lg text-xs font-bold border border-gray-300 text-gray-700 bg-white hover:bg-gray-50 flex-shrink-0">↓ Export</button>
       </div>
 
       {/* Add new */}
-      <div className="bg-white border border-gray-200 rounded-xl p-5">
+      <div className="bg-white border border-gray-200 rounded-xl p-4">
         <h3 className="text-sm font-black text-gray-700 mb-3">Add to Whitelist</h3>
-        <div className="flex gap-2 flex-wrap">
+        <div className="space-y-2">
           <input value={newEmail} onChange={e => setNewEmail(e.target.value)}
             placeholder="Email address" type="email"
-            className="flex-1 min-w-48 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" />
-          <input value={newName} onChange={e => setNewName(e.target.value)}
-            placeholder="Name (optional)"
-            className="flex-1 min-w-32 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" />
-          <select value={newSource} onChange={e => setNewSource(e.target.value)}
-            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none">
-            {['manual','nationals','worlds','catfish_cull'].map(s => (
-              <option key={s} value={s}>{s.replace('_',' ')}</option>
-            ))}
-          </select>
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" />
+          <div className="flex gap-2">
+            <input value={newName} onChange={e => setNewName(e.target.value)}
+              placeholder="Name (optional)"
+              className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" />
+            <select value={newSource} onChange={e => setNewSource(e.target.value)}
+              className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none">
+              {['manual','nationals','worlds','catfish_cull'].map(s => (
+                <option key={s} value={s}>{s.replace('_',' ')}</option>
+              ))}
+            </select>
+          </div>
           <button onClick={addEntry} disabled={adding || !newEmail.trim()}
-            className="px-4 py-2 rounded-lg text-sm font-bold text-white disabled:opacity-50"
+            className="w-full py-2 rounded-lg text-sm font-bold text-white disabled:opacity-50"
             style={{ background: SNZ_BLUE }}>
-            {adding ? 'Adding…' : '+ Add'}
+            {adding ? 'Adding…' : '+ Add to Whitelist'}
           </button>
         </div>
       </div>
 
       {/* List */}
       <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-        <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
+        <div className="px-4 py-3 border-b border-gray-100">
           <p className="text-sm font-bold text-gray-700">{entries.length} entries</p>
         </div>
         {loading ? (
           <div className="py-10 text-center text-gray-400 text-sm">Loading…</div>
         ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-gray-100 bg-gray-50">
-                {['Email','Name','Source','Added',''].map(h => (
-                  <th key={h} className="px-4 py-2 text-left text-xs font-bold tracking-widest text-gray-400 uppercase">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {entries.map((e,i) => (
-                <tr key={e.id} className={`border-b border-gray-50 ${i%2===0?'bg-white':'bg-gray-50/30'}`}>
-                  <td className="px-4 py-2.5 text-sm text-gray-700">{e.email}</td>
-                  <td className="px-4 py-2.5 text-sm text-gray-500">{e.name || '—'}</td>
-                  <td className="px-4 py-2.5">
-                    <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 capitalize">{(e.source||'').replace('_',' ')}</span>
-                  </td>
-                  <td className="px-4 py-2.5 text-xs text-gray-400">{new Date(e.created_at).toLocaleDateString('en-NZ')}</td>
-                  <td className="px-4 py-2.5">
-                    <button onClick={() => removeEntry(e.id, e.email)}
-                      className="text-xs text-red-400 hover:text-red-600 font-bold">Remove</button>
-                  </td>
-                </tr>
+          <>
+            {/* Mobile cards */}
+            <div className="sm:hidden divide-y divide-gray-100">
+              {entries.map(e => (
+                <div key={e.id} className="px-4 py-3 flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-gray-800 truncate">{e.email}</p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      {e.name && <span className="text-xs text-gray-500">{e.name}</span>}
+                      <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-700 capitalize">{(e.source||'').replace('_',' ')}</span>
+                      <span className="text-xs text-gray-400">{new Date(e.created_at).toLocaleDateString('en-NZ')}</span>
+                    </div>
+                  </div>
+                  <button onClick={() => removeEntry(e.id, e.email)}
+                    className="text-xs text-red-400 hover:text-red-600 font-bold flex-shrink-0">Remove</button>
+                </div>
               ))}
               {entries.length === 0 && (
-                <tr><td colSpan={5} className="px-4 py-10 text-center text-gray-400">No entries yet</td></tr>
+                <div className="px-4 py-10 text-center text-gray-400">No entries yet</div>
               )}
-            </tbody>
-          </table>
+            </div>
+
+            {/* Desktop table */}
+            <table className="hidden sm:table w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-100 bg-gray-50">
+                  {['Email','Name','Source','Added',''].map(h => (
+                    <th key={h} className="px-4 py-2 text-left text-xs font-bold tracking-widest text-gray-400 uppercase">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {entries.map((e,i) => (
+                  <tr key={e.id} className={`border-b border-gray-50 ${i%2===0?'bg-white':'bg-gray-50/30'}`}>
+                    <td className="px-4 py-2.5 text-sm text-gray-700">{e.email}</td>
+                    <td className="px-4 py-2.5 text-sm text-gray-500">{e.name || '—'}</td>
+                    <td className="px-4 py-2.5">
+                      <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 capitalize">{(e.source||'').replace('_',' ')}</span>
+                    </td>
+                    <td className="px-4 py-2.5 text-xs text-gray-400">{new Date(e.created_at).toLocaleDateString('en-NZ')}</td>
+                    <td className="px-4 py-2.5">
+                      <button onClick={() => removeEntry(e.id, e.email)}
+                        className="text-xs text-red-400 hover:text-red-600 font-bold">Remove</button>
+                    </td>
+                  </tr>
+                ))}
+                {entries.length === 0 && (
+                  <tr><td colSpan={5} className="px-4 py-10 text-center text-gray-400">No entries yet</td></tr>
+                )}
+              </tbody>
+            </table>
+          </>
         )}
       </div>
     </div>
@@ -652,7 +704,7 @@ function RunBackupButton({ showToast }) {
         })
       })
       const text = await res.text()
-      if (res.ok) showToast('Backup sent to secretary@spearfishingnz.co.nz ✓')
+      if (res.ok) showToast('Backup sent ✓')
       else showToast('Backup failed: ' + text, 'error')
     } catch (err) {
       showToast('Backup failed: ' + err.message, 'error')
@@ -663,8 +715,8 @@ function RunBackupButton({ showToast }) {
 
   return (
     <button onClick={run} disabled={running}
-      className="px-4 py-2 rounded-lg text-sm font-bold border border-blue-300 text-blue-700 bg-blue-50 hover:bg-blue-100 transition disabled:opacity-50 whitespace-nowrap">
-      {running ? 'Sending…' : '📧 Send Backup'}
+      className="px-3 py-2 rounded-lg text-xs font-bold border border-blue-300 text-blue-700 bg-blue-50 hover:bg-blue-100 transition disabled:opacity-50 whitespace-nowrap">
+      {running ? 'Sending…' : '📧 Backup'}
     </button>
   )
 }
