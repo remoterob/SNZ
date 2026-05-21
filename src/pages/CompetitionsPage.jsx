@@ -69,10 +69,13 @@ export default function CompetitionsPage() {
                 If you've got a comp idea, we can set it up for you — payments, team management, scoring, and social media integration all built in. Get it running without the hassle.
               </p>
               <div className="flex flex-wrap gap-2 mb-3">
-                {['💳 Payments', '👥 Team management', '🏆 Scoring', '📸 Social integration'].map(f => (
+                {['💳 Payments', '👥 Team management', '🏆 Scoring', '📸 Social integration', '🛡 Indemnity insurance'].map(f => (
                   <span key={f} className="text-xs font-semibold bg-white border border-blue-200 text-blue-700 px-2.5 py-1 rounded-full">{f}</span>
                 ))}
               </div>
+              <p className="text-sm text-gray-600 leading-relaxed mb-2">
+                Run your comp through us and all participants are covered by indemnity insurance — as long as everyone's a current SNZ member.
+              </p>
               <p className="text-sm font-semibold text-blue-800">
                 Only requirement — be a Spearfishing New Zealand member, and you're away laughing. 🎣
               </p>

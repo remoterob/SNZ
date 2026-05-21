@@ -889,7 +889,7 @@ function SNZHub() {
     },
     {
       title: 'Other Competitions',
-      desc: 'Club competitions — register your team, view fish lists, live leaderboard, and results.',
+      desc: 'Club competitions — register your team, view fish lists, live leaderboard, and results. Want to run your own club comp? We can set it up for you.',
       onClick: () => navigate('/competitions'),
       icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={SNZ_BLUE} strokeWidth="1.8" strokeLinecap="round"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"/></svg>,
       status: 'live',
