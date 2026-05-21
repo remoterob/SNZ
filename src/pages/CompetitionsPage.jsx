@@ -73,9 +73,21 @@ export default function CompetitionsPage() {
                   <span key={f} className="text-xs font-semibold bg-white border border-blue-200 text-blue-700 px-2.5 py-1 rounded-full">{f}</span>
                 ))}
               </div>
-              <p className="text-sm text-gray-600 leading-relaxed mb-2">
+              <p className="text-sm text-gray-600 leading-relaxed mb-3">
                 Run your comp through us and all participants are covered by indemnity insurance — as long as everyone's a current SNZ member.
               </p>
+
+              <div className="space-y-2 mb-3">
+                <div className="bg-white border border-blue-200 rounded-xl p-3">
+                  <p className="text-sm font-bold text-gray-800 mb-0.5">🧭 Comp Director Co-pilot</p>
+                  <p className="text-xs text-gray-500 leading-relaxed">An AI co-pilot built for the person running the comp. It'll guide you step by step through setting up and managing an effective, safe competition — from briefings and rules to on-the-day logistics.</p>
+                </div>
+                <div className="bg-white border border-blue-200 rounded-xl p-3">
+                  <p className="text-sm font-bold text-gray-800 mb-0.5">🤿 Competitor Co-pilot</p>
+                  <p className="text-xs text-gray-500 leading-relaxed">Every competitor gets their own co-pilot that knows the comp inside out. It can walk them through how it works, explain the key rules and scoring, and even help them train and prepare so they show up ready.</p>
+                </div>
+              </div>
+
               <p className="text-sm font-semibold text-blue-800">
                 Only requirement — be a Spearfishing New Zealand member, and you're away laughing. 🎣
               </p>
