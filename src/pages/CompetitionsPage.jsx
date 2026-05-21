@@ -60,6 +60,26 @@ export default function CompetitionsPage() {
           </div>
         )}
 
+        <div className="mb-6 rounded-2xl border-2 border-blue-100 bg-blue-50 p-5">
+          <div className="flex items-start gap-3">
+            <span className="text-2xl">🚀</span>
+            <div>
+              <h2 className="font-black text-gray-900 text-base mb-1">Want to run your own competition?</h2>
+              <p className="text-sm text-gray-600 leading-relaxed mb-3">
+                If you've got a comp idea, we can set it up for you — payments, team management, scoring, and social media integration all built in. Get it running without the hassle.
+              </p>
+              <div className="flex flex-wrap gap-2 mb-3">
+                {['💳 Payments', '👥 Team management', '🏆 Scoring', '📸 Social integration'].map(f => (
+                  <span key={f} className="text-xs font-semibold bg-white border border-blue-200 text-blue-700 px-2.5 py-1 rounded-full">{f}</span>
+                ))}
+              </div>
+              <p className="text-sm font-semibold text-blue-800">
+                Only requirement — be a Spearfishing New Zealand member, and you're away laughing. 🎣
+              </p>
+            </div>
+          </div>
+        </div>
+
         <div className="space-y-4">
           {comps.map(c => (
             <div key={c.id}
