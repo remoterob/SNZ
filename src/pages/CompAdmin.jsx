@@ -8,7 +8,12 @@ const SNZ_LOGO = import.meta.env.VITE_SNZ_LOGO_URL || null
 const CATEGORIES_ALL = ['Open','Mens','Womens','Mixed','Junior']
 
 // ── Scoring ───────────────────────────────────────────────────────────────────
-function calcPoints(fish, weightKg, mode) {
+function calcPoints(fish, weightKg, mode, teamCategory) {
+  if (mode === 'fish_bingo') {
+    if (fish.category_points && teamCategory && fish.category_points[teamCategory] != null)
+      return fish.category_points[teamCategory]
+    return fish.points || 100
+  }
   if (mode === 'bingo') return fish.points || 100
   // Standard: base species points + weight bonus capped at max_weight_kg
   const base = fish.points || 100
@@ -342,14 +347,16 @@ function FishPickerModal({ comp, existing, onClose, onSaved }) {
       for (const { slug, count } of selected) {
         const lib = library.find(s => s.slug === slug)
         const cust = custom.find(f => f.species_slug === slug)
+        const prev = existing.find(f => f.species_slug === slug)
         if (!lib && !cust) continue
         rows.push({
           competition_id: comp.id,
           species_name: lib ? lib.name : cust.species_name,
           species_slug: slug,
           photo_url: lib ? lib.photo_url : cust.photo_url,
-          points: cust?.points ?? 100,
-          max_weight_kg: cust?.max_weight_kg ?? 8,
+          points: prev?.points ?? cust?.points ?? 100,
+          category_points: prev?.category_points ?? null,
+          max_weight_kg: prev?.max_weight_kg ?? cust?.max_weight_kg ?? 8,
           allow_multiples: count > 1,
           max_count: count || 1,
           weigh_separately: weighSep[slug] || false,
@@ -591,7 +598,7 @@ export default function CompAdmin() {
 
       <div className="max-w-5xl mx-auto p-4 sm:p-6">
         {tab === 'setup' && <SetupTab comp={comp} setComp={setComp} onSave={fetchAll} showToast={showToast} />}
-        {tab === 'fish' && <FishTab fish={fish} comp={comp} onOpenPicker={() => setShowFishPicker(true)} />}
+        {tab === 'fish' && <FishTab fish={fish} comp={comp} onOpenPicker={() => setShowFishPicker(true)} onFishUpdated={fetchAll} />}
         {tab === 'teams' && <TeamsTab teams={teams} members={members} weighins={weighins} comp={comp} onRefresh={fetchAll} showToast={showToast} />}
         {tab === 'weighin' && <WeighInTab comp={comp} teams={activeTeams} members={members} fish={fish} weighins={weighins} onRefresh={fetchAll} showToast={showToast} />}
         {tab === 'leaderboard' && <AdminLeaderboard comp={comp} teams={activeTeams} weighins={weighins} fish={fish} />}
@@ -728,12 +735,14 @@ function SetupTab({ comp, setComp, onSave, showToast }) {
         <div className="flex gap-3 flex-wrap">
           <button type="button" onClick={() => set('scoring_mode')('standard')}
             className={`flex-1 p-4 rounded-xl border-2 text-left text-sm font-semibold transition ${form.scoring_mode==='standard'?'border-blue-500 bg-blue-50 text-blue-700':'border-gray-200 text-gray-600 hover:border-gray-300'}`}>
-            ⚖ Standard (100pts + 10pts/kg up to 8kg)
+            <span className="block font-bold mb-0.5">⚖ Standard</span>
+            <span className="text-xs font-normal">100pts base + 10pts/kg up to 8kg per species</span>
           </button>
-          <div className="flex-1 p-4 rounded-xl border-2 border-gray-100 bg-gray-50 text-left opacity-60 cursor-not-allowed">
-            <p className="text-sm font-semibold text-gray-400">📸 Self Weighing with Pic</p>
-            <p className="text-xs text-gray-400 mt-1">Coming soon</p>
-          </div>
+          <button type="button" onClick={() => set('scoring_mode')('fish_bingo')}
+            className={`flex-1 p-4 rounded-xl border-2 text-left text-sm font-semibold transition ${form.scoring_mode==='fish_bingo'?'border-blue-500 bg-blue-50 text-blue-700':'border-gray-200 text-gray-600 hover:border-gray-300'}`}>
+            <span className="block font-bold mb-0.5">🎯 Fish Bingo</span>
+            <span className="text-xs font-normal">Fixed points per species. Set a single score or different scores per category.</span>
+          </button>
         </div>
       </div>
 
@@ -943,11 +952,97 @@ function SetupTab({ comp, setComp, onSave, showToast }) {
 }
 
 // ── Fish Tab ─────────────────────────────────────────────────────────────────
-function FishTab({ fish, comp, onOpenPicker }) {
+function FishPointEditor({ fish, comp, onSaved }) {
+  const cats = comp.categories || []
+  const hasCats = cats.length > 1
+  const [mode, setMode] = useState(() =>
+    fish.category_points && Object.keys(fish.category_points).length > 0 ? 'per_cat' : 'single'
+  )
+  const [singlePts, setSinglePts] = useState(fish.points || 100)
+  const [catPts, setCatPts] = useState(() => {
+    const defaults = {}
+    cats.forEach(c => { defaults[c] = fish.points || 100 })
+    return fish.category_points ? { ...defaults, ...fish.category_points } : defaults
+  })
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+
+  const save = async () => {
+    setSaving(true)
+    try {
+      if (mode === 'single') {
+        await supabase.from('comp_fish').update({ points: singlePts, category_points: null }).eq('id', fish.id)
+      } else {
+        await supabase.from('comp_fish').update({ points: singlePts, category_points: catPts }).eq('id', fish.id)
+      }
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2000)
+      onSaved()
+    } catch (err) { alert(err.message) }
+    finally { setSaving(false) }
+  }
+
+  return (
+    <div className="bg-white border border-gray-200 rounded-xl p-3 shadow-sm flex gap-3 items-start">
+      <div className="flex-shrink-0">
+        {fish.photo_url
+          ? <img src={fish.photo_url} alt={fish.species_name} className="w-14 h-12 object-cover rounded-lg" />
+          : <div className="w-14 h-12 bg-gray-50 rounded-lg flex items-center justify-center text-xl border border-gray-100">🐟</div>}
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="font-bold text-sm text-gray-900 mb-2">{fish.species_name}</p>
+        {hasCats && (
+          <div className="flex gap-1.5 mb-2">
+            {[['single', 'All same'], ['per_cat', 'Per category']].map(([v, l]) => (
+              <button key={v} type="button" onClick={() => setMode(v)}
+                className={`text-xs font-bold px-2.5 py-1 rounded-lg border-2 transition ${mode === v ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-400 hover:border-gray-300'}`}>
+                {l}
+              </button>
+            ))}
+          </div>
+        )}
+        {mode === 'single' ? (
+          <div className="flex items-center gap-2">
+            <label className="text-xs text-gray-500">Points:</label>
+            <input type="number" min="0" value={singlePts}
+              onChange={e => setSinglePts(parseInt(e.target.value) || 0)}
+              className="w-20 border border-gray-300 rounded-lg px-2 py-1 text-sm font-bold text-center focus:outline-none focus:ring-2 focus:ring-blue-300" />
+            <span className="text-xs text-gray-400">{hasCats ? 'all categories' : 'per fish'}</span>
+          </div>
+        ) : (
+          <div className="flex flex-wrap gap-x-4 gap-y-1.5">
+            {cats.map(cat => (
+              <div key={cat} className="flex items-center gap-1.5">
+                <label className="text-xs font-semibold text-gray-600 w-16 truncate">{cat}:</label>
+                <input type="number" min="0" value={catPts[cat] ?? singlePts}
+                  onChange={e => setCatPts(p => ({ ...p, [cat]: parseInt(e.target.value) || 0 }))}
+                  className="w-18 border border-gray-300 rounded-lg px-2 py-1 text-sm font-bold text-center focus:outline-none focus:ring-2 focus:ring-blue-300" />
+                <span className="text-xs text-gray-400">pts</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+      <button onClick={save} disabled={saving}
+        className={`flex-shrink-0 px-3 py-2 rounded-lg text-xs font-bold text-white transition ${saved ? 'bg-green-500' : ''}`}
+        style={saved ? {} : { background: SNZ_BLUE }}>
+        {saving ? '…' : saved ? '✓ Saved' : 'Save'}
+      </button>
+    </div>
+  )
+}
+
+function FishTab({ fish, comp, onOpenPicker, onFishUpdated }) {
+  const isFishBingo = comp.scoring_mode === 'fish_bingo'
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
-        <p className="text-sm text-gray-500">{fish.length} species on the fish list</p>
+        <div>
+          <p className="text-sm text-gray-500">{fish.length} species on the fish list</p>
+          {isFishBingo && fish.length > 0 && (
+            <p className="text-xs text-gray-400 mt-0.5">Set points per species below. Toggle "Per category" to give different scores to each division.</p>
+          )}
+        </div>
         <button onClick={onOpenPicker}
           className="px-4 py-2 rounded-lg text-sm font-bold text-white"
           style={{ background: SNZ_BLUE }}>Edit Fish List</button>
@@ -958,25 +1053,33 @@ function FishTab({ fish, comp, onOpenPicker }) {
           <p>No fish added yet. Click Edit Fish List to get started.</p>
         </div>
       )}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 sm:gap-3">
-        {fish.map(f => (
-          <div key={f.id} className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
-            {f.photo_url
-              ? <img src={f.photo_url} alt={f.species_name} className="w-full h-28 object-cover" />
-              : <div className="w-full h-28 bg-gray-50 flex items-center justify-center text-3xl">🐟</div>}
-            <div className="p-3">
-              <p className="font-bold text-sm text-gray-900">{f.species_name}</p>
-              <p className="text-xs text-gray-400">
-                {comp.scoring_mode === 'standard' ? `${f.points||100}pts + weight` : `${f.points}pts`}
-              </p>
-              {f.allow_multiples && <p className="text-xs text-blue-500">Up to {f.max_count}×</p>}
-              {comp.scoring_mode === 'standard' && f.weigh_separately && (
-                <p className="text-xs text-amber-700 font-bold mt-0.5">⚖ Weigh separately</p>
-              )}
+      {isFishBingo ? (
+        <div className="space-y-2">
+          {fish.map(f => (
+            <FishPointEditor key={f.id} fish={f} comp={comp} onSaved={onFishUpdated} />
+          ))}
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 sm:gap-3">
+          {fish.map(f => (
+            <div key={f.id} className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+              {f.photo_url
+                ? <img src={f.photo_url} alt={f.species_name} className="w-full h-28 object-cover" />
+                : <div className="w-full h-28 bg-gray-50 flex items-center justify-center text-3xl">🐟</div>}
+              <div className="p-3">
+                <p className="font-bold text-sm text-gray-900">{f.species_name}</p>
+                <p className="text-xs text-gray-400">
+                  {comp.scoring_mode === 'standard' ? `${f.points||100}pts + weight` : `${f.points||100}pts`}
+                </p>
+                {f.allow_multiples && <p className="text-xs text-blue-500">Up to {f.max_count}×</p>}
+                {comp.scoring_mode === 'standard' && f.weigh_separately && (
+                  <p className="text-xs text-amber-700 font-bold mt-0.5">⚖ Weigh separately</p>
+                )}
+              </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -1474,7 +1577,7 @@ function WeighInTab({ comp, teams, members, fish, weighins: initialWeighins, onR
         }
 
       } else {
-        // Bingo: insert newly ticked only
+        // Bingo / Fish Bingo: insert newly ticked only
         for (const f of fish) {
           const instances = f.allow_multiples ? f.max_count : 1
           for (let inst = 1; inst <= instances; inst++) {
@@ -1485,7 +1588,8 @@ function WeighInTab({ comp, teams, members, fish, weighins: initialWeighins, onR
             rows.push({
               competition_id: comp.id, team_id: selectedTeam.id,
               fish_id: f.id, fish_name: f.species_name,
-              weight_kg: null, points_awarded: f.points || 100,
+              weight_kg: null,
+              points_awarded: calcPoints(f, null, comp.scoring_mode, selectedTeam?.category),
               instance: inst, is_bulk: false,
               catch_photo_url: teamCatchPhotoUrl || null,
             })
@@ -1654,7 +1758,9 @@ function WeighInTab({ comp, teams, members, fish, weighins: initialWeighins, onR
                         </span>
                         {isSepWeigh && <span className="ml-2 text-xs font-bold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded">Weigh separately</span>}
                         {!isStandard && isTicked && (
-                          <span className="ml-2 text-xs font-bold" style={{ color: SNZ_BLUE }}>{f.points || 100} pts</span>
+                          <span className="ml-2 text-xs font-bold" style={{ color: SNZ_BLUE }}>
+                            {calcPoints(f, null, comp.scoring_mode, selectedTeam?.category)} pts
+                          </span>
                         )}
                         {isStandard && savedEntry && (
                           <span className="ml-2 text-xs text-green-600 font-semibold">✓ saved · {savedEntry.points_awarded} pts</span>
@@ -1748,11 +1854,15 @@ function WeighInTab({ comp, teams, members, fish, weighins: initialWeighins, onR
                 const instances = f.allow_multiples ? f.max_count : 1
                 return n + Array.from({length:instances},(_,i)=>i+1).filter(inst => `${f.id}-${inst}` in weights).length
               }, 0)
-              const pendingSpeciesPts = pendingSpecies * 100
+              const pendingBingoPoints = fish.reduce((sum, f) => {
+                const instances = f.allow_multiples ? f.max_count : 1
+                const ticked = Array.from({length:instances},(_,i)=>i+1).filter(inst => `${f.id}-${inst}` in weights).length
+                return sum + ticked * calcPoints(f, null, comp.scoring_mode, selectedTeam?.category)
+              }, 0)
 
               const previewTotal = savedTotal + (isStandard
-                ? pendingSpeciesPts + pendingSepPts + pendingBulk
-                : pendingSpecies * 100)
+                ? pendingSpecies * 100 + pendingSepPts + pendingBulk
+                : pendingBingoPoints)
               const hasPending = pendingSpecies > 0 || (weights['__bulk__'] && parseFloat(weights['__bulk__']) > 0)
 
               return (

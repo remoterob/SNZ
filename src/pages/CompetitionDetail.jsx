@@ -151,7 +151,7 @@ export default function CompetitionDetail() {
           </div>
           <div className="flex gap-2 mt-3 flex-wrap">
             <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
-              {comp.scoring_mode === 'standard' ? '⚖ Standard scoring' : '🎯 Fish bingo'}
+              {comp.scoring_mode === 'standard' ? '⚖ Standard scoring' : comp.scoring_mode === 'fish_bingo' ? '🎯 Fish Bingo' : '🎯 Fish bingo'}
             </span>
             {(comp.categories || []).map(cat => (
               <span key={cat} className={`text-xs font-bold px-2 py-0.5 rounded-full ${CATEGORY_COLORS[cat] || CATEGORY_COLORS['Open']}`}>{cat}</span>
@@ -209,6 +209,13 @@ export default function CompetitionDetail() {
                   <p>• Maximum weight bonus capped at <strong>8 kg per fish</strong> (80 points)</p>
                   <p>• Maximum possible score per fish: <strong>180 points</strong></p>
                 </div>
+              ) : comp.scoring_mode === 'fish_bingo' ? (
+                <div className="text-sm text-gray-600 space-y-1">
+                  <p>Points are fixed per species — see the fish list tab for individual values.</p>
+                  {(comp.categories || []).length > 1 && (
+                    <p className="mt-1">Different divisions may have different point values per species.</p>
+                  )}
+                </div>
               ) : (
                 <div className="text-sm text-gray-600">
                   <p>Points are fixed per species — see the fish list for individual values.</p>
@@ -235,11 +242,17 @@ export default function CompetitionDetail() {
                   </div>
                   <div className="p-3">
                     <p className="font-bold text-gray-900 text-sm">{f.species_name}</p>
-                    <p className="text-xs text-gray-400 mt-0.5">
-                      {comp.scoring_mode === 'standard'
-                        ? `${f.points || 100} pts + weight bonus`
-                        : `${f.points} points`}
-                    </p>
+                    {comp.scoring_mode === 'standard' ? (
+                      <p className="text-xs text-gray-400 mt-0.5">{f.points || 100} pts + weight bonus</p>
+                    ) : comp.scoring_mode === 'fish_bingo' && f.category_points && Object.keys(f.category_points).length > 0 ? (
+                      <div className="mt-0.5 space-y-0.5">
+                        {Object.entries(f.category_points).map(([cat, pts]) => (
+                          <p key={cat} className="text-xs text-gray-500"><span className="font-semibold">{cat}:</span> {pts} pts</p>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-gray-400 mt-0.5">{f.points || 100} points</p>
+                    )}
                     {f.allow_multiples && <p className="text-xs text-blue-600 mt-0.5">Up to {f.max_count}× allowed</p>}
                   </div>
                 </div>
