@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { useMemberSession } from '../components/MemberAuthGate'
 import CompCopilotFAB from './CompCopilotFAB'
 
 
@@ -39,7 +40,12 @@ const CATEGORY_COLORS = {
   'Open':   'bg-gray-50 text-gray-700 border border-gray-200',
 }
 
-function calcPoints(fish, weightKg, mode) {
+function calcPoints(fish, weightKg, mode, teamCategory) {
+  if (mode === 'fish_bingo') {
+    if (fish.category_points && teamCategory && fish.category_points[teamCategory] != null)
+      return fish.category_points[teamCategory]
+    return fish.points || 100
+  }
   if (mode === 'bingo') return fish.points || 100
   const base = fish.points || 100
   const cap = fish.max_weight_kg || 8
@@ -68,13 +74,20 @@ function SponsorBar({ comp }) {
 export default function CompetitionDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const { member } = useMemberSession()
   const [comp, setComp] = useState(null)
   const [fish, setFish] = useState([])
   const [teams, setTeams] = useState([])
   const [members, setMembers] = useState([])
   const [weighins, setWeighins] = useState([])
+  const [myTeam, setMyTeam] = useState(null)
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState('info')
+
+  const fetchWeighins = async () => {
+    const { data } = await supabase.from('comp_weighins').select('*').eq('competition_id', id)
+    setWeighins(data || [])
+  }
 
   useEffect(() => {
     Promise.all([
@@ -93,6 +106,15 @@ export default function CompetitionDetail() {
     })
   }, [id])
 
+  // Find logged-in user's team for this comp
+  useEffect(() => {
+    if (!member?.id || !members.length || !teams.length) { setMyTeam(null); return }
+    const myMembership = members.find(m => m.member_id === member.id)
+    if (!myMembership) { setMyTeam(null); return }
+    const team = teams.find(t => t.id === myMembership.team_id)
+    setMyTeam(team || null)
+  }, [member, members, teams])
+
   // Build leaderboard
   const leaderboard = teams.map(team => {
     const teamWeighins = weighins.filter(w => w.team_id === team.id)
@@ -101,11 +123,14 @@ export default function CompetitionDetail() {
     return { ...team, total, fishCount }
   }).sort((a, b) => b.total - a.total)
 
+  const isFishBingo = comp?.scoring_mode === 'fish_bingo'
+
   const tabs = [
     { id: 'info', label: 'Info' },
     { id: 'fish', label: `Fish List (${fish.length})` },
     { id: 'teams', label: `Teams (${teams.length})` },
     { id: 'leaderboard', label: 'Leaderboard' },
+    ...(isFishBingo ? [{ id: 'mycatches', label: myTeam ? '🎯 My Catches' : '🎯 Submit Catch' }] : []),
   ]
 
   if (loading) return <div className="min-h-screen bg-white flex items-center justify-center text-gray-400">Loading…</div>
@@ -317,9 +342,240 @@ export default function CompetitionDetail() {
             )}
           </div>
         )}
+        {/* MY CATCHES TAB */}
+        {tab === 'mycatches' && (
+          <MyCatchesTab
+            comp={comp}
+            fish={fish}
+            myTeam={myTeam}
+            member={member}
+            weighins={weighins}
+            onRefresh={fetchWeighins}
+            navigate={navigate}
+          />
+        )}
       </div>
       <SponsorBar comp={comp} />
       <CompCopilotFAB competitionId={id} competitionName={comp.name} mode="competitor" />
+    </div>
+  )
+}
+
+function MyCatchesTab({ comp, fish, myTeam, member, weighins, onRefresh, navigate }) {
+  const [pending, setPending] = useState({}) // key `fishId-inst` → File
+  const [uploading, setUploading] = useState(null) // key being uploaded
+  const [toast, setToast] = useState(null)
+  const fileRefs = useRef({})
+
+  const showToast = (msg, type = 'success') => {
+    setToast({ msg, type })
+    setTimeout(() => setToast(null), 4000)
+  }
+
+  const myWeighins = weighins.filter(w => w.team_id === myTeam?.id)
+
+  const getPoints = (f) => {
+    if (f.category_points && myTeam?.category && f.category_points[myTeam.category] != null)
+      return f.category_points[myTeam.category]
+    return f.points || 100
+  }
+
+  const hasClaimed = (fishId, inst) => myWeighins.some(w => w.fish_id === fishId && w.instance === inst)
+  const getWeighin = (fishId, inst) => myWeighins.find(w => w.fish_id === fishId && w.instance === inst)
+
+  const totalPoints = myWeighins.reduce((s, w) => s + (w.points_awarded || 0), 0)
+
+  const submitCatch = async (f, inst) => {
+    const key = `${f.id}-${inst}`
+    const file = pending[key]
+    if (!file) { showToast('Please select a photo of your catch first', 'error'); return }
+    setUploading(key)
+    try {
+      const ext = file.name.split('.').pop().toLowerCase().replace('heic', 'jpg').replace('heif', 'jpg')
+      const path = `competitions/${comp.id}/self-catches/${myTeam.id}/${f.id}-${inst}-${Date.now()}.${ext}`
+      const { error: upErr } = await supabase.storage.from('snz-media').upload(path, file, { contentType: file.type })
+      if (upErr) throw upErr
+      const { data: { publicUrl } } = supabase.storage.from('snz-media').getPublicUrl(path)
+      const { error: dbErr } = await supabase.from('comp_weighins').insert({
+        competition_id: comp.id,
+        team_id: myTeam.id,
+        fish_id: f.id,
+        fish_name: f.species_name,
+        weight_kg: null,
+        points_awarded: getPoints(f),
+        instance: inst,
+        is_bulk: false,
+        catch_photo_url: publicUrl,
+      })
+      if (dbErr) throw dbErr
+      setPending(p => { const n = { ...p }; delete n[key]; return n })
+      showToast(`${f.species_name} submitted — +${getPoints(f)} pts`)
+      onRefresh()
+    } catch (err) {
+      showToast(err.message, 'error')
+    } finally {
+      setUploading(null)
+    }
+  }
+
+  const deleteCatch = async (weighin, fishName) => {
+    if (!window.confirm(`Remove your ${fishName} catch? This cannot be undone.`)) return
+    await supabase.from('comp_weighins').delete().eq('id', weighin.id)
+    showToast(`${fishName} removed`)
+    onRefresh()
+  }
+
+  // Not signed in
+  if (!member) {
+    return (
+      <div className="text-center py-16 bg-gray-50 rounded-2xl border border-gray-200">
+        <div className="text-4xl mb-3">🤿</div>
+        <p className="font-black text-gray-900 mb-1">Sign in to submit your catch</p>
+        <p className="text-sm text-gray-500 mb-5">You need to be signed in as an SNZ member to submit catches for this competition.</p>
+        <button onClick={() => navigate('/membership/login')}
+          className="px-6 py-2.5 rounded-xl font-bold text-white text-sm"
+          style={{ background: SNZ_BLUE }}>Sign In</button>
+      </div>
+    )
+  }
+
+  // Signed in but not a competitor in this comp
+  if (!myTeam) {
+    return (
+      <div className="text-center py-16 bg-gray-50 rounded-2xl border border-gray-200">
+        <div className="text-4xl mb-3">🤿</div>
+        <p className="font-black text-gray-900 mb-1">You're not registered in this competition</p>
+        <p className="text-sm text-gray-500 mb-5">Only registered competitors can submit catches.</p>
+        {comp.status === 'active' && (
+          <button onClick={() => navigate(`/competitions/${comp.id}/register`)}
+            className="px-6 py-2.5 rounded-xl font-bold text-white text-sm"
+            style={{ background: '#16a34a' }}>Register Now →</button>
+        )}
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-5">
+      {toast && (
+        <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-xl text-sm font-semibold shadow-lg max-w-xs ${toast.type === 'error' ? 'bg-red-600' : 'bg-green-600'} text-white`}>
+          {toast.msg}
+        </div>
+      )}
+
+      {/* Score summary */}
+      <div className="bg-white border border-gray-200 rounded-2xl p-4 flex items-center gap-4">
+        <div className="w-14 h-14 rounded-xl flex-shrink-0 overflow-hidden bg-gray-100 border border-gray-200 flex items-center justify-center text-2xl">
+          {myTeam.team_photo_url
+            ? <img src={myTeam.team_photo_url} alt={myTeam.team_name} className="w-full h-full object-cover" />
+            : '👥'}
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="font-black text-gray-900">{myTeam.team_name}</p>
+          <p className="text-xs text-gray-400">{myTeam.category} · {myWeighins.length} fish claimed</p>
+        </div>
+        <div className="text-right flex-shrink-0">
+          <div className="text-3xl font-black" style={{ color: SNZ_BLUE }}>{totalPoints}</div>
+          <div className="text-xs text-gray-400">points</div>
+        </div>
+      </div>
+
+      {comp.status !== 'active' && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-800 font-semibold">
+          {comp.status === 'closed' ? 'This competition has closed — catches are locked.' : 'This competition is not yet open for submissions.'}
+        </div>
+      )}
+
+      <div className="space-y-3">
+        {fish.map(f => {
+          const instances = f.allow_multiples ? f.max_count : 1
+          return Array.from({ length: instances }, (_, i) => i + 1).map(inst => {
+            const key = `${f.id}-${inst}`
+            const claimed = hasClaimed(f.id, inst)
+            const weighin = getWeighin(f.id, inst)
+            const pts = getPoints(f)
+            const fileSelected = !!pending[key]
+            const isUploading = uploading === key
+
+            return (
+              <div key={key} className={`bg-white border-2 rounded-2xl overflow-hidden shadow-sm transition ${claimed ? 'border-green-400' : 'border-gray-200'}`}>
+                <div className="flex items-center gap-3 p-3">
+                  {/* Fish photo */}
+                  <div className="relative w-14 h-12 flex-shrink-0 rounded-xl overflow-hidden bg-gray-50 border border-gray-100">
+                    {f.photo_url
+                      ? <img src={f.photo_url} alt={f.species_name} className="w-full h-full object-cover" />
+                      : <div className="w-full h-full flex items-center justify-center text-xl">🐟</div>}
+                  </div>
+                  {/* Name + pts */}
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-gray-900 text-sm">{f.species_name}{f.allow_multiples ? ` #${inst}` : ''}</p>
+                    <p className="text-xs font-bold" style={{ color: SNZ_BLUE }}>{pts} pts</p>
+                  </div>
+                  {/* Claimed badge or points */}
+                  {claimed && (
+                    <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-green-100 text-green-700 flex-shrink-0">✓ Claimed</span>
+                  )}
+                </div>
+
+                {/* Claimed: show photo + delete */}
+                {claimed && weighin && (
+                  <div className="border-t border-green-100 bg-green-50 px-3 py-3 flex items-center gap-3">
+                    {weighin.catch_photo_url && (
+                      <a href={weighin.catch_photo_url} target="_blank" rel="noreferrer">
+                        <img src={weighin.catch_photo_url} alt="catch"
+                          className="w-16 h-12 object-cover rounded-lg border border-green-200 hover:brightness-90 transition" />
+                      </a>
+                    )}
+                    <div className="flex-1 text-xs text-green-700">
+                      Submitted {new Date(weighin.created_at || weighin.weighed_at).toLocaleDateString('en-NZ', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                    </div>
+                    {comp.status === 'active' && (
+                      <button onClick={() => deleteCatch(weighin, f.species_name)}
+                        className="text-xs text-red-400 hover:text-red-600 font-bold flex-shrink-0">Remove</button>
+                    )}
+                  </div>
+                )}
+
+                {/* Not claimed + comp active: upload + submit */}
+                {!claimed && comp.status === 'active' && (
+                  <div className="border-t border-gray-100 bg-gray-50 px-3 py-3">
+                    <p className="text-xs text-gray-500 mb-2">Upload a photo of your catch to submit</p>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <label className={`cursor-pointer flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-lg border-2 transition ${fileSelected ? 'border-blue-400 bg-blue-50 text-blue-700' : 'border-gray-300 text-gray-600 hover:border-gray-400'}`}>
+                        📷 {fileSelected ? pending[key].name.slice(0, 20) + (pending[key].name.length > 20 ? '…' : '') : 'Choose photo'}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          capture="environment"
+                          className="hidden"
+                          ref={el => { fileRefs.current[key] = el }}
+                          onChange={e => {
+                            const file = e.target.files[0]
+                            if (file) setPending(p => ({ ...p, [key]: file }))
+                          }}
+                        />
+                      </label>
+                      <button
+                        onClick={() => submitCatch(f, inst)}
+                        disabled={isUploading || !fileSelected}
+                        className="flex items-center gap-1.5 text-xs font-bold px-4 py-2 rounded-lg text-white disabled:opacity-40 transition"
+                        style={{ background: SNZ_BLUE }}>
+                        {isUploading ? 'Submitting…' : `Submit +${pts}pts`}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )
+          })
+        })}
+      </div>
+
+      {fish.length === 0 && (
+        <div className="text-center py-12 text-gray-400 bg-gray-50 rounded-2xl border border-gray-200">
+          Fish list hasn't been published yet — check back soon.
+        </div>
+      )}
     </div>
   )
 }
