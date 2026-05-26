@@ -83,6 +83,7 @@ export default function CompetitionDetail() {
   const [myTeam, setMyTeam] = useState(null)
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState('info')
+  const [lightbox, setLightbox] = useState(null)
 
   const fetchWeighins = async () => {
     const { data } = await supabase.from('comp_weighins').select('*').eq('competition_id', id)
@@ -295,7 +296,10 @@ export default function CompetitionDetail() {
                 const mems = members.filter(m => m.team_id === t.id)
                 return (
                   <div key={t.id} className="bg-white border border-gray-200 rounded-xl p-4 flex items-center gap-4">
-                    <div className="w-14 h-14 rounded-xl flex-shrink-0 overflow-hidden bg-gray-100 border border-gray-200 flex items-center justify-center text-2xl">
+                    <div
+                      onClick={t.team_photo_url ? () => setLightbox({ url: t.team_photo_url, name: t.team_name }) : undefined}
+                      className={`w-14 h-14 rounded-xl flex-shrink-0 overflow-hidden bg-gray-100 border border-gray-200 flex items-center justify-center text-2xl ${t.team_photo_url ? 'cursor-zoom-in hover:border-blue-400 transition' : ''}`}
+                    >
                       {t.team_photo_url
                         ? <img src={t.team_photo_url} alt={t.team_name} className="w-full h-full object-cover" />
                         : '👥'}
@@ -357,6 +361,27 @@ export default function CompetitionDetail() {
       </div>
       <SponsorBar comp={comp} />
       <CompCopilotFAB competitionId={id} competitionName={comp.name} mode="competitor" />
+
+      {lightbox && (
+        <div
+          onClick={() => setLightbox(null)}
+          className="fixed inset-0 z-50 bg-black/85 flex items-center justify-center p-4"
+        >
+          <button
+            onClick={(e) => { e.stopPropagation(); setLightbox(null) }}
+            aria-label="Close"
+            className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/15 hover:bg-white/30 text-white text-xl font-bold flex items-center justify-center transition"
+          >
+            ✕
+          </button>
+          <img
+            src={lightbox.url}
+            alt={lightbox.name}
+            onClick={(e) => e.stopPropagation()}
+            className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
+          />
+        </div>
+      )}
     </div>
   )
 }
