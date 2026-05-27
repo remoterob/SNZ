@@ -1187,19 +1187,50 @@ function TeamModal({ comp, team, members: existingMembers, onClose, onSaved, sho
     if (!p1.name.trim()) { showToast('Diver 1 name required', 'error'); return }
     setSaving(true)
     try {
+      // Look up provided diver emails against the members table
+      const divers = [
+        { idx: 0, label: 'Diver 1', mem: p1, email: p1.email?.trim().toLowerCase() || '' },
+        { idx: 1, label: 'Diver 2', mem: p2, email: p2.email?.trim().toLowerCase() || '' },
+      ].filter(d => d.email)
+      const memberByEmail = {}
+      if (divers.length > 0) {
+        const { data: matches } = await supabase.from('members')
+          .select('id, email, payment_status, membership_status')
+          .in('email', divers.map(d => d.email))
+        ;(matches || []).forEach(m => { memberByEmail[m.email] = m })
+      }
+      const unmatched = divers.filter(d => {
+        const m = memberByEmail[d.email]
+        return !(m && m.payment_status === 'paid' && m.membership_status === 'active')
+      })
+      if (unmatched.length > 0) {
+        const list = unmatched.map(d => `${d.label}: ${d.email}`).join('\n')
+        const ok = confirm(
+          `Active SNZ member not found for:\n\n${list}\n\nIt is a requirement that all competitors are active Spearfishing NZ Members.\n\nOverride and add this team anyway?`
+        )
+        if (!ok) { setSaving(false); return }
+      }
+      const diver1Id = memberByEmail[p1.email?.trim().toLowerCase()]?.id || null
+      const diver2Id = memberByEmail[p2.email?.trim().toLowerCase()]?.id || null
+
       let teamId = team?.id
+      const teamPayload = {
+        team_name: teamName.trim(), category,
+        boat_name: boatName.trim() || null, boat_details: boatDetails.trim() || null,
+        diver1_member_id: diver1Id,
+        diver2_member_id: diver2Id,
+        diver2_email: p2.email?.trim().toLowerCase() || null,
+      }
       if (isNew) {
         const { data, error } = await supabase.from('comp_teams')
-          .insert({ competition_id: comp.id, team_name: teamName.trim(), category,
-            boat_name: boatName.trim() || null, boat_details: boatDetails.trim() || null })
+          .insert({ competition_id: comp.id, ...teamPayload })
           .select('id').single()
         if (error) throw error
         teamId = data.id
         if (pendingPhoto) await uploadTeamPhoto(pendingPhoto, teamId)
       } else {
         const { error } = await supabase.from('comp_teams')
-          .update({ team_name: teamName.trim(), category,
-            boat_name: boatName.trim() || null, boat_details: boatDetails.trim() || null })
+          .update(teamPayload)
           .eq('id', teamId)
         if (error) throw error
       }
@@ -1217,6 +1248,16 @@ function TeamModal({ comp, team, members: existingMembers, onClose, onSaved, sho
           await supabase.from('comp_team_members').insert(payload)
         }
       }
+
+      // Link to member_competitions so the comp shows in each member's account
+      const year = new Date(comp.date_start || Date.now()).getFullYear()
+      for (const mid of [diver1Id, diver2Id].filter(Boolean)) {
+        await supabase.from('member_competitions').upsert(
+          { member_id: mid, competition_id: comp.id, team_id: teamId, year },
+          { onConflict: 'member_id,competition_id' }
+        )
+      }
+
       onSaved()
       onClose()
     } catch(err) { showToast(err.message, 'error') }
