@@ -43,6 +43,7 @@ import BigFishAdmin from './pages/BigFishAdmin'
 import BigFishSponsorPage from './pages/BigFishSponsorPage'
 import BingoApp from './pages/bingo/BingoApp'
 import BingoDiverPage from './pages/bingo/BingoDiverPage'
+import WFSCApp from './wfsc/WFSCApp'
 
 function ProtectedRoute({ children }) {
   const location = useLocation()
@@ -880,6 +881,14 @@ function SNZHub() {
         : 'Register now and submit your fish from 1 June.',
     },
     {
+      title: 'World Freshwater Champs',
+      desc: 'WFSC 2026 — Lake Taupō, New Zealand · 13–14 March 2026. Live leaderboard, weigh-in results, teams, awards and full event information.',
+      onClick: () => navigate('/wfsc'),
+      icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={SNZ_BLUE} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>,
+      status: 'wrapped',
+      summary: 'Results live · Lake Taupō · March 2026',
+    },
+    {
       title: 'Fish Bingo',
       desc: 'Claim species you\'ve speared, earn points, and compete on the leaderboard. Complete bonus rows for extra points. SNZ members only.',
       onClick: () => navigate('/bingo'),
@@ -1077,6 +1086,8 @@ export default function App() {
       <Route path="/bingo/admin"          element={<ProtectedRoute><BingoAdmin /></ProtectedRoute>} />
       <Route path="/bingo/admin/species"  element={<ProtectedRoute><BingoSpeciesAdmin /></ProtectedRoute>} />
       <Route path="/bingo/admin/bonuses"  element={<ProtectedRoute><BingoBonusAdmin /></ProtectedRoute>} />
+      {/* World Freshwater Spearfishing Championships */}
+      <Route path="/wfsc/*"          element={<WFSCApp />} />
       <Route path="*"              element={<Navigate to="/" replace />} />
     </Routes>
     <AnalyticsTracker />

@@ -327,7 +327,13 @@ export default function CompetitionDetail() {
             {!comp.public_leaderboard && comp.status !== 'closed' && (
               <div className="text-center py-12 text-gray-400 bg-gray-50 rounded-xl">Leaderboard will be published when the competition closes.</div>
             )}
-            {(comp.public_leaderboard || comp.status === 'closed') && (
+            {(comp.public_leaderboard || comp.status === 'closed') && weighins.length === 0 && (
+              <div className="text-center py-12 text-gray-400 bg-gray-50 rounded-xl">
+                <div className="text-3xl mb-2">⏳</div>
+                <p className="font-semibold text-gray-600">Leaderboard will appear once the first weigh-in is entered.</p>
+              </div>
+            )}
+            {(comp.public_leaderboard || comp.status === 'closed') && weighins.length > 0 && (
               <>
                 {(comp.categories || []).length > 1
                   ? (comp.categories || []).map(cat => {
