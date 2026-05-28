@@ -463,16 +463,37 @@ function MiniTally({ label, digital, floor, color }) {
 
 function FloorEntry({ motion, onChange }) {
   const [open, setOpen] = useState(false)
-  const [vals, setVals] = useState({
-    floor_for: motion.floor_for || 0,
-    floor_against: motion.floor_against || 0,
-    floor_abstain: motion.floor_abstain || 0,
-  })
+  const [vals, setVals] = useState({ floor_for: '', floor_against: '', floor_abstain: '' })
+  const [saving, setSaving] = useState(false)
+
+  // Re-sync inputs whenever the motion's stored floor counts change
+  useEffect(() => {
+    setVals({
+      floor_for:     motion.floor_for     ? String(motion.floor_for)     : '',
+      floor_against: motion.floor_against ? String(motion.floor_against) : '',
+      floor_abstain: motion.floor_abstain ? String(motion.floor_abstain) : '',
+    })
+  }, [motion.floor_for, motion.floor_against, motion.floor_abstain])
+
   const save = async () => {
-    await supabase.from('agm_motions').update(vals).eq('id', motion.id)
+    const payload = {
+      floor_for:     parseInt(vals.floor_for     || '0', 10) || 0,
+      floor_against: parseInt(vals.floor_against || '0', 10) || 0,
+      floor_abstain: parseInt(vals.floor_abstain || '0', 10) || 0,
+    }
+    setSaving(true)
+    const { data, error } = await supabase.from('agm_motions')
+      .update(payload).eq('id', motion.id).select('id, floor_for, floor_against, floor_abstain')
+    setSaving(false)
+    if (error) { toast(error.message, 'error'); return }
+    if (!data || data.length === 0) {
+      toast('Floor counts not saved — you may not have permission to edit this motion', 'error')
+      return
+    }
     toast('Floor counts saved')
     setOpen(false); onChange()
   }
+
   if (!open) {
     return (
       <button onClick={() => setOpen(true)}
@@ -488,17 +509,20 @@ function FloorEntry({ motion, onChange }) {
         {['floor_for','floor_against','floor_abstain'].map(k => (
           <label key={k} className="block">
             <span className="text-xs text-gray-500 capitalize">{k.replace('floor_','')}</span>
-            <input type="number" min="0" value={vals[k]}
-              onChange={e => setVals(v => ({ ...v, [k]: Math.max(0, parseInt(e.target.value || '0', 10)) }))}
+            <input type="number" min="0" inputMode="numeric" placeholder="0"
+              value={vals[k]}
+              onChange={e => setVals(v => ({ ...v, [k]: e.target.value.replace(/[^0-9]/g, '') }))}
               className="w-full border border-gray-300 rounded-lg px-2 py-1 text-sm" />
           </label>
         ))}
       </div>
       <div className="flex gap-2 mt-2">
-        <button onClick={() => setOpen(false)}
-          className="text-xs font-bold px-2.5 py-1 rounded-lg border border-gray-300 text-gray-600">Cancel</button>
-        <button onClick={save}
-          className="text-xs font-bold px-2.5 py-1 rounded-lg text-white" style={{ background: SNZ_BLUE }}>Save</button>
+        <button onClick={() => setOpen(false)} disabled={saving}
+          className="text-xs font-bold px-2.5 py-1 rounded-lg border border-gray-300 text-gray-600 disabled:opacity-50">Cancel</button>
+        <button onClick={save} disabled={saving}
+          className="text-xs font-bold px-2.5 py-1 rounded-lg text-white disabled:opacity-50" style={{ background: SNZ_BLUE }}>
+          {saving ? 'Saving…' : 'Save'}
+        </button>
       </div>
     </div>
   )
