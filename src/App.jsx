@@ -44,6 +44,8 @@ import BigFishSponsorPage from './pages/BigFishSponsorPage'
 import BingoApp from './pages/bingo/BingoApp'
 import BingoDiverPage from './pages/bingo/BingoDiverPage'
 import WFSCApp from './wfsc/WFSCApp'
+import AGMPage from './pages/AGMPage'
+import AGMAdmin from './pages/AGMAdmin'
 
 function ProtectedRoute({ children }) {
   const location = useLocation()
@@ -897,6 +899,14 @@ function SNZHub() {
       summary: 'Season wrapped · Back in October 2026',
     },
     {
+      title: 'AGM & SGM',
+      desc: 'Annual and Special General Meetings on the Hub — motions, attendance, voting and minutes. Active SNZ members only.',
+      onClick: () => navigate('/agm'),
+      icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={SNZ_BLUE} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21h18"/><path d="M5 21V8l7-4 7 4v13"/><path d="M9 21v-6h6v6"/><path d="M9 11h.01"/><path d="M15 11h.01"/></svg>,
+      status: 'soon',
+      summary: 'Trialling at the next SGM · Live for AGM 2027',
+    },
+    {
       title: 'Other Competitions',
       desc: 'Club competitions — register your team, view fish lists, live leaderboard, and results. Want to run your own club comp? We can set it up for you.',
       onClick: () => navigate('/competitions'),
@@ -1086,6 +1096,10 @@ export default function App() {
       <Route path="/bingo/admin"          element={<ProtectedRoute><BingoAdmin /></ProtectedRoute>} />
       <Route path="/bingo/admin/species"  element={<ProtectedRoute><BingoSpeciesAdmin /></ProtectedRoute>} />
       <Route path="/bingo/admin/bonuses"  element={<ProtectedRoute><BingoBonusAdmin /></ProtectedRoute>} />
+      {/* AGM / SGM */}
+      <Route path="/agm"            element={<AGMPage />} />
+      <Route path="/agm/admin"      element={<ProtectedRoute><AGMAdmin /></ProtectedRoute>} />
+      <Route path="/agm/:id"        element={<AGMPage />} />
       {/* World Freshwater Spearfishing Championships */}
       <Route path="/wfsc/*"          element={<WFSCApp />} />
       <Route path="*"              element={<Navigate to="/" replace />} />
