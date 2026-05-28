@@ -219,15 +219,31 @@ function MeetingAdmin({ meeting, onEdit, onChange }) {
 
 function MotionAdminCard({ motion, onEdit, onChange }) {
   const [tally, setTally] = useState({ for: 0, against: 0, abstain: 0 })
+  const [voterRows, setVoterRows] = useState([])  // [{ name, vote, voted_at }]
+  const [showVoters, setShowVoters] = useState(false)
   const [busy, setBusy] = useState(false)
 
   const loadTally = async () => {
-    const { data } = await supabase.from('agm_votes').select('vote').eq('motion_id', motion.id)
+    const { data } = await supabase.from('agm_votes')
+      .select('vote, member_id, voted_at').eq('motion_id', motion.id)
     const t = { for: 0, against: 0, abstain: 0 }
     ;(data || []).forEach(v => { t[v.vote] = (t[v.vote] || 0) + 1 })
     setTally(t)
+
+    // Only fetch voter names for open ballots — secret stays anonymous
+    if (motion.voting_mode === 'open' && data && data.length > 0) {
+      const ids = [...new Set(data.map(v => v.member_id))]
+      const { data: mems } = await supabase.from('members').select('id, name').in('id', ids)
+      const nameById = Object.fromEntries((mems || []).map(m => [m.id, m.name]))
+      setVoterRows(
+        data.map(v => ({ name: nameById[v.member_id] || 'Unknown member', vote: v.vote, voted_at: v.voted_at }))
+            .sort((a, b) => a.name.localeCompare(b.name))
+      )
+    } else {
+      setVoterRows([])
+    }
   }
-  useEffect(() => { loadTally() }, [motion.id, motion.status])
+  useEffect(() => { loadTally() }, [motion.id, motion.status, motion.voting_mode])
 
   const combined = {
     for:     tally.for     + (motion.floor_for     || 0),
@@ -300,6 +316,37 @@ function MotionAdminCard({ motion, onEdit, onChange }) {
         <MiniTally label="Against" digital={tally.against} floor={motion.floor_against} color="text-red-700 bg-red-50 border-red-200" />
         <MiniTally label="Abstain" digital={tally.abstain} floor={motion.floor_abstain} color="text-gray-600 bg-gray-50 border-gray-200" />
       </div>
+
+      {/* Who voted — open ballots only */}
+      {motion.voting_mode === 'open' && voterRows.length > 0 && (
+        <div className="mt-3">
+          <button onClick={() => setShowVoters(s => !s)}
+            className="text-xs font-bold text-gray-500 hover:text-gray-700 underline">
+            {showVoters ? 'Hide' : 'Show'} who voted ({voterRows.length})
+          </button>
+          {showVoters && (
+            <div className="mt-2 border border-gray-200 rounded-lg overflow-hidden">
+              {voterRows.map((v, i) => (
+                <div key={i} className={`flex items-center justify-between px-3 py-1.5 text-sm ${i % 2 ? 'bg-gray-50' : 'bg-white'}`}>
+                  <span className="text-gray-700">{v.name}</span>
+                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${
+                    v.vote === 'for'     ? 'bg-green-50 text-green-700 border-green-200'
+                  : v.vote === 'against' ? 'bg-red-50 text-red-700 border-red-200'
+                  :                        'bg-gray-100 text-gray-600 border-gray-300'
+                  }`}>
+                    {v.vote === 'for' ? '✓ For' : v.vote === 'against' ? '✕ Against' : '— Abstain'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+      {motion.voting_mode === 'secret' && tally.for + tally.against + tally.abstain > 0 && (
+        <div className="mt-2 text-xs text-gray-400 italic">
+          🔒 Secret ballot — individual votes are not shown.
+        </div>
+      )}
 
       {/* Secretary floor entry */}
       <FloorEntry motion={motion} onChange={onChange} />
