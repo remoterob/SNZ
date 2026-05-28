@@ -112,15 +112,25 @@ function StatusChip({ status }) {
 function MeetingAdmin({ meeting, onEdit, onChange }) {
   const [motions, setMotions] = useState([])
   const [attendees, setAttendees] = useState([])
+  const [showAttendees, setShowAttendees] = useState(false)
   const [editingMotion, setEditingMotion] = useState(null)
 
   const load = async () => {
     const [{ data: mns }, { data: att }] = await Promise.all([
       supabase.from('agm_motions').select('*').eq('meeting_id', meeting.id).order('order_no'),
-      supabase.from('agm_attendees').select('*').eq('meeting_id', meeting.id),
+      supabase.from('agm_attendees').select('*').eq('meeting_id', meeting.id)
+        .order('checked_in_at'),
     ])
     setMotions(mns || [])
-    setAttendees(att || [])
+    const rows = att || []
+    if (rows.length > 0) {
+      const ids = [...new Set(rows.map(a => a.member_id))]
+      const { data: mems } = await supabase.from('members').select('id, name').in('id', ids)
+      const nameById = Object.fromEntries((mems || []).map(m => [m.id, m.name]))
+      setAttendees(rows.map(a => ({ ...a, name: nameById[a.member_id] || 'Unknown member' })))
+    } else {
+      setAttendees([])
+    }
   }
   useEffect(() => { load() }, [meeting.id])
 
@@ -172,17 +182,43 @@ function MeetingAdmin({ meeting, onEdit, onChange }) {
       </div>
 
       {/* Quorum */}
-      <div className="bg-white rounded-2xl border border-gray-200 p-5 flex items-center justify-between gap-4">
-        <div>
-          <div className="text-xs font-bold tracking-widest text-gray-400 uppercase">Quorum</div>
-          <div className="text-3xl font-black text-gray-900">
-            {attendees.length} <span className="text-sm font-bold text-gray-400">/ 20</span>
+      <div className="bg-white rounded-2xl border border-gray-200 p-5">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <div className="text-xs font-bold tracking-widest text-gray-400 uppercase">Quorum</div>
+            <div className="text-3xl font-black text-gray-900">
+              {attendees.length} <span className="text-sm font-bold text-gray-400">/ 20</span>
+            </div>
+            <div className={`text-xs font-bold ${attendees.length >= 20 ? 'text-green-600' : 'text-amber-600'}`}>
+              {attendees.length >= 20 ? '✓ Quorum met' : `Need ${20 - attendees.length} more`}
+            </div>
           </div>
-          <div className={`text-xs font-bold ${attendees.length >= 20 ? 'text-green-600' : 'text-amber-600'}`}>
-            {attendees.length >= 20 ? '✓ Quorum met' : `Need ${20 - attendees.length} more`}
-          </div>
+          <SecretaryCheckIn meeting={meeting} onChange={load} />
         </div>
-        <SecretaryCheckIn meeting={meeting} onChange={load} />
+        {attendees.length > 0 && (
+          <div className="mt-3">
+            <button onClick={() => setShowAttendees(s => !s)}
+              className="text-xs font-bold text-gray-500 hover:text-gray-700 underline">
+              {showAttendees ? 'Hide' : 'Show'} who's checked in ({attendees.length})
+            </button>
+            {showAttendees && (
+              <div className="mt-2 border border-gray-200 rounded-lg overflow-hidden">
+                {[...attendees].sort((a, b) => a.name.localeCompare(b.name)).map((a, i) => (
+                  <div key={a.id} className={`flex items-center justify-between px-3 py-1.5 text-sm ${i % 2 ? 'bg-gray-50' : 'bg-white'}`}>
+                    <span className="text-gray-700">{a.name}</span>
+                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${
+                      a.source === 'secretary'
+                        ? 'bg-amber-50 text-amber-700 border-amber-200'
+                        : 'bg-blue-50 text-blue-700 border-blue-200'
+                    }`}>
+                      {a.source === 'secretary' ? '✍ On floor' : '📱 Self'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Motions */}
