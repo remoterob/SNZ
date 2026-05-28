@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { supabase, isAdmin } from '../lib/supabase'
+import { supabase } from '../lib/supabase'
 import { useMemberSession } from '../components/MemberAuthGate'
 
 const SNZ_BLUE = '#2B6CB0'
@@ -45,12 +45,10 @@ function PageShell({ navigate, crumb, children }) {
           </button>
           <span className="text-blue-200 text-sm opacity-75">/ {crumb}</span>
         </div>
-        {isAdmin() && (
-          <button onClick={() => navigate('/agm/admin')}
-            className="flex items-center gap-1.5 text-white font-bold text-sm bg-white/15 hover:bg-white/25 px-3 py-1.5 rounded-lg transition">
-            ⚙ Admin
-          </button>
-        )}
+        <button onClick={() => navigate('/agm/admin')}
+          className="flex items-center gap-1.5 text-white font-bold text-sm bg-white/15 hover:bg-white/25 px-3 py-1.5 rounded-lg transition">
+          ⚙ Admin
+        </button>
       </div>
       {children}
     </div>
