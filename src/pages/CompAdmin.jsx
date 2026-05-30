@@ -1928,7 +1928,7 @@ function WeighInTab({ comp, teams, members, fish, weighins: initialWeighins, onR
                   <div className="flex items-center justify-between">
                     <div className="text-sm text-gray-600 space-y-0.5">
                       {savedTotal > 0 && <div className="text-green-600 font-semibold">✓ Saved: {savedTotal} pts</div>}
-                      {hasPending && <div className="text-amber-600 font-semibold">Pending: +{isStandard ? pendingSpeciesPts + pendingSepPts + pendingBulk : pendingSpecies * 100} pts</div>}
+                      {hasPending && <div className="text-amber-600 font-semibold">Pending: +{isStandard ? pendingSpecies * 100 + pendingSepPts + pendingBulk : pendingBingoPoints} pts</div>}
                     </div>
                     <div className="text-3xl font-black" style={{ color: SNZ_BLUE }}>{previewTotal} pts</div>
                   </div>
