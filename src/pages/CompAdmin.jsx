@@ -288,6 +288,7 @@ function FishPickerModal({ comp, existing, onClose, onSaved }) {
     existing.filter(f => f.weigh_separately).forEach(f => { m[f.species_slug] = true })
     return m
   })
+  const [countInputs, setCountInputs] = useState({})
 
   const getWeighSep = (slug) => !!weighSep[slug]
   const toggleWeighSep = (slug) => setWeighSep(w => ({ ...w, [slug]: !w[slug] }))
@@ -305,11 +306,26 @@ function FishPickerModal({ comp, existing, onClose, onSaved }) {
       const ex = s.find(x => x.slug === slug)
       return ex ? s.filter(x => x.slug !== slug) : [...s, { slug, count: 1 }]
     })
+    setCountInputs(c => { const n = { ...c }; delete n[slug]; return n })
   }
 
-  const setCount = (slug, count) => {
-    const n = Math.max(1, Math.min(10, parseInt(count) || 1))
+  const setCount = (slug, rawValue) => {
+    setCountInputs(c => ({ ...c, [slug]: rawValue }))
+    const n = parseInt(rawValue)
+    if (!isNaN(n) && n >= 1 && n <= 10) {
+      setSelected(s => s.map(x => x.slug === slug ? { ...x, count: n } : x))
+    }
+  }
+
+  const normalizeCount = (slug) => {
+    const n = Math.max(1, Math.min(10, parseInt(countInputs[slug] || '') || 1))
+    setCountInputs(c => ({ ...c, [slug]: String(n) }))
     setSelected(s => s.map(x => x.slug === slug ? { ...x, count: n } : x))
+  }
+
+  const getDisplayCount = (slug) => {
+    const cnt = getCount(slug)
+    return countInputs[slug] !== undefined ? countInputs[slug] : String(cnt || 1)
   }
 
   const filtered = library.filter(s =>
@@ -399,9 +415,10 @@ function FishPickerModal({ comp, existing, onClose, onSaved }) {
                         <div className="px-2 pb-2 space-y-1">
                           <div className="flex items-center gap-1">
                             <span className="text-xs text-gray-500">×</span>
-                            <input type="number" min="1" max="10" value={cnt}
+                            <input type="number" min="1" max="10" value={getDisplayCount(s.slug)}
                               onClick={e => e.stopPropagation()}
                               onChange={e => setCount(s.slug, e.target.value)}
+                              onBlur={() => normalizeCount(s.slug)}
                               className="w-12 border border-gray-300 rounded px-1.5 py-0.5 text-xs font-bold text-center focus:outline-none focus:ring-1 focus:ring-blue-300" />
                             <span className="text-xs text-gray-400">fish</span>
                           </div>
