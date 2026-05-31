@@ -913,6 +913,7 @@ function SNZHub() {
       icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={SNZ_BLUE} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M6.5 12c.94-3.46 4.94-6 8.5-6 3.56 0 6.06 2.54 7 6-.94 3.47-3.44 6-7 6s-7.56-2.53-8.5-6Z"/><path d="M18 12v.5"/><path d="M16 17.93a9.77 9.77 0 0 1 0-11.86"/><path d="M7 10.67C7 8 5.58 5.97 2.73 5.5c-1 1.5-1 5 .5 8 1.5 3 3.5 3.5 3.77 3.5a8.23 8.23 0 0 1 0-6.33Z"/><path d="M10.46 7.26C10.2 5.88 9.17 4.24 8 3h5.8a2 2 0 0 1 1.98 1.67l.23 1.4"/><path d="m16.01 17.93-.23 1.4A2 2 0 0 1 13.8 21H9.5a5.96 5.96 0 0 1 1.49-3.98"/></svg>,
       status: 'live',
       summary: 'New AI-powered concept · Free for members to test',
+      hidden: true,
     },
     {
       title: 'Inspiration',
@@ -986,7 +987,7 @@ function SNZHub() {
         <div className="max-w-4xl mx-auto">
           <h2 className="text-xs font-bold tracking-widest text-gray-400 uppercase mb-6">What would you like to do?</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {modules.map((m) => {
+            {modules.filter(m => !m.hidden).map((m) => {
               const st = m.status ? STATUS[m.status] : null
               return (
                 <button
