@@ -798,7 +798,7 @@ const STATUS = {
   wrapped: { label: 'Season Wrapped',   bg: '#f8fafc', color: '#64748b', border: '#cbd5e1' },
   dev:     { label: 'In Development',   bg: '#fff7ed', color: '#c2410c', border: '#fed7aa' },
   concept: { label: 'New',              bg: '#faf5ff', color: '#7c3aed', border: '#ddd6fe' },
-  sponsor: { label: 'Live 30 May',          bg: '#f0fdf4', color: '#15803d', border: '#86efac' },
+  sponsor: { label: 'Live',                  bg: '#f0fdf4', color: '#15803d', border: '#86efac' },
 }
 
 function SNZHub() {
