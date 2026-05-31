@@ -507,6 +507,7 @@ export default function CompAdmin() {
   const activeTeams = teams.filter(t => t.status !== 'pending_payment')
   const [members, setMembers] = useState([])
   const [weighins, setWeighins] = useState([])
+  const [boats, setBoats] = useState([])
   const [showFishPicker, setShowFishPicker] = useState(false)
   const [showCompliance, setShowCompliance] = useState(false)
   const [toast, setToast] = useState(null)
@@ -516,18 +517,20 @@ export default function CompAdmin() {
 
   const fetchAll = async () => {
     try {
-      const [c, f, t, m, w] = await Promise.all([
+      const [c, f, t, m, w, b] = await Promise.all([
         supabase.from('competitions').select('*').eq('id', id).single(),
         supabase.from('comp_fish').select('*').eq('competition_id', id).order('sort_order'),
         supabase.from('comp_teams').select('*').eq('competition_id', id).order('registered_at'),
         supabase.from('comp_team_members').select('*').eq('competition_id', id),
         supabase.from('comp_weighins').select('*').eq('competition_id', id),
+        supabase.from('comp_boats').select('*').eq('competition_id', id).order('created_at'),
       ])
       if (c.data) setComp(c.data)
       setFish(f.data || [])
       setTeams(t.data || [])
       setMembers(m.data || [])
       setWeighins(w.data || [])
+      setBoats(b.data || [])
       if (sessionStorage.getItem(`comp_admin_${id}`)) setAuthed(true)
     } catch(err) {
       console.error('fetchAll error:', err)
@@ -604,7 +607,7 @@ export default function CompAdmin() {
 
       <div className="bg-white border-b border-gray-200 px-6">
         <div className="max-w-5xl mx-auto flex gap-0.5 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {[['setup','Setup'],['fish',`Fish (${fish.length})`],['teams',`Teams (${teams.length})`],['weighin','Weigh-in'],['leaderboard','Leaderboard'],['socials','📸 Socials']].map(([tid,tlabel]) => (
+          {[['setup','Setup'],['fish',`Fish (${fish.length})`],['teams',`Teams (${teams.length})`],['boats',`⛵ Boats (${boats.length})`],['checkin','✅ Check-in'],['weighin','Weigh-in'],['leaderboard','Leaderboard'],['socials','📸 Socials']].map(([tid,tlabel]) => (
             <button key={tid} onClick={() => setTab(tid)}
               className={`py-3 px-4 text-sm font-bold border-b-2 transition whitespace-nowrap ${tab===tid?'border-blue-600 text-blue-700':'border-transparent text-gray-400 hover:text-gray-600'}`}>
               {tlabel}
@@ -617,6 +620,8 @@ export default function CompAdmin() {
         {tab === 'setup' && <SetupTab comp={comp} setComp={setComp} onSave={fetchAll} showToast={showToast} />}
         {tab === 'fish' && <FishTab fish={fish} comp={comp} onOpenPicker={() => setShowFishPicker(true)} onFishUpdated={fetchAll} />}
         {tab === 'teams' && <TeamsTab teams={teams} members={members} weighins={weighins} comp={comp} onRefresh={fetchAll} showToast={showToast} />}
+        {tab === 'boats' && <BoatsTab comp={comp} teams={activeTeams} members={members} boats={boats} onRefresh={fetchAll} showToast={showToast} />}
+        {tab === 'checkin' && <CheckInTab comp={comp} teams={teams} members={members} boats={boats} onRefresh={fetchAll} showToast={showToast} />}
         {tab === 'weighin' && <WeighInTab comp={comp} teams={activeTeams} members={members} fish={fish} weighins={weighins} onRefresh={fetchAll} showToast={showToast} />}
         {tab === 'leaderboard' && <AdminLeaderboard comp={comp} teams={activeTeams} weighins={weighins} fish={fish} />}
         {tab === 'socials' && <SocialsTab comp={comp} teams={activeTeams} members={members} weighins={weighins} />}
@@ -2282,6 +2287,312 @@ function SocialsTab({ comp, teams, members, weighins }) {
           </div>
         </>
       )}
+    </div>
+  )
+}
+
+// ── Boats Tab ─────────────────────────────────────────────────────────────────
+function BoatsTab({ comp, teams, members, boats, onRefresh, showToast }) {
+  const [adding, setAdding] = useState(false)
+  const [boatName, setBoatName] = useState('')
+  const [skipperName, setSkipperName] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [editingBoat, setEditingBoat] = useState(null) // { id, boat_name, skipper_name }
+
+  const addBoat = async () => {
+    if (!boatName.trim()) return
+    setSaving(true)
+    const { error } = await supabase.from('comp_boats').insert({
+      competition_id: comp.id,
+      boat_name: boatName.trim(),
+      skipper_name: skipperName.trim() || null,
+    })
+    if (error) { showToast(error.message, 'error'); setSaving(false); return }
+    showToast('Boat added')
+    setBoatName(''); setSkipperName(''); setAdding(false); setSaving(false)
+    onRefresh()
+  }
+
+  const saveEdit = async () => {
+    if (!editingBoat?.boat_name?.trim()) return
+    setSaving(true)
+    const { error } = await supabase.from('comp_boats').update({
+      boat_name: editingBoat.boat_name.trim(),
+      skipper_name: editingBoat.skipper_name?.trim() || null,
+    }).eq('id', editingBoat.id)
+    if (error) { showToast(error.message, 'error'); setSaving(false); return }
+    showToast('Boat updated')
+    setEditingBoat(null); setSaving(false)
+    onRefresh()
+  }
+
+  const deleteBoat = async (boatId) => {
+    if (!confirm('Delete this boat? Teams assigned to it will be unassigned.')) return
+    await supabase.from('comp_boats').delete().eq('id', boatId)
+    showToast('Boat deleted')
+    onRefresh()
+  }
+
+  const assignTeam = async (teamId, boatId) => {
+    await supabase.from('comp_teams').update({ boat_id: boatId || null }).eq('id', teamId)
+    onRefresh()
+  }
+
+  const unassignedTeams = teams.filter(t => !t.boat_id)
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-gray-500">{boats.length} boat{boats.length !== 1 ? 's' : ''} registered</p>
+        <button onClick={() => setAdding(true)}
+          className="px-4 py-2 rounded-lg text-sm font-bold text-white"
+          style={{ background: SNZ_BLUE }}>+ Add Boat</button>
+      </div>
+
+      {adding && (
+        <div className="bg-white border-2 border-blue-200 rounded-xl p-4 space-y-3">
+          <h3 className="font-black text-gray-900 text-sm">New Boat</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Boat Name *</label>
+              <input value={boatName} onChange={e => setBoatName(e.target.value)}
+                placeholder="e.g. Sea Hawk"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Skipper</label>
+              <input value={skipperName} onChange={e => setSkipperName(e.target.value)}
+                placeholder="Skipper name"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" />
+            </div>
+          </div>
+          <div className="flex gap-2 justify-end">
+            <button onClick={() => { setAdding(false); setBoatName(''); setSkipperName('') }}
+              className="px-3 py-1.5 rounded-lg text-sm font-bold border border-gray-300 text-gray-600">Cancel</button>
+            <button onClick={addBoat} disabled={!boatName.trim() || saving}
+              className="px-4 py-1.5 rounded-lg text-sm font-bold text-white disabled:opacity-40"
+              style={{ background: SNZ_BLUE }}>{saving ? 'Adding…' : 'Add Boat'}</button>
+          </div>
+        </div>
+      )}
+
+      {boats.length === 0 && !adding && (
+        <div className="text-center py-12 bg-white border border-gray-200 rounded-xl text-gray-400">
+          <div className="text-4xl mb-2">⛵</div>
+          <p>No boats registered yet. Add one to get started.</p>
+        </div>
+      )}
+
+      <div className="space-y-3">
+        {boats.map(boat => {
+          const isEditing = editingBoat?.id === boat.id
+          const boatTeams = teams.filter(t => t.boat_id === boat.id)
+          const assignableTeams = teams.filter(t => !t.boat_id)
+          return (
+            <div key={boat.id} className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+              <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-b border-gray-100">
+                {isEditing ? (
+                  <div className="flex items-center gap-2 flex-1 mr-3">
+                    <input value={editingBoat.boat_name} onChange={e => setEditingBoat(b => ({ ...b, boat_name: e.target.value }))}
+                      className="border border-gray-300 rounded-lg px-2 py-1 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-300 flex-1 min-w-0" placeholder="Boat name" />
+                    <input value={editingBoat.skipper_name || ''} onChange={e => setEditingBoat(b => ({ ...b, skipper_name: e.target.value }))}
+                      className="border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300 flex-1 min-w-0" placeholder="Skipper" />
+                  </div>
+                ) : (
+                  <div>
+                    <p className="font-black text-gray-900">⛵ {boat.boat_name}</p>
+                    {boat.skipper_name && <p className="text-xs text-gray-500 mt-0.5">Skipper: <span className="font-semibold">{boat.skipper_name}</span></p>}
+                  </div>
+                )}
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <span className="text-xs text-gray-400">{boatTeams.length} team{boatTeams.length !== 1 ? 's' : ''}</span>
+                  {isEditing ? (
+                    <>
+                      <button onClick={saveEdit} disabled={saving} className="text-xs font-bold px-2 py-1 rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40">Save</button>
+                      <button onClick={() => setEditingBoat(null)} className="text-xs font-bold px-2 py-1 rounded-lg border border-gray-300 text-gray-600">Cancel</button>
+                    </>
+                  ) : (
+                    <>
+                      <button onClick={() => setEditingBoat({ id: boat.id, boat_name: boat.boat_name, skipper_name: boat.skipper_name || '' })}
+                        className="text-xs font-bold px-2 py-1 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50">Edit</button>
+                      <button onClick={() => deleteBoat(boat.id)}
+                        className="text-xs font-bold px-2 py-1 rounded-lg border border-red-200 text-red-500 hover:bg-red-50">Delete</button>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              <div className="p-3 space-y-1">
+                {boatTeams.length === 0 && (
+                  <p className="text-xs text-gray-400 py-2 text-center italic">No teams assigned yet.</p>
+                )}
+                {boatTeams.map(t => {
+                  const mems = members.filter(m => m.team_id === t.id)
+                  return (
+                    <div key={t.id} className="flex items-center justify-between py-1.5 px-2 rounded-lg bg-blue-50 border border-blue-100">
+                      <div>
+                        <span className="text-sm font-bold text-gray-900">{t.team_name}</span>
+                        {mems.length > 0 && <span className="text-xs text-gray-500 ml-2">{mems.map(m => m.name).join(' & ')}</span>}
+                        <span className="ml-2 text-xs font-bold text-blue-600">{t.category}</span>
+                      </div>
+                      <button onClick={() => assignTeam(t.id, null)}
+                        className="text-xs text-red-400 hover:text-red-600 font-bold px-1.5">✕ Remove</button>
+                    </div>
+                  )
+                })}
+
+                {assignableTeams.length > 0 && (
+                  <div className="pt-1">
+                    <select defaultValue="" onChange={e => { if (e.target.value) { assignTeam(e.target.value, boat.id); e.target.value = '' } }}
+                      className="w-full border border-dashed border-gray-300 rounded-lg px-2 py-1.5 text-xs text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-300 bg-gray-50">
+                      <option value="">+ Assign a team to this boat…</option>
+                      {assignableTeams.map(t => <option key={t.id} value={t.id}>{t.team_name}</option>)}
+                    </select>
+                  </div>
+                )}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      {unassignedTeams.length > 0 && boats.length > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+          <p className="text-xs font-bold text-amber-800 uppercase tracking-wider mb-3">⚠ Not assigned to a boat ({unassignedTeams.length})</p>
+          <div className="space-y-2">
+            {unassignedTeams.map(t => {
+              const mems = members.filter(m => m.team_id === t.id)
+              return (
+                <div key={t.id} className="flex items-center justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <span className="text-sm font-bold text-gray-900">{t.team_name}</span>
+                    {mems.length > 0 && <span className="text-xs text-gray-500 ml-2">{mems.map(m => m.name).join(' & ')}</span>}
+                  </div>
+                  <select defaultValue="" onChange={e => { if (e.target.value) assignTeam(t.id, e.target.value) }}
+                    className="border border-gray-300 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-300">
+                    <option value="">Assign to boat…</option>
+                    {boats.map(b => <option key={b.id} value={b.id}>{b.boat_name}</option>)}
+                  </select>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Check-in Tab ──────────────────────────────────────────────────────────────
+function CheckInTab({ comp, teams, members, boats, onRefresh, showToast }) {
+  const checkedInCount = teams.filter(t => t.checked_in).length
+
+  const checkIn = async (teamId) => {
+    const { error } = await supabase.from('comp_teams')
+      .update({ checked_in: true, checked_in_at: new Date().toISOString() }).eq('id', teamId)
+    if (error) { showToast(error.message, 'error'); return }
+    onRefresh()
+  }
+
+  const uncheckIn = async (teamId) => {
+    const { error } = await supabase.from('comp_teams')
+      .update({ checked_in: false, checked_in_at: null }).eq('id', teamId)
+    if (error) { showToast(error.message, 'error'); return }
+    onRefresh()
+  }
+
+  const assignBoat = async (teamId, boatId) => {
+    await supabase.from('comp_teams').update({ boat_id: boatId || null }).eq('id', teamId)
+    onRefresh()
+  }
+
+  if (teams.length === 0) return (
+    <div className="text-center py-12 bg-white border border-gray-200 rounded-xl text-gray-400">
+      No teams registered yet.
+    </div>
+  )
+
+  return (
+    <div className="space-y-4">
+      {/* Summary bar */}
+      <div className="bg-white border-2 border-blue-100 rounded-xl p-4 flex items-center justify-between">
+        <div>
+          <p className="font-black text-gray-900 text-lg">{checkedInCount} <span className="text-gray-400 font-normal text-base">/ {teams.length} checked in</span></p>
+          <p className="text-xs text-gray-400 mt-0.5">{teams.length - checkedInCount} still to arrive</p>
+        </div>
+        <div className="flex gap-1.5">
+          {teams.map(t => (
+            <div key={t.id} className={`w-3 h-3 rounded-full ${t.checked_in ? 'bg-green-400' : 'bg-gray-200'}`} title={t.team_name} />
+          ))}
+        </div>
+      </div>
+
+      {/* Team list in entry order */}
+      <div className="space-y-2">
+        {teams.map((t, i) => {
+          const mems = members.filter(m => m.team_id === t.id)
+          const boat = boats.find(b => b.id === t.boat_id)
+          return (
+            <div key={t.id} className={`flex items-center gap-3 p-3 rounded-xl border-2 transition ${
+              t.checked_in ? 'border-green-400 bg-green-50' : 'border-gray-200 bg-white hover:border-gray-300'
+            }`}>
+              {/* Entry number */}
+              <div className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center text-xs font-black text-gray-500 flex-shrink-0">{i + 1}</div>
+
+              {/* Team photo */}
+              {t.team_photo_url
+                ? <img src={t.team_photo_url} alt={t.team_name} className="w-10 h-10 rounded-full object-cover border border-gray-200 flex-shrink-0" />
+                : <div className="w-10 h-10 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center text-base flex-shrink-0">👥</div>
+              }
+
+              {/* Info */}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p className="font-bold text-gray-900 text-sm">{t.team_name}</p>
+                  <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">{t.category}</span>
+                  {t.status === 'pending_payment' && (
+                    <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-red-100 text-red-600 border border-red-200">Unpaid</span>
+                  )}
+                </div>
+                <p className="text-xs text-gray-500 truncate">{mems.map(m => m.name).join(' & ')}</p>
+                {t.checked_in && t.checked_in_at && (
+                  <p className="text-xs text-green-600 font-semibold">✓ {new Date(t.checked_in_at).toLocaleTimeString('en-NZ', { hour: '2-digit', minute: '2-digit' })}</p>
+                )}
+              </div>
+
+              {/* Boat selector */}
+              <select value={t.boat_id || ''} onChange={e => assignBoat(t.id, e.target.value || null)}
+                className="border border-gray-300 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-300 max-w-[130px] flex-shrink-0">
+                <option value="">No boat</option>
+                {boats.map(b => <option key={b.id} value={b.id}>{b.boat_name}</option>)}
+              </select>
+
+              {/* Check-in button */}
+              {t.checked_in ? (
+                <button onClick={() => uncheckIn(t.id)}
+                  className="flex-shrink-0 px-3 py-2 rounded-lg text-xs font-black bg-green-100 text-green-700 border border-green-300 hover:bg-green-200 transition min-w-[72px] text-center">
+                  ✓ In
+                </button>
+              ) : (
+                <button onClick={() => checkIn(t.id)}
+                  className="flex-shrink-0 px-3 py-2 rounded-lg text-xs font-black text-white transition min-w-[72px] text-center"
+                  style={{ background: SNZ_BLUE }}>
+                  Check In
+                </button>
+              )}
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Footer total */}
+      <div className={`rounded-xl p-4 text-center font-black text-lg border-2 ${
+        checkedInCount === teams.length ? 'bg-green-50 border-green-300 text-green-700' : 'bg-gray-50 border-gray-200 text-gray-500'
+      }`}>
+        {checkedInCount === teams.length
+          ? `✓ All ${teams.length} teams checked in — ready to dive!`
+          : `${checkedInCount} / ${teams.length} teams checked in`}
+      </div>
     </div>
   )
 }
