@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, Fragment } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useMemberSession } from '../components/MemberAuthGate'
@@ -342,11 +342,11 @@ export default function CompetitionDetail() {
                       return (
                         <div key={cat} className="mb-8">
                           <h3 className={`inline-flex text-sm font-black px-3 py-1 rounded-full mb-3 ${CATEGORY_COLORS[cat] || CATEGORY_COLORS['Open']}`}>{cat}</h3>
-                          <LeaderboardTable board={catBoard} />
+                          <LeaderboardTable board={catBoard} weighins={weighins} />
                         </div>
                       )
                     })
-                  : <LeaderboardTable board={leaderboard} />
+                  : <LeaderboardTable board={leaderboard} weighins={weighins} />
                 }
               </>
             )}
@@ -611,34 +611,46 @@ function MyCatchesTab({ comp, fish, myTeam, member, weighins, onRefresh, navigat
   )
 }
 
-function LeaderboardTable({ board }) {
-  
-const SNZ_BLUE = '#2B6CB0'
-
-function MemberBadge() {
-  const { member, session } = useMemberSession()
-  const navigate = useNavigate()
-  if (!session) return (
-    <button onClick={() => navigate('/membership/login')}
-      className="flex items-center gap-1.5 text-white/70 hover:text-white text-xs font-semibold transition px-2 py-1 rounded-lg hover:bg-white/10">
-      Sign in
-    </button>
-  )
-  return (
-    <button onClick={() => navigate('/membership/dashboard')}
-      className="flex items-center gap-2 bg-white/15 hover:bg-white/25 px-3 py-1.5 rounded-lg transition">
-      <div className="w-6 h-6 rounded-full bg-white/30 flex items-center justify-center text-white font-black text-xs flex-shrink-0">
-        {member?.name?.[0]?.toUpperCase() || '?'}
-      </div>
-      <div className="text-left hidden sm:block">
-        <div className="text-white font-bold text-xs leading-tight">{member?.name || 'Member'}</div>
-        <div className="text-blue-200 text-xs leading-tight">{member?.member_number || 'SNZ Member'}</div>
-      </div>
-    </button>
-  )
-}
-
+function LeaderboardTable({ board, weighins = [] }) {
+  const [expandedId, setExpandedId] = useState(null)
   const medals = ['🥇','🥈','🥉']
+  const scoredBoard = board.filter(x => x.total > 0)
+
+  const toggle = (id, hasScore) => { if (hasScore) setExpandedId(v => v === id ? null : id) }
+
+  const renderBreakdown = (team) => {
+    const entries = weighins.filter(w => w.team_id === team.id)
+    const fishEntries = entries.filter(w => !w.is_bulk)
+    const bulkEntry = entries.find(w => w.is_bulk)
+    return (
+      <tr>
+        <td colSpan={4} className="px-5 py-3 bg-blue-50 border-b border-blue-100">
+          <div className="space-y-1.5 max-w-xs">
+            {fishEntries.map(w => (
+              <div key={w.id} className="flex items-center justify-between text-xs">
+                <span className="font-semibold text-gray-700">🐟 {w.fish_name}{w.instance > 1 ? ` #${w.instance}` : ''}</span>
+                <div className="flex items-center gap-3">
+                  {w.weight_kg != null && <span className="text-gray-400">{w.weight_kg} kg</span>}
+                  <span className="font-black w-14 text-right" style={{ color: SNZ_BLUE }}>{w.points_awarded} pts</span>
+                </div>
+              </div>
+            ))}
+            {bulkEntry && (
+              <div className="flex items-center justify-between text-xs border-t border-blue-200 pt-1.5">
+                <span className="font-semibold text-gray-500">⚖ Bulk — {bulkEntry.weight_kg} kg</span>
+                <span className="font-black w-14 text-right" style={{ color: SNZ_BLUE }}>+{bulkEntry.points_awarded} pts</span>
+              </div>
+            )}
+            <div className="flex items-center justify-between text-xs border-t border-blue-300 pt-1.5">
+              <span className="font-black text-gray-700">Total</span>
+              <span className="text-base font-black" style={{ color: SNZ_BLUE }}>{team.total} pts</span>
+            </div>
+          </div>
+        </td>
+      </tr>
+    )
+  }
+
   return (
     <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm overflow-x-auto">
       <table className="w-full min-w-[380px] text-sm">
@@ -653,23 +665,31 @@ function MemberBadge() {
         <tbody>
           {board.map((t, i) => {
             const hasScore = t.total > 0
-            const scoredBoard = board.filter(x => x.total > 0)
             const rank = hasScore ? scoredBoard.indexOf(t) : -1
+            const isExpanded = expandedId === t.id
             return (
-              <tr key={t.id} className={`border-b border-gray-100 ${hasScore && rank === 0 ? 'bg-amber-50' : i % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}>
-                <td className="px-4 py-3 text-lg">{hasScore ? (medals[rank] || rank + 1) : '—'}</td>
-                <td className="px-4 py-3">
-                  <div className="flex items-center gap-3">
-                    {t.team_photo_url
-                      ? <img src={t.team_photo_url} alt={t.team_name} className="w-9 h-9 rounded-lg object-cover border border-gray-200 flex-shrink-0" />
-                      : <div className="w-9 h-9 rounded-lg bg-gray-100 border border-gray-200 flex items-center justify-center text-base flex-shrink-0">👥</div>
-                    }
-                    <span className="font-bold text-gray-900">{t.team_name}</span>
-                  </div>
-                </td>
-                <td className="px-4 py-3 text-gray-500">{hasScore ? t.fishCount : '—'}</td>
-                <td className="px-4 py-3 text-2xl font-black" style={{ color: hasScore ? SNZ_BLUE : '#d1d5db' }}>{hasScore ? t.total : '—'}</td>
-              </tr>
+              <Fragment key={t.id}>
+                <tr
+                  onClick={() => toggle(t.id, hasScore)}
+                  className={`border-b border-gray-100 transition select-none
+                    ${hasScore ? 'cursor-pointer' : ''}
+                    ${isExpanded ? 'bg-blue-50' : hasScore && rank === 0 ? 'bg-amber-50 hover:bg-amber-100/60' : i % 2 === 0 ? 'bg-white hover:bg-blue-50/40' : 'bg-gray-50/30 hover:bg-blue-50/40'}`}>
+                  <td className="px-4 py-3 text-lg">{hasScore ? (medals[rank] || rank + 1) : '—'}</td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-3">
+                      {t.team_photo_url
+                        ? <img src={t.team_photo_url} alt={t.team_name} className="w-9 h-9 rounded-lg object-cover border border-gray-200 flex-shrink-0" />
+                        : <div className="w-9 h-9 rounded-lg bg-gray-100 border border-gray-200 flex items-center justify-center text-base flex-shrink-0">👥</div>
+                      }
+                      <span className="font-bold text-gray-900">{t.team_name}</span>
+                      {hasScore && <span className="text-gray-400 text-xs">{isExpanded ? '▲' : '▼'}</span>}
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 text-gray-500">{hasScore ? t.fishCount : '—'}</td>
+                  <td className="px-4 py-3 text-2xl font-black" style={{ color: hasScore ? SNZ_BLUE : '#d1d5db' }}>{hasScore ? t.total : '—'}</td>
+                </tr>
+                {isExpanded && renderBreakdown(t)}
+              </Fragment>
             )
           })}
           {board.length === 0 && (

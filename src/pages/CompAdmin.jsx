@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, Fragment } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import CompCopilotFAB from './CompCopilotFAB'
@@ -1957,6 +1957,8 @@ function WeighInTab({ comp, teams, members, fish, weighins: initialWeighins, onR
 
 // ── Admin Leaderboard ────────────────────────────────────────────────────────
 function AdminLeaderboard({ comp, teams, weighins, fish }) {
+  const [expandedId, setExpandedId] = useState(null)
+
   const leaderboard = teams.map(team => {
     const tw = weighins.filter(w => w.team_id === team.id)
     const total = tw.reduce((s, w) => s + (w.points_awarded || 0), 0)
@@ -1966,34 +1968,77 @@ function AdminLeaderboard({ comp, teams, weighins, fish }) {
   const medals = ['🥇','🥈','🥉']
   const cats = (comp.categories||[]).length > 1 ? comp.categories : null
 
+  const toggle = (id) => setExpandedId(v => v === id ? null : id)
+
+  const renderBreakdown = (team) => {
+    const entries = weighins.filter(w => w.team_id === team.id)
+    const fishEntries = entries.filter(w => !w.is_bulk)
+    const bulkEntry = entries.find(w => w.is_bulk)
+    return (
+      <tr>
+        <td colSpan={5} className="px-5 py-3 bg-blue-50 border-b border-blue-100">
+          <div className="space-y-1.5 max-w-sm">
+            {fishEntries.map(w => (
+              <div key={w.id} className="flex items-center justify-between text-xs">
+                <span className="font-semibold text-gray-700">🐟 {w.fish_name}{w.instance > 1 ? ` #${w.instance}` : ''}</span>
+                <div className="flex items-center gap-4">
+                  {w.weight_kg != null && <span className="text-gray-400">{w.weight_kg} kg</span>}
+                  <span className="font-black w-16 text-right" style={{ color: SNZ_BLUE }}>{w.points_awarded} pts</span>
+                </div>
+              </div>
+            ))}
+            {bulkEntry && (
+              <div className="flex items-center justify-between text-xs border-t border-blue-200 pt-1.5">
+                <span className="font-semibold text-gray-500">⚖ Bulk — {bulkEntry.weight_kg} kg</span>
+                <span className="font-black w-16 text-right" style={{ color: SNZ_BLUE }}>+{bulkEntry.points_awarded} pts</span>
+              </div>
+            )}
+            <div className="flex items-center justify-between text-xs border-t border-blue-300 pt-1.5">
+              <span className="font-black text-gray-700">Total</span>
+              <span className="text-base font-black" style={{ color: SNZ_BLUE }}>{team.total} pts</span>
+            </div>
+          </div>
+        </td>
+      </tr>
+    )
+  }
+
   const renderBoard = (board) => (
     <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm mb-6">
       <div className="overflow-x-auto">
-      <table className="w-full min-w-[500px] text-sm">
-        <thead>
-          <tr className="border-b border-gray-100 bg-gray-50">
-            <th className="px-4 py-3 text-left text-xs font-bold tracking-widest text-gray-400 uppercase w-12">Rank</th>
-            <th className="px-4 py-3 text-left text-xs font-bold tracking-widest text-gray-400 uppercase">Team</th>
-            <th className="px-4 py-3 text-left text-xs font-bold tracking-widest text-gray-400 uppercase">Category</th>
-            <th className="px-4 py-3 text-left text-xs font-bold tracking-widest text-gray-400 uppercase">Fish</th>
-            <th className="px-4 py-3 text-left text-xs font-bold tracking-widest text-gray-400 uppercase">Points</th>
-          </tr>
-        </thead>
-        <tbody>
-          {board.map((t, i) => (
-            <tr key={t.id} className={`border-b border-gray-100 ${i===0?'bg-amber-50':i%2===0?'bg-white':'bg-gray-50/30'}`}>
-              <td className="px-4 py-3 text-lg">{medals[i] || i + 1}</td>
-              <td className="px-4 py-3 font-bold text-gray-900">{t.team_name}</td>
-              <td className="px-4 py-3 text-xs">
-                <span className="px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 font-bold">{t.category}</span>
-              </td>
-              <td className="px-4 py-3 text-gray-500">{t.fishCount}</td>
-              <td className="px-4 py-3 text-2xl font-black" style={{ color: SNZ_BLUE }}>{t.total}</td>
+        <table className="w-full min-w-[500px] text-sm">
+          <thead>
+            <tr className="border-b border-gray-100 bg-gray-50">
+              <th className="px-4 py-3 text-left text-xs font-bold tracking-widest text-gray-400 uppercase w-12">Rank</th>
+              <th className="px-4 py-3 text-left text-xs font-bold tracking-widest text-gray-400 uppercase">Team</th>
+              <th className="px-4 py-3 text-left text-xs font-bold tracking-widest text-gray-400 uppercase">Category</th>
+              <th className="px-4 py-3 text-left text-xs font-bold tracking-widest text-gray-400 uppercase">Fish</th>
+              <th className="px-4 py-3 text-left text-xs font-bold tracking-widest text-gray-400 uppercase">Points</th>
             </tr>
-          ))}
-          {board.length === 0 && <tr><td colSpan={5} className="px-4 py-12 text-center text-gray-400">No scores entered yet</td></tr>}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {board.map((t, i) => (
+              <Fragment key={t.id}>
+                <tr onClick={() => toggle(t.id)}
+                  className={`border-b border-gray-100 cursor-pointer transition select-none
+                    ${expandedId === t.id ? 'bg-blue-50' : i === 0 ? 'bg-amber-50 hover:bg-amber-100/60' : i % 2 === 0 ? 'bg-white hover:bg-blue-50/40' : 'bg-gray-50/30 hover:bg-blue-50/40'}`}>
+                  <td className="px-4 py-3 text-lg">{medals[i] || i + 1}</td>
+                  <td className="px-4 py-3 font-bold text-gray-900">
+                    <span>{t.team_name}</span>
+                    <span className="ml-1.5 text-gray-400 text-xs">{expandedId === t.id ? '▲' : '▼'}</span>
+                  </td>
+                  <td className="px-4 py-3 text-xs">
+                    <span className="px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 font-bold">{t.category}</span>
+                  </td>
+                  <td className="px-4 py-3 text-gray-500">{t.fishCount}</td>
+                  <td className="px-4 py-3 text-2xl font-black" style={{ color: SNZ_BLUE }}>{t.total}</td>
+                </tr>
+                {expandedId === t.id && renderBreakdown(t)}
+              </Fragment>
+            ))}
+            {board.length === 0 && <tr><td colSpan={5} className="px-4 py-12 text-center text-gray-400">No scores entered yet</td></tr>}
+          </tbody>
+        </table>
       </div>
     </div>
   )
