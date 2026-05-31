@@ -64,7 +64,7 @@ function SpeciesLibrary({ showToast }) {
       const { error } = await supabase.storage.from('snz-media').upload(path, file, { contentType: file.type })
       if (error) throw error
       const { data: { publicUrl } } = supabase.storage.from('snz-media').getPublicUrl(path)
-      await supabase.from('comp_species_library').update({ photo_url: publicUrl }).eq('id', id)
+      await supabase.from('comp_species_library').update({ photo_url: `${publicUrl}?t=${Date.now()}` }).eq('id', id)
       showToast('Photo uploaded')
       fetchSpecies()
     } catch (err) { showToast(err.message, 'error') }
