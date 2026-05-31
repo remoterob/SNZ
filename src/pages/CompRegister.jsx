@@ -185,13 +185,14 @@ function MerchSection({ comp, merch, setMerch, isMerchLate }) {
 
 function SocialShareButtons({ comp, id, teamPhotoUrl }) {
   const [sharing, setSharing] = useState(false)
-  const [copied, setCopied] = useState(false)
+  const [captionCopied, setCaptionCopied] = useState(false)
+  const [photoDownloading, setPhotoDownloading] = useState(false)
 
   const compUrl = `${window.location.origin}/competitions/${id}`
   const dateStr = comp?.date_start
     ? new Date(comp.date_start).toLocaleDateString('en-NZ', { day: 'numeric', month: 'long', year: 'numeric' })
     : null
-  const shareText = `Just entered ${comp?.name}${dateStr ? ' on ' + dateStr : ''}. Follow me here: ${compUrl}`
+  const caption = `Just entered ${comp?.name}${dateStr ? ' on ' + dateStr : ''}. Follow me here: ${compUrl}`
 
   const handleNativeShare = async () => {
     setSharing(true)
@@ -202,62 +203,94 @@ function SocialShareButtons({ comp, id, teamPhotoUrl }) {
           const blob = await res.blob()
           const file = new File([blob], 'team-photo.jpg', { type: blob.type })
           if (navigator.canShare({ files: [file] })) {
-            await navigator.share({ title: comp?.name, text: shareText, files: [file] })
+            await navigator.share({ title: comp?.name, text: caption, files: [file] })
             return
           }
         } catch {}
       }
       if (navigator.share) {
-        await navigator.share({ title: comp?.name, text: shareText, url: compUrl })
+        await navigator.share({ title: comp?.name, text: caption, url: compUrl })
       }
     } catch (err) {
       if (err?.name !== 'AbortError') {
-        try { await navigator.clipboard.writeText(shareText); setCopied(true); setTimeout(() => setCopied(false), 2500) } catch {}
+        try { await navigator.clipboard.writeText(caption); setCaptionCopied(true); setTimeout(() => setCaptionCopied(false), 2500) } catch {}
       }
     } finally {
       setSharing(false)
     }
   }
 
-  const handleCopy = async () => {
-    try { await navigator.clipboard.writeText(shareText); setCopied(true); setTimeout(() => setCopied(false), 2500) } catch {}
+  const handleCopyCaption = async () => {
+    try { await navigator.clipboard.writeText(caption); setCaptionCopied(true); setTimeout(() => setCaptionCopied(false), 2500) } catch {}
   }
 
-  const fbUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(compUrl)}`
+  const handleDownloadPhoto = async () => {
+    if (!teamPhotoUrl) return
+    setPhotoDownloading(true)
+    try {
+      const res = await fetch(teamPhotoUrl)
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = 'team-photo.jpg'
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch {}
+    finally { setPhotoDownloading(false) }
+  }
+
+  // Facebook sharer — quote param pre-fills text on mobile; desktop Facebook often ignores it
+  const fbUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(compUrl)}&quote=${encodeURIComponent(caption)}`
   const canNativeShare = typeof navigator !== 'undefined' && !!navigator.share
 
   return (
-    <div className="border border-gray-100 rounded-xl p-4 mb-5 bg-gray-50">
+    <div className="border border-gray-100 rounded-xl p-4 mb-5 bg-gray-50 text-left">
       <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3 text-center">Share your entry</p>
+
+      {/* Caption — visible so user can copy-paste into any platform */}
+      <div className="bg-white border border-gray-200 rounded-lg p-3 mb-3">
+        <p className="text-xs text-gray-700 leading-relaxed mb-2 select-all">{caption}</p>
+        <button onClick={handleCopyCaption}
+          className="text-xs font-bold text-blue-600 hover:text-blue-700 transition">
+          {captionCopied ? '✓ Caption copied!' : 'Copy caption'}
+        </button>
+      </div>
+
+      {/* Save photo to device */}
+      {teamPhotoUrl && (
+        <button onClick={handleDownloadPhoto} disabled={photoDownloading}
+          className="w-full text-center text-xs font-semibold text-gray-500 hover:text-gray-700 mb-3 underline disabled:opacity-50 transition">
+          {photoDownloading ? 'Saving…' : '↓ Save team photo to device'}
+        </button>
+      )}
+
       <div className="flex gap-2 justify-center flex-wrap">
         {canNativeShare && (
-          <button
-            onClick={handleNativeShare}
-            disabled={sharing}
+          <button onClick={handleNativeShare} disabled={sharing}
             className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-50 transition"
             style={{ background: 'linear-gradient(135deg, #833ab4, #fd1d1d, #fcb045)' }}>
             <svg className="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
               <path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92 1.61 0 2.92-1.31 2.92-2.92s-1.31-2.92-2.92-2.92z"/>
             </svg>
-            {sharing ? 'Sharing…' : 'Share'}
+            {sharing ? 'Opening…' : teamPhotoUrl ? 'Share with photo' : 'Share'}
           </button>
         )}
-        <a
-          href={fbUrl}
-          target="_blank"
-          rel="noopener noreferrer"
+        <a href={fbUrl} target="_blank" rel="noopener noreferrer"
           className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold bg-blue-600 text-white hover:bg-blue-700 transition">
           <svg className="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
             <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
           </svg>
           Facebook
         </a>
-        <button
-          onClick={handleCopy}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold border-2 border-gray-200 text-gray-600 hover:border-gray-300 transition">
-          {copied ? '✓ Copied!' : 'Copy link'}
-        </button>
       </div>
+      {canNativeShare ? (
+        <p className="text-xs text-gray-400 mt-2 text-center">
+          {teamPhotoUrl ? '"Share with photo" sends the caption + photo to Instagram, WhatsApp & more' : '"Share" sends the caption to Instagram, WhatsApp & more'}
+        </p>
+      ) : (
+        <p className="text-xs text-gray-400 mt-2 text-center">Copy the caption above, then paste it into your post</p>
+      )}
     </div>
   )
 }
