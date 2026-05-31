@@ -120,7 +120,7 @@ export default function CompetitionDetail() {
   const leaderboard = teams.map(team => {
     const teamWeighins = weighins.filter(w => w.team_id === team.id)
     const total = teamWeighins.reduce((s, w) => s + (w.points_awarded || 0), 0)
-    const fishCount = teamWeighins.length
+    const fishCount = teamWeighins.filter(w => !w.is_bulk).length
     return { ...team, total, fishCount }
   }).sort((a, b) => b.total - a.total)
 

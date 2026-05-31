@@ -1955,7 +1955,7 @@ function AdminLeaderboard({ comp, teams, weighins, fish }) {
   const leaderboard = teams.map(team => {
     const tw = weighins.filter(w => w.team_id === team.id)
     const total = tw.reduce((s, w) => s + (w.points_awarded || 0), 0)
-    return { ...team, total, fishCount: tw.length }
+    return { ...team, total, fishCount: tw.filter(w => !w.is_bulk).length }
   }).sort((a, b) => b.total - a.total)
 
   const medals = ['🥇','🥈','🥉']
