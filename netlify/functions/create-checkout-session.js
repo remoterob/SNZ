@@ -54,7 +54,7 @@ exports.handler = async (event) => {
       ? `${origin}/membership/dashboard?payment=success`
       : isNationals
         ? `${origin}/nationals/register?payment=success&team=${teamId}`
-        : `${origin}/competitions/${competitionId}?payment=success`
+        : `${origin}/competitions/${competitionId}/register?payment=success`
     const cancelUrl = isMembership
       ? `${origin}/membership/dashboard?payment=cancelled`
       : isNationals
