@@ -1107,7 +1107,8 @@ function FishTab({ fish, comp, onOpenPicker, onFishUpdated }) {
 }
 
 // ── Team Edit Modal ────────────────────────────────────────────────────────────
-const emptyMember = { name:'', email:'', phone:'', club:'', gender:'', dob:'', emergency_contact:'', emergency_phone:'', fit_to_dive:false }
+const SKILL_LEVELS = ['Absolute beginner', 'Beginner', 'Intermediate', 'Experienced']
+const emptyMember = { name:'', email:'', phone:'', club:'', gender:'', dob:'', emergency_contact:'', emergency_phone:'', fit_to_dive:false, skill_level:'' }
 
 // ── Member Section (outside TeamModal to prevent remount on keystroke) ────────
 function MemberSection({ label, data, setField }) {
@@ -1150,6 +1151,14 @@ function MemberSection({ label, data, setField }) {
             <input type="checkbox" checked={!!data.fit_to_dive} onChange={e => setField('fit_to_dive')(e.target.checked)} className="w-4 h-4" />
             <span className="text-xs font-semibold text-gray-600">Confirmed fit to dive</span>
           </label>
+        </div>
+        <div className="col-span-2">
+          <label className="block text-xs font-semibold text-gray-500 mb-1">Skill Level</label>
+          <select value={data.skill_level||''} onChange={e => setField('skill_level')(e.target.value)}
+            className="w-full border border-gray-300 rounded-lg px-2.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300">
+            <option value="">—</option>
+            {SKILL_LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
+          </select>
         </div>
       </div>
     </div>
