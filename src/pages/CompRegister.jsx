@@ -9,11 +9,14 @@ const SNZ_LOGO = import.meta.env.VITE_SNZ_LOGO_URL || null
 
 const CATEGORIES = ['Open', 'Mens', 'Womens', 'Mixed', 'Junior']
 
+const SKILL_LEVELS = ['Absolute beginner', 'Beginner', 'Intermediate', 'Experienced']
+
 const emptyMember = {
   name: '', email: '', phone: '', club: '',
   gender: '', dob: '',
   emergency_contact: '', emergency_phone: '',
-  fit_to_dive: false
+  fit_to_dive: false,
+  skill_level: '',
 }
 
 function MemberForm({ index, data, onChange, label }) {
@@ -58,6 +61,14 @@ function MemberForm({ index, data, onChange, label }) {
           <label className="block text-xs font-semibold text-gray-600 mb-1">Date of birth <span className="text-red-500">*</span></label>
           <input type="date" value={data.dob} onChange={e => set('dob')(e.target.value)}
             className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" required />
+        </div>
+        <div className="sm:col-span-2">
+          <label className="block text-xs font-semibold text-gray-600 mb-1">Current skill level <span className="text-red-500">*</span></label>
+          <select value={data.skill_level} onChange={e => set('skill_level')(e.target.value)}
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" required>
+            <option value="">Select…</option>
+            {SKILL_LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
+          </select>
         </div>
         <div>
           <label className="block text-xs font-semibold text-gray-600 mb-1">Emergency contact name <span className="text-red-500">*</span></label>
@@ -379,6 +390,7 @@ export default function CompRegister() {
     if (!p1.emergency_contact.trim()) e.push('Diver 1 emergency contact is required')
     if (!p1.emergency_phone.trim()) e.push('Diver 1 emergency phone is required')
     if (!p1.fit_to_dive) e.push('Diver 1 must confirm fitness to dive')
+    if (!p1.skill_level) e.push('Diver 1 skill level is required')
     if (!p2.name.trim()) e.push('Diver 2 name is required')
     if (!p2.email.trim()) e.push('Diver 2 email is required')
     if (!p2.phone.trim()) e.push('Diver 2 phone is required')
@@ -387,6 +399,7 @@ export default function CompRegister() {
     if (!p2.emergency_contact.trim()) e.push('Diver 2 emergency contact is required')
     if (!p2.emergency_phone.trim()) e.push('Diver 2 emergency phone is required')
     if (!p2.fit_to_dive) e.push('Diver 2 must confirm fitness to dive')
+    if (!p2.skill_level) e.push('Diver 2 skill level is required')
     setErrors(e)
     return e.length === 0
   }
