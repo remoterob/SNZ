@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, Fragment } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useMemberSession } from '../components/MemberAuthGate'
 import CompCopilotFAB from './CompCopilotFAB'
@@ -74,6 +74,7 @@ function SponsorBar({ comp }) {
 export default function CompetitionDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const { member } = useMemberSession()
   const [comp, setComp] = useState(null)
   const [fish, setFish] = useState([])
@@ -82,7 +83,7 @@ export default function CompetitionDetail() {
   const [weighins, setWeighins] = useState([])
   const [myTeam, setMyTeam] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [tab, setTab] = useState('info')
+  const [tab, setTab] = useState(searchParams.get('tab') || 'info')
   const [lightbox, setLightbox] = useState(null)
 
   const fetchWeighins = async () => {
@@ -196,7 +197,7 @@ export default function CompetitionDetail() {
       <div className="border-b border-gray-200 px-6 bg-white">
         <div className="max-w-4xl mx-auto flex gap-1 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {tabs.map(t => (
-            <button key={t.id} onClick={() => setTab(t.id)}
+            <button key={t.id} onClick={() => { setTab(t.id); setSearchParams(t.id === 'info' ? {} : { tab: t.id }) }}
               className={`py-3 px-4 text-sm font-bold border-b-2 transition whitespace-nowrap ${tab === t.id ? 'border-blue-600 text-blue-700' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
             >{t.label}</button>
           ))}
@@ -342,11 +343,11 @@ export default function CompetitionDetail() {
                       return (
                         <div key={cat} className="mb-8">
                           <h3 className={`inline-flex text-sm font-black px-3 py-1 rounded-full mb-3 ${CATEGORY_COLORS[cat] || CATEGORY_COLORS['Open']}`}>{cat}</h3>
-                          <LeaderboardTable board={catBoard} weighins={weighins} />
+                          <LeaderboardTable board={catBoard} weighins={weighins} members={members} />
                         </div>
                       )
                     })
-                  : <LeaderboardTable board={leaderboard} weighins={weighins} />
+                  : <LeaderboardTable board={leaderboard} weighins={weighins} members={members} />
                 }
               </>
             )}
@@ -611,7 +612,7 @@ function MyCatchesTab({ comp, fish, myTeam, member, weighins, onRefresh, navigat
   )
 }
 
-function LeaderboardTable({ board, weighins = [] }) {
+function LeaderboardTable({ board, weighins = [], members = [] }) {
   const [expandedId, setExpandedId] = useState(null)
   const medals = ['🥇','🥈','🥉']
   const scoredBoard = board.filter(x => x.total > 0)
@@ -681,8 +682,13 @@ function LeaderboardTable({ board, weighins = [] }) {
                         ? <img src={t.team_photo_url} alt={t.team_name} className="w-9 h-9 rounded-lg object-cover border border-gray-200 flex-shrink-0" />
                         : <div className="w-9 h-9 rounded-lg bg-gray-100 border border-gray-200 flex items-center justify-center text-base flex-shrink-0">👥</div>
                       }
-                      <span className="font-bold text-gray-900">{t.team_name}</span>
-                      {hasScore && <span className="text-gray-400 text-xs">{isExpanded ? '▲' : '▼'}</span>}
+                      <div className="min-w-0">
+                        <div className="font-bold text-gray-900 flex items-center gap-1">
+                          {t.team_name}
+                          {hasScore && <span className="text-gray-400 text-xs">{isExpanded ? '▲' : '▼'}</span>}
+                        </div>
+                        {(() => { const divers = members.filter(m => m.team_id === t.id); return divers.length > 0 ? <div className="text-xs text-gray-400 truncate">{divers.map(m => m.name).join(' & ')}</div> : null })()}
+                      </div>
                     </div>
                   </td>
                   <td className="px-4 py-3 text-gray-500">{hasScore ? t.fishCount : '—'}</td>
