@@ -702,7 +702,7 @@ function MyCatchesTab({ comp, fish, myTeam, member, weighins, onRefresh, navigat
                       <label className={`cursor-pointer flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-lg border-2 transition ${pending[key] ? 'border-blue-400 bg-blue-50 text-blue-700' : 'border-gray-300 text-gray-600 hover:border-gray-400'}`}>
                         📷 {pending[key] ? pending[key].name.slice(0, 20) + (pending[key].name.length > 20 ? '…' : '') : 'Choose photo'}
                         <input
-                          type="file" accept="image/*" capture="environment" className="hidden"
+                          type="file" accept="image/*" className="hidden"
                           ref={el => { fileRefs.current[key] = el }}
                           onChange={e => { const file = e.target.files[0]; if (file) setPending(p => ({ ...p, [key]: file })) }}
                         />
