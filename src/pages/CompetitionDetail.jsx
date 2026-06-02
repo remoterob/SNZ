@@ -126,6 +126,7 @@ export default function CompetitionDetail() {
   }).sort((a, b) => b.total - a.total)
 
   const isFishBingo = comp?.scoring_mode === 'fish_bingo'
+  const isSelfSubmit = comp?.scoring_mode === 'standard_self_submit'
 
   const tabs = [
     { id: 'info', label: 'Info' },
@@ -133,6 +134,7 @@ export default function CompetitionDetail() {
     { id: 'teams', label: `Teams (${teams.length})` },
     { id: 'leaderboard', label: 'Leaderboard' },
     ...(isFishBingo ? [{ id: 'mycatches', label: myTeam ? '🎯 My Catches' : '🎯 Submit Catch' }] : []),
+    ...(isSelfSubmit ? [{ id: 'mycatches', label: myTeam ? '⚖ My Catches' : '⚖ Submit Catch' }] : []),
   ]
 
   if (loading) return <div className="min-h-screen bg-white flex items-center justify-center text-gray-400">Loading…</div>
@@ -178,7 +180,7 @@ export default function CompetitionDetail() {
           </div>
           <div className="flex gap-2 mt-3 flex-wrap">
             <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
-              {comp.scoring_mode === 'standard' ? '⚖ Standard scoring' : comp.scoring_mode === 'fish_bingo' ? '🎯 Fish Bingo' : '🎯 Fish bingo'}
+              {comp.scoring_mode === 'standard' ? '⚖ Standard scoring' : comp.scoring_mode === 'standard_self_submit' ? '⚖ Standard · Self-Submit' : comp.scoring_mode === 'fish_bingo' ? '🎯 Fish Bingo' : '🎯 Fish bingo'}
             </span>
             {(comp.categories || []).map(cat => (
               <span key={cat} className={`text-xs font-bold px-2 py-0.5 rounded-full ${CATEGORY_COLORS[cat] || CATEGORY_COLORS['Open']}`}>{cat}</span>
@@ -236,6 +238,14 @@ export default function CompetitionDetail() {
                   <p>• Maximum weight bonus capped at <strong>8 kg per fish</strong> (80 points)</p>
                   <p>• Maximum possible score per fish: <strong>180 points</strong></p>
                 </div>
+              ) : comp.scoring_mode === 'standard_self_submit' ? (
+                <div className="text-sm text-gray-600 space-y-1">
+                  <p>• <strong>100 points</strong> per species caught</p>
+                  <p>• <strong>+10 points per kg</strong> of fish weight</p>
+                  <p>• Maximum weight bonus capped at <strong>8 kg per fish</strong> (80 points)</p>
+                  <p>• Maximum possible score per fish: <strong>180 points</strong></p>
+                  <p>• Teams <strong>self-submit</strong> their own catches — upload a photo on scales with the weight entered</p>
+                </div>
               ) : comp.scoring_mode === 'fish_bingo' ? (
                 <div className="text-sm text-gray-600 space-y-1">
                   <p>Points are fixed per species — see the fish list tab for individual values.</p>
@@ -269,7 +279,7 @@ export default function CompetitionDetail() {
                   </div>
                   <div className="p-3">
                     <p className="font-bold text-gray-900 text-sm">{f.species_name}</p>
-                    {comp.scoring_mode === 'standard' ? (
+                    {(comp.scoring_mode === 'standard' || comp.scoring_mode === 'standard_self_submit') ? (
                       <p className="text-xs text-gray-400 mt-0.5">{f.points || 100} pts + weight bonus</p>
                     ) : comp.scoring_mode === 'fish_bingo' && f.category_points && Object.keys(f.category_points).length > 0 ? (
                       <div className="mt-0.5 space-y-0.5">
@@ -394,8 +404,13 @@ export default function CompetitionDetail() {
 }
 
 function MyCatchesTab({ comp, fish, myTeam, member, weighins, onRefresh, navigate }) {
-  const [pending, setPending] = useState({}) // key `fishId-inst` → File
-  const [uploading, setUploading] = useState(null) // key being uploaded
+  const isSelfSubmit = comp.scoring_mode === 'standard_self_submit'
+  // fish_bingo: key → File
+  const [pending, setPending] = useState({})
+  // standard_self_submit: separate file + weight per key
+  const [selfFiles, setSelfFiles] = useState({})
+  const [selfWeights, setSelfWeights] = useState({})
+  const [uploading, setUploading] = useState(null)
   const [toast, setToast] = useState(null)
   const fileRefs = useRef({})
 
@@ -406,42 +421,72 @@ function MyCatchesTab({ comp, fish, myTeam, member, weighins, onRefresh, navigat
 
   const myWeighins = weighins.filter(w => w.team_id === myTeam?.id)
 
-  const getPoints = (f) => {
+  // Fixed points for fish_bingo
+  const getBingoPoints = (f) => {
     if (f.category_points && myTeam?.category && f.category_points[myTeam.category] != null)
       return f.category_points[myTeam.category]
     return f.points || 100
+  }
+
+  // Weight-based points for self-submit (points capped at max_weight_kg, but entry can be higher)
+  const calcSelfSubmitPoints = (f, weightKg) => {
+    const base = f.points || 100
+    const cap = f.max_weight_kg || 8
+    const bonus = Math.min(cap * 10, Math.floor((parseFloat(weightKg) || 0) * 10))
+    return base + bonus
   }
 
   const hasClaimed = (fishId, inst) => myWeighins.some(w => w.fish_id === fishId && w.instance === inst)
   const getWeighin = (fishId, inst) => myWeighins.find(w => w.fish_id === fishId && w.instance === inst)
 
   const totalPoints = myWeighins.reduce((s, w) => s + (w.points_awarded || 0), 0)
+  const totalWeightKg = myWeighins.reduce((s, w) => s + (w.weight_kg || 0), 0)
 
   const submitCatch = async (f, inst) => {
     const key = `${f.id}-${inst}`
-    const file = pending[key]
-    if (!file) { showToast('Please select a photo of your catch first', 'error'); return }
     setUploading(key)
     try {
-      const ext = file.name.split('.').pop().toLowerCase().replace('heic', 'jpg').replace('heif', 'jpg')
-      const path = `competitions/${comp.id}/self-catches/${myTeam.id}/${f.id}-${inst}-${Date.now()}.${ext}`
-      const { error: upErr } = await supabase.storage.from('snz-media').upload(path, file, { contentType: file.type })
-      if (upErr) throw upErr
-      const { data: { publicUrl } } = supabase.storage.from('snz-media').getPublicUrl(path)
-      const { error: dbErr } = await supabase.from('comp_weighins').insert({
-        competition_id: comp.id,
-        team_id: myTeam.id,
-        fish_id: f.id,
-        fish_name: f.species_name,
-        weight_kg: null,
-        points_awarded: getPoints(f),
-        instance: inst,
-        is_bulk: false,
-        catch_photo_url: publicUrl,
-      })
-      if (dbErr) throw dbErr
-      setPending(p => { const n = { ...p }; delete n[key]; return n })
-      showToast(`${f.species_name} submitted — +${getPoints(f)} pts`)
+      if (isSelfSubmit) {
+        const file = selfFiles[key]
+        const weightStr = selfWeights[key]
+        if (!file) { showToast('Please upload a photo showing the weight on scales', 'error'); setUploading(null); return }
+        const weightKg = parseFloat(weightStr)
+        if (isNaN(weightKg) || weightKg <= 0) { showToast('Please enter the weight in kg', 'error'); setUploading(null); return }
+        const pts = calcSelfSubmitPoints(f, weightKg)
+        const ext = file.name.split('.').pop().toLowerCase().replace('heic', 'jpg').replace('heif', 'jpg')
+        const path = `competitions/${comp.id}/self-catches/${myTeam.id}/${f.id}-${inst}-${Date.now()}.${ext}`
+        const { error: upErr } = await supabase.storage.from('snz-media').upload(path, file, { contentType: file.type })
+        if (upErr) throw upErr
+        const { data: { publicUrl } } = supabase.storage.from('snz-media').getPublicUrl(path)
+        const { error: dbErr } = await supabase.from('comp_weighins').insert({
+          competition_id: comp.id, team_id: myTeam.id,
+          fish_id: f.id, fish_name: f.species_name,
+          weight_kg: weightKg, points_awarded: pts,
+          instance: inst, is_bulk: false, catch_photo_url: publicUrl,
+        })
+        if (dbErr) throw dbErr
+        setSelfFiles(p => { const n = { ...p }; delete n[key]; return n })
+        setSelfWeights(p => { const n = { ...p }; delete n[key]; return n })
+        showToast(`${f.species_name} submitted — +${pts} pts`)
+      } else {
+        const file = pending[key]
+        if (!file) { showToast('Please select a photo of your catch first', 'error'); setUploading(null); return }
+        const pts = getBingoPoints(f)
+        const ext = file.name.split('.').pop().toLowerCase().replace('heic', 'jpg').replace('heif', 'jpg')
+        const path = `competitions/${comp.id}/self-catches/${myTeam.id}/${f.id}-${inst}-${Date.now()}.${ext}`
+        const { error: upErr } = await supabase.storage.from('snz-media').upload(path, file, { contentType: file.type })
+        if (upErr) throw upErr
+        const { data: { publicUrl } } = supabase.storage.from('snz-media').getPublicUrl(path)
+        const { error: dbErr } = await supabase.from('comp_weighins').insert({
+          competition_id: comp.id, team_id: myTeam.id,
+          fish_id: f.id, fish_name: f.species_name,
+          weight_kg: null, points_awarded: pts,
+          instance: inst, is_bulk: false, catch_photo_url: publicUrl,
+        })
+        if (dbErr) throw dbErr
+        setPending(p => { const n = { ...p }; delete n[key]; return n })
+        showToast(`${f.species_name} submitted — +${pts} pts`)
+      }
       onRefresh()
     } catch (err) {
       showToast(err.message, 'error')
@@ -457,7 +502,6 @@ function MyCatchesTab({ comp, fish, myTeam, member, weighins, onRefresh, navigat
     onRefresh()
   }
 
-  // Not signed in
   if (!member) {
     return (
       <div className="text-center py-16 bg-gray-50 rounded-2xl border border-gray-200">
@@ -471,7 +515,6 @@ function MyCatchesTab({ comp, fish, myTeam, member, weighins, onRefresh, navigat
     )
   }
 
-  // Signed in but not a competitor in this comp
   if (!myTeam) {
     return (
       <div className="text-center py-16 bg-gray-50 rounded-2xl border border-gray-200">
@@ -504,13 +547,22 @@ function MyCatchesTab({ comp, fish, myTeam, member, weighins, onRefresh, navigat
         </div>
         <div className="flex-1 min-w-0">
           <p className="font-black text-gray-900">{myTeam.team_name}</p>
-          <p className="text-xs text-gray-400">{myTeam.category} · {myWeighins.length} fish claimed</p>
+          <p className="text-xs text-gray-400">{myTeam.category} · {myWeighins.length} fish submitted</p>
+          {isSelfSubmit && myWeighins.length > 0 && (
+            <p className="text-xs text-gray-400">{totalWeightKg.toFixed(2)} kg total weight</p>
+          )}
         </div>
         <div className="text-right flex-shrink-0">
           <div className="text-3xl font-black" style={{ color: SNZ_BLUE }}>{totalPoints}</div>
           <div className="text-xs text-gray-400">points</div>
         </div>
       </div>
+
+      {isSelfSubmit && (
+        <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 text-sm text-blue-800">
+          Enter the weight and upload a photo of each fish on the scales. Weight over 8 kg is recorded but points are capped at 8 kg (80 bonus points).
+        </div>
+      )}
 
       {comp.status !== 'active' && (
         <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-800 font-semibold">
@@ -525,32 +577,56 @@ function MyCatchesTab({ comp, fish, myTeam, member, weighins, onRefresh, navigat
             const key = `${f.id}-${inst}`
             const claimed = hasClaimed(f.id, inst)
             const weighin = getWeighin(f.id, inst)
-            const pts = getPoints(f)
-            const fileSelected = !!pending[key]
             const isUploading = uploading === key
+
+            // Display points in header depends on mode
+            const headerPts = isSelfSubmit
+              ? (selfWeights[key] && parseFloat(selfWeights[key]) > 0
+                  ? `${calcSelfSubmitPoints(f, selfWeights[key])} pts`
+                  : `${f.points || 100} pts + weight bonus`)
+              : `${getBingoPoints(f)} pts`
 
             return (
               <div key={key} className={`bg-white border-2 rounded-2xl overflow-hidden shadow-sm transition ${claimed ? 'border-green-400' : 'border-gray-200'}`}>
                 <div className="flex items-center gap-3 p-3">
-                  {/* Fish photo */}
                   <div className="relative w-14 h-12 flex-shrink-0 rounded-xl overflow-hidden bg-gray-50 border border-gray-100">
                     {f.photo_url
                       ? <img src={f.photo_url} alt={f.species_name} className="w-full h-full object-cover" />
                       : <div className="w-full h-full flex items-center justify-center text-xl">🐟</div>}
                   </div>
-                  {/* Name + pts */}
                   <div className="flex-1 min-w-0">
                     <p className="font-bold text-gray-900 text-sm">{f.species_name}{f.allow_multiples ? ` #${inst}` : ''}</p>
-                    <p className="text-xs font-bold" style={{ color: SNZ_BLUE }}>{pts} pts</p>
+                    <p className="text-xs font-bold" style={{ color: SNZ_BLUE }}>{headerPts}</p>
                   </div>
-                  {/* Claimed badge or points */}
                   {claimed && (
-                    <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-green-100 text-green-700 flex-shrink-0">✓ Claimed</span>
+                    <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-green-100 text-green-700 flex-shrink-0">✓ Submitted</span>
                   )}
                 </div>
 
-                {/* Claimed: show photo + delete */}
-                {claimed && weighin && (
+                {/* Claimed — self-submit: show weight + photo + delete */}
+                {claimed && weighin && isSelfSubmit && (
+                  <div className="border-t border-green-100 bg-green-50 px-3 py-3 flex items-center gap-3">
+                    {weighin.catch_photo_url && (
+                      <a href={weighin.catch_photo_url} target="_blank" rel="noreferrer">
+                        <img src={weighin.catch_photo_url} alt="catch"
+                          className="w-16 h-12 object-cover rounded-lg border border-green-200 hover:brightness-90 transition" />
+                      </a>
+                    )}
+                    <div className="flex-1 text-xs text-green-700 space-y-0.5">
+                      {weighin.weight_kg != null && (
+                        <div className="font-bold">{weighin.weight_kg} kg · {weighin.points_awarded} pts</div>
+                      )}
+                      <div>Submitted {new Date(weighin.created_at || weighin.weighed_at).toLocaleDateString('en-NZ', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</div>
+                    </div>
+                    {comp.status === 'active' && (
+                      <button onClick={() => deleteCatch(weighin, f.species_name)}
+                        className="text-xs text-red-400 hover:text-red-600 font-bold flex-shrink-0">Remove</button>
+                    )}
+                  </div>
+                )}
+
+                {/* Claimed — fish_bingo: show photo + delete */}
+                {claimed && weighin && !isSelfSubmit && (
                   <div className="border-t border-green-100 bg-green-50 px-3 py-3 flex items-center gap-3">
                     {weighin.catch_photo_url && (
                       <a href={weighin.catch_photo_url} target="_blank" rel="noreferrer">
@@ -568,31 +644,68 @@ function MyCatchesTab({ comp, fish, myTeam, member, weighins, onRefresh, navigat
                   </div>
                 )}
 
-                {/* Not claimed + comp active: upload + submit */}
-                {!claimed && comp.status === 'active' && (
-                  <div className="border-t border-gray-100 bg-gray-50 px-3 py-3">
-                    <p className="text-xs text-gray-500 mb-2">Upload a photo of your catch to submit</p>
+                {/* Not claimed, comp active — self-submit: weight + photo */}
+                {!claimed && comp.status === 'active' && isSelfSubmit && (
+                  <div className="border-t border-gray-100 bg-gray-50 px-3 py-3 space-y-2">
+                    <p className="text-xs text-gray-500">Enter weight and upload a photo showing weight on scales</p>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number" step="0.01" min="0"
+                        value={selfWeights[key] ?? ''}
+                        onChange={e => setSelfWeights(w => ({ ...w, [key]: e.target.value }))}
+                        placeholder="0.00"
+                        className="w-20 border border-gray-300 rounded-lg px-2 py-1.5 text-sm text-center focus:outline-none focus:ring-2 focus:ring-blue-300"
+                      />
+                      <span className="text-xs text-gray-500">kg</span>
+                      {parseFloat(selfWeights[key]) > 0 && (
+                        <span className="text-xs font-black" style={{ color: SNZ_BLUE }}>
+                          = {calcSelfSubmitPoints(f, selfWeights[key])} pts
+                        </span>
+                      )}
+                      {parseFloat(selfWeights[key]) > (f.max_weight_kg || 8) && (
+                        <span className="text-xs text-amber-600 font-semibold">
+                          (capped at {f.max_weight_kg || 8} kg for points)
+                        </span>
+                      )}
+                    </div>
                     <div className="flex items-center gap-2 flex-wrap">
-                      <label className={`cursor-pointer flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-lg border-2 transition ${fileSelected ? 'border-blue-400 bg-blue-50 text-blue-700' : 'border-gray-300 text-gray-600 hover:border-gray-400'}`}>
-                        📷 {fileSelected ? pending[key].name.slice(0, 20) + (pending[key].name.length > 20 ? '…' : '') : 'Choose photo'}
+                      <label className={`cursor-pointer flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-lg border-2 transition ${selfFiles[key] ? 'border-blue-400 bg-blue-50 text-blue-700' : 'border-gray-300 text-gray-600 hover:border-gray-400'}`}>
+                        📷 {selfFiles[key] ? selfFiles[key].name.slice(0, 18) + (selfFiles[key].name.length > 18 ? '…' : '') : 'Photo on scales'}
                         <input
-                          type="file"
-                          accept="image/*"
-                          capture="environment"
-                          className="hidden"
-                          ref={el => { fileRefs.current[key] = el }}
-                          onChange={e => {
-                            const file = e.target.files[0]
-                            if (file) setPending(p => ({ ...p, [key]: file }))
-                          }}
+                          type="file" accept="image/*" capture="environment" className="hidden"
+                          onChange={e => { const file = e.target.files[0]; if (file) setSelfFiles(p => ({ ...p, [key]: file })) }}
                         />
                       </label>
                       <button
                         onClick={() => submitCatch(f, inst)}
-                        disabled={isUploading || !fileSelected}
+                        disabled={isUploading || !selfFiles[key] || !(parseFloat(selfWeights[key]) > 0)}
                         className="flex items-center gap-1.5 text-xs font-bold px-4 py-2 rounded-lg text-white disabled:opacity-40 transition"
                         style={{ background: SNZ_BLUE }}>
-                        {isUploading ? 'Submitting…' : `Submit +${pts}pts`}
+                        {isUploading ? 'Submitting…' : 'Submit'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Not claimed, comp active — fish_bingo: photo only */}
+                {!claimed && comp.status === 'active' && !isSelfSubmit && (
+                  <div className="border-t border-gray-100 bg-gray-50 px-3 py-3">
+                    <p className="text-xs text-gray-500 mb-2">Upload a photo of your catch to submit</p>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <label className={`cursor-pointer flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-lg border-2 transition ${pending[key] ? 'border-blue-400 bg-blue-50 text-blue-700' : 'border-gray-300 text-gray-600 hover:border-gray-400'}`}>
+                        📷 {pending[key] ? pending[key].name.slice(0, 20) + (pending[key].name.length > 20 ? '…' : '') : 'Choose photo'}
+                        <input
+                          type="file" accept="image/*" capture="environment" className="hidden"
+                          ref={el => { fileRefs.current[key] = el }}
+                          onChange={e => { const file = e.target.files[0]; if (file) setPending(p => ({ ...p, [key]: file })) }}
+                        />
+                      </label>
+                      <button
+                        onClick={() => submitCatch(f, inst)}
+                        disabled={isUploading || !pending[key]}
+                        className="flex items-center gap-1.5 text-xs font-bold px-4 py-2 rounded-lg text-white disabled:opacity-40 transition"
+                        style={{ background: SNZ_BLUE }}>
+                        {isUploading ? 'Submitting…' : `Submit +${getBingoPoints(f)}pts`}
                       </button>
                     </div>
                   </div>

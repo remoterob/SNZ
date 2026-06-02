@@ -758,7 +758,12 @@ function SetupTab({ comp, setComp, onSave, showToast }) {
           <button type="button" onClick={() => set('scoring_mode')('standard')}
             className={`flex-1 p-4 rounded-xl border-2 text-left text-sm font-semibold transition ${form.scoring_mode==='standard'?'border-blue-500 bg-blue-50 text-blue-700':'border-gray-200 text-gray-600 hover:border-gray-300'}`}>
             <span className="block font-bold mb-0.5">⚖ Standard</span>
-            <span className="text-xs font-normal">100pts base + 10pts/kg up to 8kg per species</span>
+            <span className="text-xs font-normal">100pts base + 10pts/kg up to 8kg per species. Admin enters weigh-in.</span>
+          </button>
+          <button type="button" onClick={() => set('scoring_mode')('standard_self_submit')}
+            className={`flex-1 p-4 rounded-xl border-2 text-left text-sm font-semibold transition ${form.scoring_mode==='standard_self_submit'?'border-blue-500 bg-blue-50 text-blue-700':'border-gray-200 text-gray-600 hover:border-gray-300'}`}>
+            <span className="block font-bold mb-0.5">⚖ Standard – Self Submitting</span>
+            <span className="text-xs font-normal">Same as Standard but teams submit their own fish with weight and a photo on scales.</span>
           </button>
           <button type="button" onClick={() => set('scoring_mode')('fish_bingo')}
             className={`flex-1 p-4 rounded-xl border-2 text-left text-sm font-semibold transition ${form.scoring_mode==='fish_bingo'?'border-blue-500 bg-blue-50 text-blue-700':'border-gray-200 text-gray-600 hover:border-gray-300'}`}>
@@ -1711,7 +1716,7 @@ function WeighInTab({ comp, teams, members, fish, weighins: initialWeighins, onR
     showToast('Weigh-in data exported')
   }
 
-  const isStandard = comp.scoring_mode === 'standard'
+  const isStandard = comp.scoring_mode === 'standard' || comp.scoring_mode === 'standard_self_submit'
 
   // For display: which fish are ticked in current state
   const tickedKeys = new Set(Object.keys(weights))
@@ -1723,9 +1728,14 @@ function WeighInTab({ comp, teams, members, fish, weighins: initialWeighins, onR
 
   return (
     <div>
+      {comp.scoring_mode === 'standard_self_submit' && (
+        <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 mb-4 text-sm text-blue-800">
+          <strong>Self-Submitting Mode:</strong> Competitors submit their own catches with weight and a photo on scales via the competition page. Use this tab to view, correct, or manually add entries.
+        </div>
+      )}
       <div className="flex items-start justify-between gap-3 mb-4 flex-wrap">
         <p className="text-sm text-gray-500 flex-1 min-w-0">
-          {isStandard ? 'Tick species claimed, enter bulk weight below. Separately-weighed fish (e.g. Kingfish) get their own weight entry.' : 'Tick each species claimed. Points are fixed.'}
+          {isStandard ? 'Tick species claimed, enter weight where required. Separately-weighed fish get their own weight entry.' : 'Tick each species claimed. Points are fixed.'}
         </p>
         <button onClick={exportWeighInCSV}
           className="px-4 py-2 rounded-lg text-sm font-bold border border-gray-300 text-gray-700 hover:bg-gray-50 transition flex-shrink-0">
