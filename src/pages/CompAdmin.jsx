@@ -9,7 +9,7 @@ const CATEGORIES_ALL = ['Open','Mens','Womens','Mixed','Junior']
 
 // ── Scoring ───────────────────────────────────────────────────────────────────
 function calcPoints(fish, weightKg, mode, teamCategory) {
-  if (mode === 'fish_bingo') {
+  if (mode === 'fish_bingo' || mode === 'fish_bingo_individual') {
     if (fish.category_points && teamCategory && fish.category_points[teamCategory] != null)
       return fish.category_points[teamCategory]
     return fish.points || 100
@@ -767,8 +767,13 @@ function SetupTab({ comp, setComp, onSave, showToast }) {
           </button>
           <button type="button" onClick={() => set('scoring_mode')('fish_bingo')}
             className={`flex-1 p-4 rounded-xl border-2 text-left text-sm font-semibold transition ${form.scoring_mode==='fish_bingo'?'border-blue-500 bg-blue-50 text-blue-700':'border-gray-200 text-gray-600 hover:border-gray-300'}`}>
-            <span className="block font-bold mb-0.5">🎯 Fish Bingo</span>
-            <span className="text-xs font-normal">Fixed points per species. Set a single score or different scores per category.</span>
+            <span className="block font-bold mb-0.5">🎯 Fish Bingo – Pairs</span>
+            <span className="text-xs font-normal">Fixed points per species, teams of two. Competitors self-submit catches via the competition page.</span>
+          </button>
+          <button type="button" onClick={() => set('scoring_mode')('fish_bingo_individual')}
+            className={`flex-1 p-4 rounded-xl border-2 text-left text-sm font-semibold transition ${form.scoring_mode==='fish_bingo_individual'?'border-blue-500 bg-blue-50 text-blue-700':'border-gray-200 text-gray-600 hover:border-gray-300'}`}>
+            <span className="block font-bold mb-0.5">🎯 Fish Bingo – Individual</span>
+            <span className="text-xs font-normal">Fixed points per species, solo entry. Competitors self-submit catches via the competition page.</span>
           </button>
         </div>
       </div>
@@ -1080,7 +1085,7 @@ function FishPointEditor({ fish, comp, onSaved }) {
 }
 
 function FishTab({ fish, comp, onOpenPicker, onFishUpdated }) {
-  const isFishBingo = comp.scoring_mode === 'fish_bingo'
+  const isFishBingo = comp.scoring_mode === 'fish_bingo' || comp.scoring_mode === 'fish_bingo_individual'
   return (
     <div>
       <div className="flex items-center justify-between mb-4">

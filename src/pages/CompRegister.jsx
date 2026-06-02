@@ -124,14 +124,13 @@ function MemberBadge() {
 
 
 // ── Merch Selection Component ─────────────────────────────────────────────────
-function MerchSection({ comp, merch, setMerch, isMerchLate }) {
+function MerchSection({ comp, merch, setMerch, isMerchLate, isIndividual }) {
   const types = comp.merch_types || []
   const sizes = comp.merch_sizes || []
   const prices = comp.merch_prices || {}
-  const divers = [
-    { key: '1', label: 'Diver 1' },
-    { key: '2', label: 'Diver 2' },
-  ]
+  const divers = isIndividual
+    ? [{ key: '1', label: 'Your merch' }]
+    : [{ key: '1', label: 'Diver 1' }, { key: '2', label: 'Diver 2' }]
 
   const setDiverMerch = (diverKey, field, value) => {
     setMerch(m => ({
@@ -295,6 +294,7 @@ export default function CompRegister() {
   const [rulesAccepted, setRulesAccepted] = useState(false)
   const [merch, setMerch] = useState({}) // key: '1'|'2' → { type, size }
   const isMerchLate = comp?.merch_cutoff ? new Date() > new Date(comp.merch_cutoff) : false
+  const isIndividual = comp?.scoring_mode === 'fish_bingo_individual'
   const [waiverAccepted, setWaiverAccepted] = useState(false)
   const [showRules, setShowRules] = useState(false)
   const [pendingPhoto, setPendingPhoto] = useState(null)
@@ -380,31 +380,32 @@ export default function CompRegister() {
 
   const validate = () => {
     const e = []
-    // Merch validation — size required if garment selected
-    if (merch['1']?.type && !merch['1']?.size) e.push('Please select a size for Diver 1 merchandise')
-    if (merch['2']?.type && !merch['2']?.size) e.push('Please select a size for Diver 2 merchandise')
+    if (merch['1']?.type && !merch['1']?.size) e.push('Please select a size for your merchandise')
+    if (!isIndividual && merch['2']?.type && !merch['2']?.size) e.push('Please select a size for Diver 2 merchandise')
     if (!rulesAccepted) e.push('You must read and accept the SNZ competition rules')
-    if (!waiverAccepted) e.push('Both divers must accept the assumption of risk declaration')
-    if (!teamName.trim()) e.push('Team name is required')
-    if (p2.email.trim() && !diver2IsExistingMember) e.push('Your partner must be an active SNZ member before you can register as a team')
-    if (!p1.name.trim()) e.push('Diver 1 name is required')
-    if (!p1.email.trim()) e.push('Diver 1 email is required')
-    if (!p1.phone.trim()) e.push('Diver 1 phone is required')
-    if (!p1.gender) e.push('Diver 1 gender is required')
-    if (!p1.dob) e.push('Diver 1 date of birth is required')
-    if (!p1.emergency_contact.trim()) e.push('Diver 1 emergency contact is required')
-    if (!p1.emergency_phone.trim()) e.push('Diver 1 emergency phone is required')
-    if (!p1.fit_to_dive) e.push('Diver 1 must confirm fitness to dive')
-    if (!p1.skill_level) e.push('Diver 1 skill level is required')
-    if (!p2.name.trim()) e.push('Diver 2 name is required')
-    if (!p2.email.trim()) e.push('Diver 2 email is required')
-    if (!p2.phone.trim()) e.push('Diver 2 phone is required')
-    if (!p2.gender) e.push('Diver 2 gender is required')
-    if (!p2.dob) e.push('Diver 2 date of birth is required')
-    if (!p2.emergency_contact.trim()) e.push('Diver 2 emergency contact is required')
-    if (!p2.emergency_phone.trim()) e.push('Diver 2 emergency phone is required')
-    if (!p2.fit_to_dive) e.push('Diver 2 must confirm fitness to dive')
-    if (!p2.skill_level) e.push('Diver 2 skill level is required')
+    if (!waiverAccepted) e.push('You must accept the assumption of risk declaration')
+    if (!teamName.trim()) e.push(isIndividual ? 'Display name is required' : 'Team name is required')
+    if (!isIndividual && p2.email.trim() && !diver2IsExistingMember) e.push('Your partner must be an active SNZ member before you can register as a team')
+    if (!p1.name.trim()) e.push('Your name is required')
+    if (!p1.email.trim()) e.push('Your email is required')
+    if (!p1.phone.trim()) e.push('Your phone number is required')
+    if (!p1.gender) e.push('Gender is required')
+    if (!p1.dob) e.push('Date of birth is required')
+    if (!p1.emergency_contact.trim()) e.push('Emergency contact is required')
+    if (!p1.emergency_phone.trim()) e.push('Emergency contact phone is required')
+    if (!p1.fit_to_dive) e.push('You must confirm fitness to dive')
+    if (!p1.skill_level) e.push('Skill level is required')
+    if (!isIndividual) {
+      if (!p2.name.trim()) e.push('Diver 2 name is required')
+      if (!p2.email.trim()) e.push('Diver 2 email is required')
+      if (!p2.phone.trim()) e.push('Diver 2 phone is required')
+      if (!p2.gender) e.push('Diver 2 gender is required')
+      if (!p2.dob) e.push('Diver 2 date of birth is required')
+      if (!p2.emergency_contact.trim()) e.push('Diver 2 emergency contact is required')
+      if (!p2.emergency_phone.trim()) e.push('Diver 2 emergency phone is required')
+      if (!p2.fit_to_dive) e.push('Diver 2 must confirm fitness to dive')
+      if (!p2.skill_level) e.push('Diver 2 skill level is required')
+    }
     setErrors(e)
     return e.length === 0
   }
@@ -446,7 +447,7 @@ export default function CompRegister() {
         { ...p1, team_id: team.id, competition_id: parseInt(id),
           merch_type: merch['1']?.type || null, merch_size: merch['1']?.size || null,
           merch_late: !!(merch['1']?.type && isMerchLate) },
-        ...(p2.name ? [{ ...p2, team_id: team.id, competition_id: parseInt(id),
+        ...(!isIndividual && p2.name ? [{ ...p2, team_id: team.id, competition_id: parseInt(id),
           merch_type: merch['2']?.type || null, merch_size: merch['2']?.size || null,
           merch_late: !!(merch['2']?.type && isMerchLate) }] : [])
       ]
@@ -720,10 +721,10 @@ export default function CompRegister() {
           <h2 className="text-sm font-black tracking-widest uppercase mb-4 pb-3 border-b border-gray-100" style={{ color: SNZ_BLUE }}>Team Details</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="sm:col-span-2">
-              <label className="block text-xs font-semibold text-gray-600 mb-1">Team name <span className="text-red-500">*</span></label>
+              <label className="block text-xs font-semibold text-gray-600 mb-1">{isIndividual ? 'Display name' : 'Team name'} <span className="text-red-500">*</span></label>
               <input value={teamName} onChange={e => setTeamName(e.target.value)}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
-                placeholder="e.g. The Reef Runners" required />
+                placeholder={isIndividual ? 'e.g. John Smith' : 'e.g. The Reef Runners'} required />
             </div>
             <div>
               <label className="block text-xs font-semibold text-gray-600 mb-1">Category <span className="text-red-500">*</span></label>
@@ -749,8 +750,8 @@ export default function CompRegister() {
           </div>
         </div>}
 
-        {member && <MemberForm index={1} label="Diver 1 (You)" data={p1} onChange={setP1} />}
-        {member && (
+        {member && <MemberForm index={1} label={isIndividual ? 'Your Details' : 'Diver 1 (You)'} data={p1} onChange={setP1} />}
+        {member && !isIndividual && (
           <div className="bg-white border border-gray-200 rounded-xl p-5">
             <h3 className="text-sm font-black tracking-widest uppercase mb-3" style={{ color: SNZ_BLUE }}>Diver 2 — Partner</h3>
             <p className="text-xs text-gray-400 mb-3">Both divers must be active SNZ members to register as a team.</p>
@@ -812,7 +813,7 @@ export default function CompRegister() {
 
         {/* Merch selection */}
         {member && comp?.merch_enabled && (comp.merch_types||[]).length > 0 && (
-          <MerchSection comp={comp} merch={merch} setMerch={setMerch} isMerchLate={isMerchLate} />
+          <MerchSection comp={comp} merch={merch} setMerch={setMerch} isMerchLate={isMerchLate} isIndividual={isIndividual} />
         )}
 
         {member && <>{/* SNZ Rules acceptance */}
@@ -890,7 +891,10 @@ export default function CompRegister() {
             <input type="checkbox" checked={waiverAccepted} onChange={e => setWaiverAccepted(e.target.checked)}
               className="mt-0.5 w-5 h-5 flex-shrink-0" />
             <span className="text-sm font-bold text-red-900">
-              Both {p1.name || 'Diver 1'}{p2.name ? ` and ${p2.name}` : ' and Diver 2'} have read, understood, and accept this assumption of risk and waiver of liability. <span className="text-red-600">*</span>
+              {isIndividual
+                ? <>{p1.name || 'I'} have read, understood, and accept this assumption of risk and waiver of liability. <span className="text-red-600">*</span></>
+                : <>Both {p1.name || 'Diver 1'}{p2.name ? ` and ${p2.name}` : ' and Diver 2'} have read, understood, and accept this assumption of risk and waiver of liability. <span className="text-red-600">*</span></>
+              }
             </span>
           </label>
         </div>

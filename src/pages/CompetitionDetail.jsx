@@ -41,7 +41,7 @@ const CATEGORY_COLORS = {
 }
 
 function calcPoints(fish, weightKg, mode, teamCategory) {
-  if (mode === 'fish_bingo') {
+  if (mode === 'fish_bingo' || mode === 'fish_bingo_individual') {
     if (fish.category_points && teamCategory && fish.category_points[teamCategory] != null)
       return fish.category_points[teamCategory]
     return fish.points || 100
@@ -123,7 +123,7 @@ export default function CompetitionDetail() {
     return { ...team, total, fishCount }
   }).sort((a, b) => b.total - a.total)
 
-  const isFishBingo = comp?.scoring_mode === 'fish_bingo'
+  const isFishBingo = comp?.scoring_mode === 'fish_bingo' || comp?.scoring_mode === 'fish_bingo_individual'
   const isSelfSubmit = comp?.scoring_mode === 'standard_self_submit'
 
   const tabs = [
@@ -178,7 +178,7 @@ export default function CompetitionDetail() {
           </div>
           <div className="flex gap-2 mt-3 flex-wrap">
             <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
-              {comp.scoring_mode === 'standard' ? '⚖ Standard scoring' : comp.scoring_mode === 'standard_self_submit' ? '⚖ Standard · Self-Submit' : comp.scoring_mode === 'fish_bingo' ? '🎯 Fish Bingo' : '🎯 Fish bingo'}
+              {comp.scoring_mode === 'standard' ? '⚖ Standard scoring' : comp.scoring_mode === 'standard_self_submit' ? '⚖ Standard · Self-Submit' : comp.scoring_mode === 'fish_bingo' ? '🎯 Fish Bingo – Pairs' : comp.scoring_mode === 'fish_bingo_individual' ? '🎯 Fish Bingo – Individual' : '🎯 Fish Bingo'}
             </span>
             {(comp.categories || []).map(cat => (
               <span key={cat} className={`text-xs font-bold px-2 py-0.5 rounded-full ${CATEGORY_COLORS[cat] || CATEGORY_COLORS['Open']}`}>{cat}</span>
@@ -250,6 +250,13 @@ export default function CompetitionDetail() {
                   {(comp.categories || []).length > 1 && (
                     <p className="mt-1">Different divisions may have different point values per species.</p>
                   )}
+                  <p>Submit your catches with a photo via the <strong>My Catches</strong> tab.</p>
+                </div>
+              ) : comp.scoring_mode === 'fish_bingo_individual' ? (
+                <div className="text-sm text-gray-600 space-y-1">
+                  <p>Points are fixed per species — see the fish list tab for individual values.</p>
+                  <p>Solo entry — one competitor per registration.</p>
+                  <p>Submit your catches with a photo via the <strong>My Catches</strong> tab.</p>
                 </div>
               ) : (
                 <div className="text-sm text-gray-600">
@@ -279,7 +286,7 @@ export default function CompetitionDetail() {
                     <p className="font-bold text-gray-900 text-sm">{f.species_name}</p>
                     {(comp.scoring_mode === 'standard' || comp.scoring_mode === 'standard_self_submit') ? (
                       <p className="text-xs text-gray-400 mt-0.5">{f.points || 100} pts + weight bonus</p>
-                    ) : comp.scoring_mode === 'fish_bingo' && f.category_points && Object.keys(f.category_points).length > 0 ? (
+                    ) : (comp.scoring_mode === 'fish_bingo' || comp.scoring_mode === 'fish_bingo_individual') && f.category_points && Object.keys(f.category_points).length > 0 ? (
                       <div className="mt-0.5 space-y-0.5">
                         {Object.entries(f.category_points).map(([cat, pts]) => (
                           <p key={cat} className="text-xs text-gray-500"><span className="font-semibold">{cat}:</span> {pts} pts</p>
