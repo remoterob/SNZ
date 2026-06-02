@@ -1621,7 +1621,8 @@ function WeighInTab({ comp, teams, members, fish, weighins: initialWeighins, onR
     try {
       const rows = []
 
-      if (comp.scoring_mode === 'standard') {
+      if (comp.scoring_mode === 'standard' || comp.scoring_mode === 'standard_self_submit') {
+        const allWeighed = comp.scoring_mode === 'standard_self_submit'
         // Insert newly ticked species (not already saved)
         for (const f of fish) {
           const instances = f.allow_multiples ? f.max_count : 1
@@ -1630,7 +1631,7 @@ function WeighInTab({ comp, teams, members, fish, weighins: initialWeighins, onR
             if (!(key in weights)) continue  // not ticked this session
             const alreadySaved = teamWeighins.find(w => w.fish_id === f.id && w.instance === inst && !w.is_bulk)
             if (alreadySaved) continue  // already in DB, skip
-            if (f.weigh_separately) {
+            if (f.weigh_separately || allWeighed) {
               const kg = parseFloat(weights[key]) || 0
               rows.push({
                 competition_id: comp.id, team_id: selectedTeam.id,
@@ -1737,6 +1738,7 @@ function WeighInTab({ comp, teams, members, fish, weighins: initialWeighins, onR
   }
 
   const isStandard = comp.scoring_mode === 'standard' || comp.scoring_mode === 'standard_self_submit'
+  const isSelfSubmitMode = comp.scoring_mode === 'standard_self_submit'
 
   // For display: which fish are ticked in current state
   const tickedKeys = new Set(Object.keys(weights))
@@ -1755,7 +1757,7 @@ function WeighInTab({ comp, teams, members, fish, weighins: initialWeighins, onR
       )}
       <div className="flex items-start justify-between gap-3 mb-4 flex-wrap">
         <p className="text-sm text-gray-500 flex-1 min-w-0">
-          {isStandard ? 'Tick species claimed, enter weight where required. Separately-weighed fish get their own weight entry.' : 'Tick each species claimed. Points are fixed.'}
+          {isSelfSubmitMode ? 'Tick each species and enter weight — every fish requires a weight entry. Teams can also submit via the competition page.' : isStandard ? 'Tick species claimed, enter bulk weight below. Separately-weighed fish get their own weight entry.' : 'Tick each species claimed. Points are fixed.'}
         </p>
         <button onClick={exportWeighInCSV}
           className="px-4 py-2 rounded-lg text-sm font-bold border border-gray-300 text-gray-700 hover:bg-gray-50 transition flex-shrink-0">
@@ -1830,7 +1832,8 @@ function WeighInTab({ comp, teams, members, fish, weighins: initialWeighins, onR
                   const key = `${f.id}-${inst}`
                   const savedEntry = teamWeighins.find(w => w.fish_id === f.id && w.instance === inst && !w.is_bulk)
                   const isTicked = !!savedEntry || key in weights
-                  const isSepWeigh = isStandard && f.weigh_separately
+                  // In self-submit mode every fish needs its own weight entry
+                  const isSepWeigh = isStandard && (f.weigh_separately || isSelfSubmitMode)
 
                   return (
                     <div key={key} className={`flex items-center gap-3 p-3 rounded-xl border-2 transition ${
@@ -1858,7 +1861,7 @@ function WeighInTab({ comp, teams, members, fish, weighins: initialWeighins, onR
                         <span className="font-semibold text-gray-900 text-sm">
                           {f.species_name}{f.allow_multiples ? ` #${inst}` : ''}
                         </span>
-                        {isSepWeigh && <span className="ml-2 text-xs font-bold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded">Weigh separately</span>}
+                        {isSepWeigh && !isSelfSubmitMode && <span className="ml-2 text-xs font-bold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded">Weigh separately</span>}
                         {!isStandard && isTicked && (
                           <span className="ml-2 text-xs font-bold" style={{ color: SNZ_BLUE }}>
                             {calcPoints(f, null, comp.scoring_mode, selectedTeam?.category)} pts
@@ -1900,8 +1903,8 @@ function WeighInTab({ comp, teams, members, fish, weighins: initialWeighins, onR
               })}
             </div>
 
-            {/* Bulk weight entry (standard mode only) */}
-            {isStandard && (
+            {/* Bulk weight entry (standard mode only — not used in self-submit) */}
+            {isStandard && !isSelfSubmitMode && (
               <div className={`rounded-xl border-2 p-4 mb-5 ${savedBulk ? 'border-blue-300 bg-blue-50' : 'border-dashed border-gray-300 bg-gray-50'}`}>
                 <p className="text-sm font-black text-gray-900 mb-1">Total bulk weight of catch</p>
                 <p className="text-xs text-gray-500 mb-3">Combined weight of all fish in the bin. Any fish over 8 kg must be weighed separately — only 8 kg will be counted for that fish. Fish under 8 kg go in the bin as normal.</p>
@@ -1942,8 +1945,9 @@ function WeighInTab({ comp, teams, members, fish, weighins: initialWeighins, onR
               }, 0)
               if (tickedCount === 0 && !savedBulk && !weights['__bulk__']) return null
 
+              // In self-submit mode all fish are individually weighed; in standard only weigh_separately ones
               const pendingSepPts = fish.reduce((n, f) => {
-                if (!f.weigh_separately) return n
+                if (!isSelfSubmitMode && !f.weigh_separately) return n
                 const instances = f.allow_multiples ? f.max_count : 1
                 return n + Array.from({length:instances},(_,i)=>i+1).reduce((s, inst) => {
                   const key = `${f.id}-${inst}`
@@ -1952,7 +1956,9 @@ function WeighInTab({ comp, teams, members, fish, weighins: initialWeighins, onR
                 }, 0)
               }, 0)
               const pendingBulk = calcBulkBonus(weights['__bulk__'] || 0)
-              const pendingSpecies = fish.reduce((n, f) => {
+              // Count non-weighed species (standard only — self-submit has no flat-rate fish)
+              const pendingNonWeighedSpecies = isSelfSubmitMode ? 0 : fish.reduce((n, f) => {
+                if (f.weigh_separately) return n
                 const instances = f.allow_multiples ? f.max_count : 1
                 return n + Array.from({length:instances},(_,i)=>i+1).filter(inst => `${f.id}-${inst}` in weights).length
               }, 0)
@@ -1962,17 +1968,16 @@ function WeighInTab({ comp, teams, members, fish, weighins: initialWeighins, onR
                 return sum + ticked * calcPoints(f, null, comp.scoring_mode, selectedTeam?.category)
               }, 0)
 
-              const previewTotal = savedTotal + (isStandard
-                ? pendingSpecies * 100 + pendingSepPts + pendingBulk
-                : pendingBingoPoints)
-              const hasPending = pendingSpecies > 0 || (weights['__bulk__'] && parseFloat(weights['__bulk__']) > 0)
+              const pendingStdPts = pendingNonWeighedSpecies * 100 + pendingSepPts + pendingBulk
+              const previewTotal = savedTotal + (isStandard ? pendingStdPts : pendingBingoPoints)
+              const hasPending = pendingStdPts > 0 || pendingBingoPoints > 0
 
               return (
                 <div className="bg-white border border-gray-200 rounded-xl p-4 mb-4">
                   <div className="flex items-center justify-between">
                     <div className="text-sm text-gray-600 space-y-0.5">
                       {savedTotal > 0 && <div className="text-green-600 font-semibold">✓ Saved: {savedTotal} pts</div>}
-                      {hasPending && <div className="text-amber-600 font-semibold">Pending: +{isStandard ? pendingSpecies * 100 + pendingSepPts + pendingBulk : pendingBingoPoints} pts</div>}
+                      {hasPending && <div className="text-amber-600 font-semibold">Pending: +{isStandard ? pendingStdPts : pendingBingoPoints} pts</div>}
                     </div>
                     <div className="text-3xl font-black" style={{ color: SNZ_BLUE }}>{previewTotal} pts</div>
                   </div>
