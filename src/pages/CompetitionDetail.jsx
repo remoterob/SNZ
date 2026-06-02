@@ -670,7 +670,7 @@ function MyCatchesTab({ comp, fish, myTeam, member, weighins, onRefresh, navigat
                       <label className={`cursor-pointer flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-lg border-2 transition ${selfFiles[key] ? 'border-blue-400 bg-blue-50 text-blue-700' : 'border-gray-300 text-gray-600 hover:border-gray-400'}`}>
                         📷 {selfFiles[key] ? selfFiles[key].name.slice(0, 18) + (selfFiles[key].name.length > 18 ? '…' : '') : 'Photo on scales'}
                         <input
-                          type="file" accept="image/*" capture="environment" className="hidden"
+                          type="file" accept="image/*" className="hidden"
                           onChange={e => { const file = e.target.files[0]; if (file) setSelfFiles(p => ({ ...p, [key]: file })) }}
                         />
                       </label>
