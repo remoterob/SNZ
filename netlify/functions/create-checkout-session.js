@@ -10,7 +10,7 @@ exports.handler = async (event) => {
 
   try {
     const body = JSON.parse(event.body)
-    const { type, memberId, teamId, competitionId, competitionName, amountCents, memberEmail, memberName } = body
+    const { type, memberId, teamId, competitionId, competitionName, amountCents, memberEmail, memberName, lineItems } = body
 
     if (!type || !amountCents || amountCents <= 0) {
       return { statusCode: 400, body: JSON.stringify({ error: 'Invalid payment parameters' }) }
@@ -61,6 +61,25 @@ exports.handler = async (event) => {
         ? `${origin}/nationals/register?cancelled=1`
         : `${origin}/competitions/${competitionId}/register?payment=cancelled`
 
+    // Build line items — use provided array (entry + merch) or fall back to single item
+    const stripeLineItems = lineItems && lineItems.length > 1
+      ? lineItems.map(item => ({
+          price_data: {
+            currency: 'nzd',
+            product_data: { name: item.name, description: item.description || '' },
+            unit_amount: item.amountCents,
+          },
+          quantity: 1,
+        }))
+      : [{
+          price_data: {
+            currency: 'nzd',
+            product_data: { name: lineItemName, description: lineItemDesc },
+            unit_amount: amountCents,
+          },
+          quantity: 1,
+        }]
+
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       payment_intent_data: {
@@ -68,18 +87,7 @@ exports.handler = async (event) => {
         statement_descriptor: statementDescriptor,
         metadata,
       },
-      line_items: [{
-        price_data: {
-          currency: 'nzd',
-          product_data: {
-            name: lineItemName,
-            description: lineItemDesc,
-            metadata,
-          },
-          unit_amount: amountCents,
-        },
-        quantity: 1,
-      }],
+      line_items: stripeLineItems,
       mode: 'payment',
       metadata,
       customer_email: memberEmail || undefined,

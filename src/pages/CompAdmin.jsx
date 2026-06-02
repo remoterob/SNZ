@@ -916,24 +916,44 @@ function SetupTab({ comp, setComp, onSave, showToast }) {
 
         {form.merch_enabled && (
           <div className="space-y-4 pt-3 border-t border-gray-100">
-            {/* Merch types */}
+            {/* Merch types + prices */}
             <div>
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Garment Types</label>
-              <div className="flex gap-3 flex-wrap">
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Garment Types &amp; Prices</label>
+              <div className="space-y-2">
                 {['jacket','tshirt'].map(type => {
                   const selected = (form.merch_types || []).includes(type)
+                  const priceCents = (form.merch_prices || {})[type] || 0
+                  const label = type === 'tshirt' ? 'T-Shirt' : 'Jacket'
                   return (
-                    <label key={type} className={`flex items-center gap-2 cursor-pointer px-4 py-2 rounded-xl border-2 transition ${selected ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'}`}>
-                      <input type="checkbox" className="hidden" checked={selected}
-                        onChange={() => {
-                          const cur = form.merch_types || []
-                          set('merch_types')(selected ? cur.filter(t => t !== type) : [...cur, type])
-                        }} />
-                      <span className="text-sm font-bold capitalize text-gray-700">{type === 'tshirt' ? 'T-Shirt' : 'Jacket'}</span>
-                    </label>
+                    <div key={type} className={`flex items-center gap-3 px-4 py-3 rounded-xl border-2 transition ${selected ? 'border-blue-500 bg-blue-50' : 'border-gray-200'}`}>
+                      <label className="flex items-center gap-2 cursor-pointer flex-1">
+                        <input type="checkbox" checked={selected} className="w-4 h-4"
+                          onChange={() => {
+                            const cur = form.merch_types || []
+                            set('merch_types')(selected ? cur.filter(t => t !== type) : [...cur, type])
+                          }} />
+                        <span className={`text-sm font-bold ${selected ? 'text-blue-700' : 'text-gray-500'}`}>{label}</span>
+                      </label>
+                      {selected && (
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          <span className="text-gray-400 text-sm font-bold">$</span>
+                          <input type="number" min="0" step="1"
+                            value={priceCents > 0 ? priceCents / 100 : ''}
+                            placeholder="0"
+                            onChange={e => {
+                              const cents = Math.round(parseFloat(e.target.value || 0) * 100)
+                              set('merch_prices')({ ...(form.merch_prices || {}), [type]: cents })
+                            }}
+                            className="w-20 border border-gray-300 rounded-lg px-2 py-1.5 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-300"
+                            style={{ MozAppearance: 'textfield', WebkitAppearance: 'none' }} />
+                          <span className="text-xs text-gray-400">NZD each</span>
+                        </div>
+                      )}
+                    </div>
                   )
                 })}
               </div>
+              <p className="text-xs text-gray-400 mt-2">Price per garment added to the Stripe payment at registration. Leave $0 for free merch.</p>
             </div>
 
             {/* Merch sizes */}

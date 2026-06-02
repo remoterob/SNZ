@@ -11,6 +11,8 @@ const CATEGORIES = ['Open', 'Mens', 'Womens', 'Mixed', 'Junior']
 
 const SKILL_LEVELS = ['Absolute beginner', 'Beginner', 'Intermediate', 'Experienced']
 
+const typeLabel = t => t === 'tshirt' ? 'T-Shirt' : 'Jacket'
+
 const emptyMember = {
   name: '', email: '', phone: '', club: '',
   gender: '', dob: '',
@@ -125,6 +127,7 @@ function MemberBadge() {
 function MerchSection({ comp, merch, setMerch, isMerchLate }) {
   const types = comp.merch_types || []
   const sizes = comp.merch_sizes || []
+  const prices = comp.merch_prices || {}
   const divers = [
     { key: '1', label: 'Diver 1' },
     { key: '2', label: 'Diver 2' },
@@ -136,8 +139,6 @@ function MerchSection({ comp, merch, setMerch, isMerchLate }) {
       [diverKey]: { ...(m[diverKey] || {}), [field]: value }
     }))
   }
-
-  const typeLabel = t => t === 'tshirt' ? 'T-Shirt' : 'Jacket'
 
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-5">
@@ -161,13 +162,17 @@ function MerchSection({ comp, merch, setMerch, isMerchLate }) {
               className={`px-3 py-1.5 rounded-lg border-2 text-xs font-bold transition ${!merch[key]?.type ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
               No merch
             </button>
-            {types.map(t => (
-              <button key={t} type="button"
-                onClick={() => setDiverMerch(key, 'type', t)}
-                className={`px-3 py-1.5 rounded-lg border-2 text-xs font-bold transition ${merch[key]?.type === t ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
-                {typeLabel(t)}
-              </button>
-            ))}
+            {types.map(t => {
+              const priceCents = prices[t] || 0
+              const priceStr = priceCents > 0 ? ` · $${(priceCents / 100).toFixed(0)}` : ' · Free'
+              return (
+                <button key={t} type="button"
+                  onClick={() => setDiverMerch(key, 'type', t)}
+                  className={`px-3 py-1.5 rounded-lg border-2 text-xs font-bold transition ${merch[key]?.type === t ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
+                  {typeLabel(t)}{priceStr}
+                </button>
+              )
+            })}
           </div>
 
           {/* Size — only shown once garment selected */}
@@ -409,8 +414,8 @@ export default function CompRegister() {
     if (!validate()) { window.scrollTo({ top: 0, behavior: 'smooth' }); return }
     setSubmitting(true)
     try {
-      // If entry fee applies, hold as pending_payment until Stripe confirms
-      const initialStatus = entryFeeCents > 0 ? 'pending_payment' : 'active'
+      // Hold as pending_payment if any payment is due (entry fee + merch)
+      const initialStatus = totalPaymentCents > 0 ? 'pending_payment' : 'active'
 
       // Look up diver2 member id before insert
       let diver2MemberId = null
@@ -528,6 +533,11 @@ export default function CompRegister() {
     return raw
   })()
 
+  const getMerchPriceCents = (garmentType) => (comp?.merch_prices || {})[garmentType] || 0
+  const merchCostCents = (merch['1']?.type ? getMerchPriceCents(merch['1'].type) : 0)
+                       + (merch['2']?.type ? getMerchPriceCents(merch['2'].type) : 0)
+  const totalPaymentCents = entryFeeCents + merchCostCents
+
   if (done) return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
       <div className="max-w-md w-full bg-white border border-gray-200 rounded-2xl p-8 text-center shadow-sm">
@@ -558,8 +568,8 @@ export default function CompRegister() {
             </button>
           </>
 
-        ) : entryFeeCents > 0 ? (
-          /* ── Entry fee required — awaiting payment ── */
+        ) : totalPaymentCents > 0 ? (
+          /* ── Payment required — awaiting Stripe ── */
           <>
             <div className="w-16 h-16 rounded-full bg-amber-100 flex items-center justify-center mx-auto mb-4">
               <span className="text-amber-600 text-2xl">⏳</span>
@@ -575,10 +585,33 @@ export default function CompRegister() {
             )}
             {teamId && (
               <div className="bg-amber-50 border-2 border-amber-300 rounded-xl p-5 mb-4 text-left">
-                <p className="font-black text-amber-900 mb-1">Payment required to confirm your spot</p>
-                <p className="text-sm text-amber-800 mb-2">
-                  Entry fee: <strong>${(entryFeeCents / 100).toFixed(2)} NZD</strong>
-                </p>
+                <p className="font-black text-amber-900 mb-2">Payment required to confirm your spot</p>
+                <div className="text-sm text-amber-800 mb-3 space-y-1">
+                  {entryFeeCents > 0 && (
+                    <div className="flex justify-between">
+                      <span>Entry fee</span>
+                      <span className="font-bold">${(entryFeeCents / 100).toFixed(2)}</span>
+                    </div>
+                  )}
+                  {merch['1']?.type && getMerchPriceCents(merch['1'].type) > 0 && (
+                    <div className="flex justify-between">
+                      <span>{typeLabel(merch['1'].type)} ({merch['1'].size}) — {p1.name || 'Diver 1'}</span>
+                      <span className="font-bold">${(getMerchPriceCents(merch['1'].type) / 100).toFixed(2)}</span>
+                    </div>
+                  )}
+                  {merch['2']?.type && getMerchPriceCents(merch['2'].type) > 0 && (
+                    <div className="flex justify-between">
+                      <span>{typeLabel(merch['2'].type)} ({merch['2'].size}) — {p2.name || 'Diver 2'}</span>
+                      <span className="font-bold">${(getMerchPriceCents(merch['2'].type) / 100).toFixed(2)}</span>
+                    </div>
+                  )}
+                  {merchCostCents > 0 && (
+                    <div className="flex justify-between border-t border-amber-200 pt-1 font-black text-amber-900">
+                      <span>Total</span>
+                      <span>${(totalPaymentCents / 100).toFixed(2)} NZD</span>
+                    </div>
+                  )}
+                </div>
                 {isEarlyBird && comp?.early_bird_cutoff && (
                   <p className="text-xs text-amber-700 bg-amber-100 rounded-lg px-3 py-1.5 mb-3 font-semibold">
                     🐦 Early bird price — closes {new Date(comp.early_bird_cutoff).toLocaleDateString('en-NZ', { day: 'numeric', month: 'long' })}
@@ -586,19 +619,26 @@ export default function CompRegister() {
                 )}
                 {checkoutError && <p className="text-xs text-red-600 mb-2">{checkoutError}</p>}
                 <button
-                  onClick={() => checkout({
-                    type: 'competition_entry',
-                    teamId,
-                    competitionId: id,
-                    competitionName: comp.name,
-                    amountCents: entryFeeCents,
-                    memberEmail: member?.email || p1.email,
-                    memberName: member?.name || p1.name,
-                  })}
+                  onClick={() => {
+                    const items = []
+                    if (entryFeeCents > 0) items.push({ name: `Entry: ${comp.name}`, description: `${category} · ${teamName}`, amountCents: entryFeeCents })
+                    if (merch['1']?.type && getMerchPriceCents(merch['1'].type) > 0) items.push({ name: `${typeLabel(merch['1'].type)} (${merch['1'].size}) — ${p1.name || 'Diver 1'}`, description: 'Merchandise', amountCents: getMerchPriceCents(merch['1'].type) })
+                    if (merch['2']?.type && getMerchPriceCents(merch['2'].type) > 0) items.push({ name: `${typeLabel(merch['2'].type)} (${merch['2'].size}) — ${p2.name || 'Diver 2'}`, description: 'Merchandise', amountCents: getMerchPriceCents(merch['2'].type) })
+                    checkout({
+                      type: 'competition_entry',
+                      teamId,
+                      competitionId: id,
+                      competitionName: comp.name,
+                      amountCents: totalPaymentCents,
+                      lineItems: items.length > 1 ? items : undefined,
+                      memberEmail: member?.email || p1.email,
+                      memberName: member?.name || p1.name,
+                    })
+                  }}
                   disabled={checkoutLoading}
                   className="w-full py-3 rounded-xl font-black text-white text-sm disabled:opacity-50"
                   style={{ background: '#d97706' }}>
-                  {checkoutLoading ? 'Redirecting to payment…' : `Pay $${(entryFeeCents / 100).toFixed(2)} NZD now →`}
+                  {checkoutLoading ? 'Redirecting to payment…' : `Pay $${(totalPaymentCents / 100).toFixed(2)} NZD now →`}
                 </button>
               </div>
             )}
