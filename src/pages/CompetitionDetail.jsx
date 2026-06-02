@@ -108,14 +108,12 @@ export default function CompetitionDetail() {
     })
   }, [id])
 
-  // Find logged-in user's team for this comp
+  // Find logged-in user's team for this comp using diver member IDs on comp_teams
   useEffect(() => {
-    if (!member?.id || !members.length || !teams.length) { setMyTeam(null); return }
-    const myMembership = members.find(m => m.member_id === member.id)
-    if (!myMembership) { setMyTeam(null); return }
-    const team = teams.find(t => t.id === myMembership.team_id)
+    if (!member?.id || !teams.length) { setMyTeam(null); return }
+    const team = teams.find(t => t.diver1_member_id === member.id || t.diver2_member_id === member.id)
     setMyTeam(team || null)
-  }, [member, members, teams])
+  }, [member, teams])
 
   // Build leaderboard
   const leaderboard = teams.map(team => {
