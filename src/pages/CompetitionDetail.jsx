@@ -459,8 +459,9 @@ function MyCatchesTab({ comp, fish, myTeam, member, weighins, onRefresh, navigat
         if (isNaN(weightKg) || weightKg <= 0) { showToast('Please enter the weight in kg', 'error'); setUploading(null); return }
         const pts = calcSelfSubmitPoints(f, weightKg)
         const ext = file.name.split('.').pop().toLowerCase().replace('heic', 'jpg').replace('heif', 'jpg')
+        const contentType = (file.type && file.type.startsWith('image/') && file.type !== 'image/heic' && file.type !== 'image/heif') ? file.type : 'image/jpeg'
         const path = `competitions/${comp.id}/self-catches/${myTeam.id}/${f.id}-${inst}-${Date.now()}.${ext}`
-        const { error: upErr } = await supabase.storage.from('snz-media').upload(path, file, { contentType: file.type })
+        const { error: upErr } = await supabase.storage.from('snz-media').upload(path, file, { contentType })
         if (upErr) throw upErr
         const { data: { publicUrl } } = supabase.storage.from('snz-media').getPublicUrl(path)
         const { error: dbErr } = await supabase.from('comp_weighins').insert({
@@ -478,8 +479,9 @@ function MyCatchesTab({ comp, fish, myTeam, member, weighins, onRefresh, navigat
         if (!file) { showToast('Please select a photo of your catch first', 'error'); setUploading(null); return }
         const pts = getBingoPoints(f)
         const ext = file.name.split('.').pop().toLowerCase().replace('heic', 'jpg').replace('heif', 'jpg')
+        const contentType = (file.type && file.type.startsWith('image/') && file.type !== 'image/heic' && file.type !== 'image/heif') ? file.type : 'image/jpeg'
         const path = `competitions/${comp.id}/self-catches/${myTeam.id}/${f.id}-${inst}-${Date.now()}.${ext}`
-        const { error: upErr } = await supabase.storage.from('snz-media').upload(path, file, { contentType: file.type })
+        const { error: upErr } = await supabase.storage.from('snz-media').upload(path, file, { contentType })
         if (upErr) throw upErr
         const { data: { publicUrl } } = supabase.storage.from('snz-media').getPublicUrl(path)
         const { error: dbErr } = await supabase.from('comp_weighins').insert({
