@@ -30,9 +30,8 @@ export default function CompetitionsPage() {
   useEffect(() => {
     supabase.from('competitions').select('*')
       .in('status', ['active', 'closed'])
-      .neq('hidden_from_list', true)
       .order('date_start', { ascending: false })
-      .then(({ data }) => { setComps(data || []); setLoading(false) })
+      .then(({ data }) => { setComps((data || []).filter(c => !c.hidden_from_list)); setLoading(false) })
   }, [])
 
   return (
