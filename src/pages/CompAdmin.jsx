@@ -807,6 +807,13 @@ function SetupTab({ comp, setComp, onSave, showToast }) {
             <p className="text-xs text-gray-400">Show leaderboard publicly during the competition (not just after it closes)</p>
           </div>
         </label>
+        <label className="flex items-center gap-3 cursor-pointer">
+          <input type="checkbox" checked={!!form.hidden_from_list} onChange={e => set('hidden_from_list')(e.target.checked)} className="w-5 h-5" />
+          <div>
+            <p className="text-sm font-semibold text-gray-700">Hide from competitions list</p>
+            <p className="text-xs text-gray-400">Competition won't appear on the public list — only accessible via direct link or this admin screen</p>
+          </div>
+        </label>
         <div className="border-t border-gray-100 pt-4 space-y-4">
           <div>
             <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Entry Fees by Category (NZD)</label>
