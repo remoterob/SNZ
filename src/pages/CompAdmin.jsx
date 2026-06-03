@@ -1208,6 +1208,7 @@ function MemberSection({ label, data, setField }) {
 
 function TeamModal({ comp, team, members: existingMembers, onClose, onSaved, showToast }) {
   const isNew = !team
+  const isIndividual = comp?.scoring_mode === 'fish_bingo_individual'
   const [teamName, setTeamName] = useState(team?.team_name || '')
   const [category, setCategory] = useState(team?.category || (comp.categories?.[0] || 'Open'))
   const [boatName, setBoatName] = useState(team?.boat_name || '')
@@ -1349,10 +1350,10 @@ function TeamModal({ comp, team, members: existingMembers, onClose, onSaved, sho
           {/* Team details */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="col-span-2">
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Team Name <span className="text-red-400">*</span></label>
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">{isIndividual ? 'Display Name' : 'Team Name'} <span className="text-red-400">*</span></label>
               <input value={teamName} onChange={e => setTeamName(e.target.value)}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
-                placeholder="e.g. The Reef Runners" />
+                placeholder={isIndividual ? 'e.g. Jane Smith' : 'e.g. The Reef Runners'} />
             </div>
             <div>
               <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Category</label>
@@ -1390,8 +1391,8 @@ function TeamModal({ comp, team, members: existingMembers, onClose, onSaved, sho
             </div>
           </div>
 
-          <MemberSection label="Diver 1" data={p1} setField={set1} />
-          <MemberSection label="Diver 2" data={p2} setField={set2} />
+          <MemberSection label={isIndividual ? 'Competitor' : 'Diver 1'} data={p1} setField={set1} />
+          {!isIndividual && <MemberSection label="Diver 2" data={p2} setField={set2} />}
 
           <div className="flex gap-3 pt-2">
             <button onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-gray-300 text-sm font-bold text-gray-600">Cancel</button>
