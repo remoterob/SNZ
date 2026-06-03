@@ -357,7 +357,8 @@ function FishPickerModal({ comp, existing, onClose, onSaved }) {
   const save = async () => {
     setSaving(true)
     try {
-      await supabase.from('comp_fish').delete().eq('competition_id', comp.id)
+      const { error: delErr } = await supabase.from('comp_fish').delete().eq('competition_id', comp.id)
+      if (delErr) throw delErr
       const rows = []
       let order = 0
       for (const { slug, count } of selected) {
@@ -379,7 +380,10 @@ function FishPickerModal({ comp, existing, onClose, onSaved }) {
           sort_order: order++,
         })
       }
-      if (rows.length > 0) await supabase.from('comp_fish').insert(rows)
+      if (rows.length > 0) {
+        const { error: insErr } = await supabase.from('comp_fish').insert(rows)
+        if (insErr) throw insErr
+      }
       onSaved()
       onClose()
     } catch (err) { alert(err.message) }
