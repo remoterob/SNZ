@@ -7,7 +7,7 @@ import { useStripeCheckout } from '../hooks/useStripeCheckout'
 const SNZ_BLUE = '#2B6CB0'
 const SNZ_LOGO = import.meta.env.VITE_SNZ_LOGO_URL || null
 
-const CATEGORIES = ['Open', 'Mens', 'Womens', 'Mixed', 'Junior']
+const CATEGORIES = ['Open', 'Mens', 'Womens', 'Mixed', 'Junior', 'Beginner', 'Advanced', 'Hard Out']
 
 const SKILL_LEVELS = ['Absolute beginner', 'Beginner', 'Intermediate', 'Experienced']
 

@@ -8,11 +8,14 @@ const SNZ_BLUE = '#2B6CB0'
 const SNZ_LOGO = import.meta.env.VITE_SNZ_LOGO_URL || null
 
 const CATEGORY_COLORS = {
-  'Mens':   { bg: '#eff6ff', text: '#1d4ed8', border: '#bfdbfe' },
-  'Womens': { bg: '#fdf2f8', text: '#9d174d', border: '#fbcfe8' },
-  'Mixed':  { bg: '#f5f3ff', text: '#5b21b6', border: '#ddd6fe' },
-  'Junior': { bg: '#f0fdf4', text: '#166534', border: '#bbf7d0' },
-  'Open':   { bg: '#f9fafb', text: '#374151', border: '#e5e7eb' },
+  'Mens':     { bg: '#eff6ff', text: '#1d4ed8', border: '#bfdbfe' },
+  'Womens':   { bg: '#fdf2f8', text: '#9d174d', border: '#fbcfe8' },
+  'Mixed':    { bg: '#f5f3ff', text: '#5b21b6', border: '#ddd6fe' },
+  'Junior':   { bg: '#f0fdf4', text: '#166534', border: '#bbf7d0' },
+  'Open':     { bg: '#f9fafb', text: '#374151', border: '#e5e7eb' },
+  'Beginner': { bg: '#f0fdfa', text: '#0f766e', border: '#99f6e4' },
+  'Advanced': { bg: '#fff7ed', text: '#c2410c', border: '#fed7aa' },
+  'Hard Out': { bg: '#fef2f2', text: '#b91c1c', border: '#fecaca' },
 }
 
 function SponsorBar({ comp }) {

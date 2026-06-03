@@ -6,11 +6,14 @@ const SNZ_BLUE = '#2B6CB0'
 const SNZ_LOGO = import.meta.env.VITE_SNZ_LOGO_URL || null
 
 const CATEGORY_COLORS = {
-  'Mens':   'bg-blue-50 text-blue-700 border border-blue-200',
-  'Womens': 'bg-pink-50 text-pink-700 border border-pink-200',
-  'Mixed':  'bg-purple-50 text-purple-700 border border-purple-200',
-  'Junior': 'bg-green-50 text-green-700 border border-green-200',
-  'Open':   'bg-gray-50 text-gray-700 border border-gray-200',
+  'Mens':     'bg-blue-50 text-blue-700 border border-blue-200',
+  'Womens':   'bg-pink-50 text-pink-700 border border-pink-200',
+  'Mixed':    'bg-purple-50 text-purple-700 border border-purple-200',
+  'Junior':   'bg-green-50 text-green-700 border border-green-200',
+  'Open':     'bg-gray-50 text-gray-700 border border-gray-200',
+  'Beginner': 'bg-teal-50 text-teal-700 border border-teal-200',
+  'Advanced': 'bg-orange-50 text-orange-700 border border-orange-200',
+  'Hard Out': 'bg-red-50 text-red-700 border border-red-200',
 }
 
 const statusBadge = (s) => {

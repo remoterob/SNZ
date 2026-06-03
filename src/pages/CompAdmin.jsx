@@ -5,7 +5,7 @@ import CompCopilotFAB from './CompCopilotFAB'
 
 const SNZ_BLUE = '#2B6CB0'
 const SNZ_LOGO = import.meta.env.VITE_SNZ_LOGO_URL || null
-const CATEGORIES_ALL = ['Open','Mens','Womens','Mixed','Junior']
+const CATEGORIES_ALL = ['Open','Mens','Womens','Mixed','Junior','Beginner','Advanced','Hard Out']
 
 // ── Scoring ───────────────────────────────────────────────────────────────────
 function calcPoints(fish, weightKg, mode, teamCategory) {
