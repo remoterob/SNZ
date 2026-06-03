@@ -894,78 +894,131 @@ function DerivedDivLeaderboard({ divId, label, teams, allWeighins }) {
 }
 
 // ── Fish Lists Tab ────────────────────────────────────────────────────────────
-function AddFishModal({ onAdd, onClose }) {
-  const [name, setName] = useState('')
-  const [points, setPoints] = useState(100)
-  const [maxWeight, setMaxWeight] = useState(8)
-  const [weighSep, setWeighSep] = useState(true)
+function NationalsSpeciesPickerModal({ comp, division, existingFish, onClose, onSaved }) {
   const [library, setLibrary] = useState([])
-  const [libSearch, setLibSearch] = useState('')
+  const [libLoading, setLibLoading] = useState(true)
+  const [selected, setSelected] = useState(() =>
+    existingFish.map(f => ({ slug: f.species_slug, count: f.max_count || 1 }))
+  )
+  const [fishSettings, setFishSettings] = useState(() => {
+    const s = {}
+    existingFish.forEach(f => {
+      s[f.species_slug] = { weighSep: f.weigh_separately !== false, points: f.points || 100, maxKg: f.max_weight_kg || 8 }
+    })
+    return s
+  })
+  const [saving, setSaving] = useState(false)
+  const [search, setSearch] = useState('')
 
   useEffect(() => {
-    supabase.from('comp_species_library').select('id, name').eq('active', true).order('name')
-      .then(({ data }) => setLibrary(data || []))
+    supabase.from('comp_species_library').select('*').eq('active', true).order('sort_order').order('name')
+      .then(({ data }) => { setLibrary(data || []); setLibLoading(false) })
   }, [])
 
-  const filtered = library.filter(s => s.name.toLowerCase().includes(libSearch.toLowerCase()))
+  const isSelected = slug => selected.find(x => x.slug === slug)
+
+  const toggle = slug => {
+    setSelected(s => {
+      const ex = s.find(x => x.slug === slug)
+      return ex ? s.filter(x => x.slug !== slug) : [...s, { slug, count: 1 }]
+    })
+    if (!fishSettings[slug]) {
+      setFishSettings(f => ({ ...f, [slug]: { weighSep: true, points: 100, maxKg: 8 } }))
+    }
+  }
+
+  const getSetting = (slug, key, def) => fishSettings[slug]?.[key] ?? def
+  const setSetting = (slug, key, val) => setFishSettings(f => ({ ...f, [slug]: { ...(f[slug] || {}), [key]: val } }))
+
+  const save = async () => {
+    setSaving(true)
+    try {
+      const { error: delErr } = await supabase.from('comp_fish').delete()
+        .eq('competition_id', comp.id).eq('division', division)
+      if (delErr) throw delErr
+      const rows = []
+      let order = 0
+      for (const { slug, count } of selected) {
+        const lib = library.find(s => s.slug === slug)
+        if (!lib) continue
+        const cfg = fishSettings[slug] || { weighSep: true, points: 100, maxKg: 8 }
+        rows.push({
+          competition_id: comp.id, division,
+          species_name: lib.name, species_slug: slug, photo_url: lib.photo_url || null,
+          points: cfg.points, max_weight_kg: cfg.maxKg, weigh_separately: cfg.weighSep,
+          allow_multiples: count > 1, max_count: count, sort_order: order++,
+        })
+      }
+      if (rows.length > 0) {
+        const { error: insErr } = await supabase.from('comp_fish').insert(rows)
+        if (insErr) throw insErr
+      }
+      onSaved()
+      onClose()
+    } catch (err) { alert(err.message) }
+    finally { setSaving(false) }
+  }
+
+  const filtered = library.filter(s => s.name.toLowerCase().includes(search.toLowerCase()))
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl">
-        <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
-          <h3 className="font-black text-gray-900">Add Species</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-700 text-xl leading-none">×</button>
+    <div className="fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto" style={{ background: 'rgba(0,0,0,0.6)' }} onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="bg-white rounded-2xl w-full max-w-2xl my-8 shadow-2xl" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+          <h2 className="font-black text-gray-900">{DIV_LABELS[division]} Fish List ({selected.length} selected)</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl font-bold">✕</button>
         </div>
-        <div className="p-4 space-y-3">
-          {library.length > 0 && (
-            <div>
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Quick pick from library</label>
-              <input value={libSearch} onChange={e => setLibSearch(e.target.value)} placeholder="Search species…"
-                className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300 mb-1" />
-              {libSearch && (
-                <div className="max-h-28 overflow-y-auto border border-gray-200 rounded-lg divide-y divide-gray-100">
-                  {filtered.slice(0, 15).map(s => (
-                    <button key={s.id} onClick={() => { setName(s.name); setLibSearch('') }}
-                      className="w-full text-left px-3 py-1.5 text-sm hover:bg-blue-50 transition">
-                      {s.name}
-                    </button>
-                  ))}
-                  {filtered.length === 0 && <p className="px-3 py-2 text-xs text-gray-400">No matches</p>}
-                </div>
-              )}
-            </div>
-          )}
-          <div>
-            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Species name *</label>
-            <input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Kingfish"
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" />
+        <div className="p-6">
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search species…"
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-blue-300" />
+          {libLoading
+            ? <div className="text-center py-8 text-gray-400">Loading species…</div>
+            : <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-80 overflow-y-auto mb-4 pr-1">
+                {filtered.map(s => {
+                  const on = !!isSelected(s.slug)
+                  return (
+                    <div key={s.slug} className={`relative rounded-xl border-2 overflow-hidden transition ${on ? 'border-blue-500' : 'border-gray-200 hover:border-gray-300'}`}>
+                      <button type="button" onClick={() => toggle(s.slug)} className="w-full text-left">
+                        {s.photo_url
+                          ? <img src={s.photo_url} alt={s.name} className="w-full h-24 object-cover" />
+                          : <div className="w-full h-24 bg-gray-100 flex items-center justify-center text-4xl">🐟</div>}
+                        <div className="p-1.5 text-xs font-semibold leading-tight">{s.name}</div>
+                      </button>
+                      {on && (
+                        <div className="px-2 pb-2 space-y-1" onClick={e => e.stopPropagation()}>
+                          <label className="flex items-center gap-1.5 cursor-pointer">
+                            <input type="checkbox" className="w-3 h-3"
+                              checked={getSetting(s.slug, 'weighSep', true)}
+                              onChange={e => setSetting(s.slug, 'weighSep', e.target.checked)} />
+                            <span className="text-xs text-gray-500">Weigh sep.</span>
+                          </label>
+                          <div className="flex items-center gap-1">
+                            <input type="number" min="0" value={getSetting(s.slug, 'points', 100)}
+                              onChange={e => setSetting(s.slug, 'points', parseInt(e.target.value) || 100)}
+                              className="w-14 border border-gray-300 rounded px-1 py-0.5 text-xs text-center" />
+                            <span className="text-xs text-gray-400">pts</span>
+                            <input type="number" min="0" step="0.5" value={getSetting(s.slug, 'maxKg', 8)}
+                              onChange={e => setSetting(s.slug, 'maxKg', parseFloat(e.target.value) || 8)}
+                              className="w-12 border border-gray-300 rounded px-1 py-0.5 text-xs text-center" />
+                            <span className="text-xs text-gray-400">kg</span>
+                          </div>
+                        </div>
+                      )}
+                      {on && <div className="absolute top-1 right-1 w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-bold">✓</div>}
+                    </div>
+                  )
+                })}
+              </div>
+          }
+          <div className="flex gap-3">
+            <button type="button" onClick={onClose}
+              className="flex-1 py-2.5 rounded-xl border border-gray-300 text-sm font-bold text-gray-600">Cancel</button>
+            <button type="button" onClick={save} disabled={saving}
+              className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white disabled:opacity-50"
+              style={{ background: SNZ_BLUE }}>
+              {saving ? 'Saving…' : `Save Fish List (${selected.length})`}
+            </button>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Base points</label>
-              <input type="number" min="0" value={points} onChange={e => setPoints(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" />
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Max weight (kg)</label>
-              <input type="number" min="0" step="0.5" value={maxWeight} onChange={e => setMaxWeight(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" />
-            </div>
-          </div>
-          <label className="flex items-center gap-2 cursor-pointer select-none">
-            <input type="checkbox" checked={weighSep} onChange={e => setWeighSep(e.target.checked)} className="w-4 h-4" />
-            <span className="text-sm text-gray-700">Weigh separately (individual weight entry)</span>
-          </label>
-        </div>
-        <div className="px-4 pb-4 flex gap-2">
-          <button onClick={onClose} className="flex-1 py-2 rounded-xl border border-gray-300 text-sm font-bold text-gray-600 hover:bg-gray-50">Cancel</button>
-          <button
-            onClick={() => { if (name.trim()) onAdd({ name: name.trim(), points: parseInt(points) || 100, max_weight_kg: parseFloat(maxWeight) || 8, weigh_separately: weighSep }) }}
-            disabled={!name.trim()}
-            className="flex-1 py-2 rounded-xl text-sm font-black text-white disabled:opacity-40"
-            style={{ background: SNZ_BLUE }}>
-            Add
-          </button>
         </div>
       </div>
     </div>
@@ -974,29 +1027,10 @@ function AddFishModal({ onAdd, onClose }) {
 
 function FishListTab({ comp, fishLists, onRefresh }) {
   const [selDiv, setSelDiv] = useState('open')
-  const [showAdd, setShowAdd] = useState(false)
+  const [showPicker, setShowPicker] = useState(false)
   const [saving, setSaving] = useState(null)
 
   const currentList = fishLists[selDiv] || []
-
-  const addFish = async (fish) => {
-    setSaving('add')
-    await supabase.from('comp_fish').insert({
-      competition_id: comp.id,
-      species_name: fish.name,
-      species_slug: fish.name.toLowerCase().replace(/\s+/g, '_'),
-      points: fish.points,
-      max_weight_kg: fish.max_weight_kg,
-      weigh_separately: fish.weigh_separately,
-      allow_multiples: false,
-      max_count: 1,
-      sort_order: currentList.length + 1,
-      division: selDiv,
-    })
-    setShowAdd(false)
-    await onRefresh()
-    setSaving(null)
-  }
 
   const deleteFish = async (fishId) => {
     setSaving(fishId)
@@ -1010,27 +1044,28 @@ function FishListTab({ comp, fishLists, onRefresh }) {
     if (!openList.length) { alert('Open fish list is empty — add species to Open first.'); return }
     if (!window.confirm(`Replace the ${DIV_LABELS[selDiv]} fish list with a copy of the Open list (${openList.length} species)?`)) return
     setSaving('copy')
-    await supabase.from('comp_fish').delete().eq('competition_id', comp.id).eq('division', selDiv)
-    const rows = openList.map((f, i) => ({
-      competition_id: comp.id,
-      species_name: f.species_name,
-      species_slug: f.species_slug,
-      points: f.points,
-      max_weight_kg: f.max_weight_kg,
-      weigh_separately: f.weigh_separately,
-      allow_multiples: f.allow_multiples,
-      max_count: f.max_count,
-      sort_order: i + 1,
-      division: selDiv,
-    }))
-    if (rows.length) await supabase.from('comp_fish').insert(rows)
+    const { error: delErr } = await supabase.from('comp_fish').delete().eq('competition_id', comp.id).eq('division', selDiv)
+    if (!delErr) {
+      const rows = openList.map((f, i) => ({
+        competition_id: comp.id, division: selDiv,
+        species_name: f.species_name, species_slug: f.species_slug, photo_url: f.photo_url || null,
+        points: f.points, max_weight_kg: f.max_weight_kg, weigh_separately: f.weigh_separately,
+        allow_multiples: f.allow_multiples, max_count: f.max_count, sort_order: i + 1,
+      }))
+      if (rows.length) await supabase.from('comp_fish').insert(rows)
+    }
     await onRefresh()
     setSaving(null)
   }
 
   return (
     <div className="space-y-4">
-      {showAdd && <AddFishModal onAdd={addFish} onClose={() => setShowAdd(false)} />}
+      {showPicker && (
+        <NationalsSpeciesPickerModal
+          comp={comp} division={selDiv} existingFish={currentList}
+          onClose={() => setShowPicker(false)}
+          onSaved={() => { onRefresh() }} />
+      )}
 
       <div className="flex gap-1.5 flex-wrap">
         {STANDARD_DIVS.filter(d => !d.derived).map(d => (
@@ -1058,45 +1093,37 @@ function FishListTab({ comp, fishLists, onRefresh }) {
                 {saving === 'copy' ? '…' : '↩ Copy from Open'}
               </button>
             )}
-            <button onClick={() => setShowAdd(true)}
+            <button onClick={() => setShowPicker(true)}
               className="text-xs font-black px-3 py-1.5 rounded-lg text-white"
               style={{ background: SNZ_BLUE }}>
-              + Add Species
+              {currentList.length > 0 ? '✎ Edit Fish List' : '+ Add Species'}
             </button>
           </div>
         </div>
 
         {currentList.length === 0 ? (
-          <div className="px-4 py-12 text-center text-gray-400 text-sm">No species yet. Add some above.</div>
+          <div className="px-4 py-12 text-center text-gray-400 text-sm">No species yet — click Add Species above.</div>
         ) : (
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-gray-100 bg-gray-50/50">
-                {['Species', 'Base pts', 'Max kg', 'Max pts', 'Weigh sep.', ''].map(h => (
-                  <th key={h} className="px-4 py-2.5 text-left text-xs font-bold text-gray-400 uppercase tracking-wide">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {currentList.map(f => (
-                <tr key={f.id} className="border-b border-gray-100 hover:bg-gray-50">
-                  <td className="px-4 py-2.5 font-semibold text-gray-900">{f.species_name}</td>
-                  <td className="px-4 py-2.5 text-gray-600">{f.points}</td>
-                  <td className="px-4 py-2.5 text-gray-600">{f.max_weight_kg} kg</td>
-                  <td className="px-4 py-2.5 text-gray-500 text-sm">{(f.points || 0) + (f.max_weight_kg || 0) * 10}</td>
-                  <td className="px-4 py-2.5">
-                    {f.weigh_separately
-                      ? <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-bold">Yes</span>
-                      : <span className="text-xs text-gray-400">No</span>}
-                  </td>
-                  <td className="px-3 py-2.5 text-right">
-                    <button onClick={() => deleteFish(f.id)} disabled={saving === f.id}
-                      className="text-red-400 hover:text-red-600 font-bold text-sm disabled:opacity-40">✕</button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 p-4">
+            {currentList.map(f => (
+              <div key={f.id} className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm relative group">
+                <div className="w-full h-24 bg-gray-50 flex items-center justify-center text-3xl relative overflow-hidden">
+                  {f.photo_url
+                    ? <img src={f.photo_url} alt={f.species_name} className="w-full h-full object-cover" onError={e => e.target.remove()} />
+                    : '🐟'}
+                </div>
+                <div className="p-2">
+                  <p className="font-bold text-gray-900 text-xs leading-tight">{f.species_name}</p>
+                  <p className="text-xs text-gray-400 mt-0.5">{f.points} pts + up to {f.max_weight_kg}kg</p>
+                  {f.weigh_separately && <span className="text-xs font-bold text-amber-600">⚖ Weigh sep.</span>}
+                </div>
+                <button onClick={() => deleteFish(f.id)} disabled={saving === f.id}
+                  className="absolute top-1 right-1 w-6 h-6 rounded-full bg-red-500 text-white text-xs font-bold opacity-0 group-hover:opacity-100 transition flex items-center justify-center disabled:opacity-40">
+                  ✕
+                </button>
+              </div>
+            ))}
+          </div>
         )}
       </div>
     </div>
