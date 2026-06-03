@@ -337,7 +337,7 @@ function FishPickerModal({ comp, existing, onClose, onSaved }) {
     if (!name?.trim()) return
     const slug = `custom-${Date.now()}`
     setCustom(c => [...c, { species_name: name.trim(), species_slug: slug, photo_url: null, points: 100, max_weight_kg: 8, allow_multiples: false, max_count: 1 }])
-    setSelected(s => [...s, slug])
+    setSelected(s => [...s, { slug, count: 1 }])
   }
 
   const uploadCustomPhoto = async (slug, file) => {
@@ -436,10 +436,10 @@ function FishPickerModal({ comp, existing, onClose, onSaved }) {
             <div className="mb-4">
               <h4 className="text-xs font-bold tracking-widest uppercase text-gray-400 mb-2">Custom Species</h4>
               {custom.map(f => (
-                <div key={f.species_slug} className={`flex items-center gap-3 p-3 rounded-xl border-2 mb-2 ${selected.includes(f.species_slug) ? 'border-blue-400 bg-blue-50' : 'border-gray-200'}`}>
+                <div key={f.species_slug} className={`flex items-center gap-3 p-3 rounded-xl border-2 mb-2 ${!!isSelected(f.species_slug) ? 'border-blue-400 bg-blue-50' : 'border-gray-200'}`}>
                   <button type="button" onClick={() => toggle(f.species_slug)}
-                    className={`w-5 h-5 rounded flex-shrink-0 border-2 flex items-center justify-center ${selected.includes(f.species_slug) ? 'bg-blue-500 border-blue-500 text-white' : 'border-gray-300'}`}>
-                    {selected.includes(f.species_slug) && '✓'}
+                    className={`w-5 h-5 rounded flex-shrink-0 border-2 flex items-center justify-center ${!!isSelected(f.species_slug) ? 'bg-blue-500 border-blue-500 text-white' : 'border-gray-300'}`}>
+                    {!!isSelected(f.species_slug) && '✓'}
                   </button>
                   <div className="flex-1">
                     <p className="text-sm font-bold">{f.species_name}</p>
