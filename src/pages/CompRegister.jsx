@@ -302,7 +302,14 @@ export default function CompRegister() {
 
   useEffect(() => {
     supabase.from('competitions').select('*').eq('id', id).single()
-      .then(({ data }) => { setComp(data); setLoading(false) })
+      .then(({ data }) => {
+        setComp(data)
+        setLoading(false)
+        // Default category to first in comp's list if 'Open' isn't available
+        if (data?.categories?.length > 0 && !data.categories.includes('Open')) {
+          setCategory(data.categories[0])
+        }
+      })
     // Handle return from Stripe
     const params = new URLSearchParams(window.location.search)
     if (params.get('payment') === 'success') {
