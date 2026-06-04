@@ -2034,7 +2034,7 @@ function AdminLeaderboard({ comp, teams, weighins, fish }) {
   }).sort((a, b) => b.total - a.total)
 
   const medals = ['🥇','🥈','🥉']
-  const cats = (comp.categories||[]).length > 1 ? comp.categories : null
+  const cats = !comp.combined_leaderboard && (comp.categories||[]).length > 1 ? comp.categories : null
 
   const toggle = (id) => setExpandedId(v => v === id ? null : id)
 
