@@ -354,8 +354,9 @@ export default function CompetitionDetail() {
             )}
             {(comp.public_leaderboard || comp.status === 'closed') && weighins.length > 0 && (
               <>
-                {(comp.categories || []).length > 1
-                  ? (comp.categories || []).map(cat => {
+                {comp.combined_leaderboard || (comp.categories || []).length <= 1
+                  ? <LeaderboardTable board={leaderboard} weighins={weighins} members={members} showCategory={comp.combined_leaderboard && (comp.categories || []).length > 1} />
+                  : (comp.categories || []).map(cat => {
                       const catBoard = leaderboard.filter(t => t.category === cat)
                       if (catBoard.length === 0) return null
                       return (
@@ -365,7 +366,6 @@ export default function CompetitionDetail() {
                         </div>
                       )
                     })
-                  : <LeaderboardTable board={leaderboard} weighins={weighins} members={members} />
                 }
               </>
             )}
@@ -735,7 +735,7 @@ function MyCatchesTab({ comp, fish, myTeam, member, weighins, onRefresh, navigat
   )
 }
 
-function LeaderboardTable({ board, weighins = [], members = [] }) {
+function LeaderboardTable({ board, weighins = [], members = [], showCategory = false }) {
   const [expandedId, setExpandedId] = useState(null)
   const medals = ['🥇','🥈','🥉']
   const scoredBoard = board.filter(x => x.total > 0)
@@ -811,6 +811,9 @@ function LeaderboardTable({ board, weighins = [], members = [] }) {
                           {hasScore && <span className="text-gray-400 text-xs">{isExpanded ? '▲' : '▼'}</span>}
                         </div>
                         {(() => { const divers = members.filter(m => m.team_id === t.id); return divers.length > 0 ? <div className="text-xs text-gray-400 truncate">{divers.map(m => m.name).join(' & ')}</div> : null })()}
+                        {showCategory && t.category && (
+                          <span className={`inline-flex text-xs font-bold px-1.5 py-0.5 rounded-full mt-0.5 ${CATEGORY_COLORS[t.category] || CATEGORY_COLORS['Open']}`}>{t.category}</span>
+                        )}
                       </div>
                     </div>
                   </td>

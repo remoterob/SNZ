@@ -808,6 +808,13 @@ function SetupTab({ comp, setComp, onSave, showToast }) {
           </div>
         </label>
         <label className="flex items-center gap-3 cursor-pointer">
+          <input type="checkbox" checked={!!form.combined_leaderboard} onChange={e => set('combined_leaderboard')(e.target.checked)} className="w-5 h-5" />
+          <div>
+            <p className="text-sm font-semibold text-gray-700">Combined leaderboard</p>
+            <p className="text-xs text-gray-400">Rank all divisions together by score instead of showing separate tables per division</p>
+          </div>
+        </label>
+        <label className="flex items-center gap-3 cursor-pointer">
           <input type="checkbox" checked={!!form.hidden_from_list} onChange={e => set('hidden_from_list')(e.target.checked)} className="w-5 h-5" />
           <div>
             <p className="text-sm font-semibold text-gray-700">Hide from competitions list</p>
