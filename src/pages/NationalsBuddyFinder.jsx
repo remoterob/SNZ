@@ -199,7 +199,9 @@ export default function NationalsBuddyFinder() {
         const { error } = await supabase.from('buddy_requests').update(payload).eq('id', myRequest.id)
         if (error) throw error
       } else {
-        const { error } = await supabase.from('buddy_requests').insert(payload)
+        // upsert handles the case where a soft-deleted row already exists for this member
+        const { error } = await supabase.from('buddy_requests')
+          .upsert(payload, { onConflict: 'member_id' })
         if (error) throw error
       }
       const updated = await fetchRequests()
