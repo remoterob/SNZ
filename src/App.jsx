@@ -937,7 +937,13 @@ function SNZHub() {
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
-{/* Header with logo */}
+{/* NZUA membership banner */}
+      <div className="bg-gray-900 px-6 py-2 flex items-center justify-center gap-2.5">
+        <span className="text-xs font-semibold text-gray-400 tracking-wide whitespace-nowrap">Proud member of</span>
+        <img src="/nzua-logo.svg" alt="New Zealand Underwater Association" className="h-7 w-auto object-contain" />
+      </div>
+
+      {/* Header with logo */}
       <header className="border-b border-gray-200 px-6 py-5 flex items-center justify-between bg-white">
         <div className="flex items-center gap-4">
           {SNZ_LOGO
