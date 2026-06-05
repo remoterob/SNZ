@@ -229,6 +229,10 @@ export default function NationalsPage() {
               {label}
             </button>
           ))}
+          <button onClick={() => navigate('/nationals/buddy-finder')}
+            className="px-4 py-3 text-sm font-bold whitespace-nowrap border-b-2 border-transparent text-gray-500 hover:text-gray-700 transition">
+            🤿 Buddy Finder
+          </button>
         </div>
       </div>
 

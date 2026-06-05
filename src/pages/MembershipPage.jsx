@@ -1544,6 +1544,73 @@ function RequestDataRemoval({ session, member, showToast }) {
   )
 }
 
+// ── Buddy Finder Card ─────────────────────────────────────────────────────────
+function BuddyFinderCard({ memberId, navigate }) {
+  const [request, setRequest] = useState(null)
+  const [matchCount, setMatchCount] = useState(0)
+  const [loaded, setLoaded] = useState(false)
+
+  useEffect(() => {
+    if (!memberId) return
+    const load = async () => {
+      const { data: allRequests } = await supabase
+        .from('buddy_requests').select('*').eq('active', true)
+      if (!allRequests) { setLoaded(true); return }
+      const mine = allRequests.find(r => r.member_id === memberId)
+      setRequest(mine || null)
+      if (mine?.skill_level && mine?.events?.length) {
+        const SKILL_LEVELS = ['Beginner', 'Intermediate', 'Advanced', 'Experienced']
+        const myIdx = SKILL_LEVELS.indexOf(mine.skill_level)
+        const count = allRequests.filter(r => {
+          if (r.member_id === memberId) return false
+          const theirIdx = SKILL_LEVELS.indexOf(r.skill_level)
+          return Math.abs(theirIdx - myIdx) <= 1 &&
+            (mine.events || []).some(e => (r.events || []).includes(e))
+        }).length
+        setMatchCount(count)
+      }
+      setLoaded(true)
+    }
+    load()
+  }, [memberId])
+
+  if (!loaded) return null
+
+  return (
+    <div className="bg-white border border-gray-200 rounded-2xl p-5">
+      <div className="flex items-center justify-between gap-3 mb-3">
+        <h3 className="font-black text-gray-900">🤿 Nationals Buddy Finder</h3>
+        <button onClick={() => navigate('/nationals/buddy-finder')}
+          className="text-xs font-bold px-3 py-1.5 rounded-lg text-white flex-shrink-0"
+          style={{ background: '#2B6CB0' }}>
+          {request ? 'Manage' : 'Find a buddy →'}
+        </button>
+      </div>
+      {request ? (
+        <div className="space-y-1.5">
+          <p className="text-sm text-gray-600">
+            Your buddy request is <span className="font-bold text-green-600">live</span>.
+            {matchCount > 0
+              ? <span className="font-bold text-blue-700"> {matchCount} potential {matchCount === 1 ? 'match' : 'matches'} found!</span>
+              : ' No matches yet — check back as more members sign up.'}
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {(request.events || []).map(e => {
+              const evLabels = { open: '🏆 Open', womens: "🔱 Women's", juniors: '🌟 Juniors', under_23: '🎯 U23', sixty_plus: '🎖️ 60+' }
+              return <span key={e} className="text-xs font-semibold px-2 py-0.5 rounded-lg bg-blue-50 text-blue-700">{evLabels[e] || e}</span>
+            })}
+            {request.skill_level && (
+              <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">{request.skill_level}</span>
+            )}
+          </div>
+        </div>
+      ) : (
+        <p className="text-sm text-gray-500">Looking for a dive partner for the Nationals? Post a buddy request and get matched with divers at your level.</p>
+      )}
+    </div>
+  )
+}
+
 // ── Member Dashboard ──────────────────────────────────────────────────────────
 function MemberDashboard({ session, navigate, onSignOut }) {
   const [member, setMember] = useState(null)
@@ -1632,6 +1699,9 @@ function MemberDashboard({ session, navigate, onSignOut }) {
             </div>
           </div>
         </div>
+
+        {/* Nationals Buddy Finder card */}
+        <BuddyFinderCard memberId={member?.id} navigate={navigate} />
 
         {/* Payment / fee card — only shown if a membership fee is set */}
         {member?.membership_fee_cents > 0 && member?.payment_status !== 'paid' && (
