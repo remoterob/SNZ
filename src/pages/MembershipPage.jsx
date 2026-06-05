@@ -1700,9 +1700,6 @@ function MemberDashboard({ session, navigate, onSignOut }) {
           </div>
         </div>
 
-        {/* Nationals Buddy Finder card */}
-        <BuddyFinderCard memberId={member?.id} navigate={navigate} />
-
         {/* Payment / fee card — only shown if a membership fee is set */}
         {member?.membership_fee_cents > 0 && member?.payment_status !== 'paid' && (
           <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-5">
@@ -1835,6 +1832,9 @@ function MemberDashboard({ session, navigate, onSignOut }) {
         {/* Cancel membership / data removal */}
         <CancelMembership session={session} showToast={showToast} onSignOut={onSignOut} />
         {/* RequestDataRemoval hidden for now */}
+
+        {/* Nationals Buddy Finder */}
+        <BuddyFinderCard memberId={member?.id} navigate={navigate} />
 
         {/* Competition management */}
         <MyCompetitions session={session} memberId={session?.user?.id} member={member} showToast={showToast} />
