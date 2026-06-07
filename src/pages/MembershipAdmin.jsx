@@ -150,7 +150,7 @@ function MemberAdminInner() {
       <div className="max-w-5xl mx-auto px-4 py-6">
         {/* Tabs */}
         <div className="flex gap-0.5 mb-6 border-b border-gray-200 overflow-x-auto">
-          {[['members','Members'],['whitelist','Fee Whitelist'],['analytics','Analytics']].map(([t,label]) => (
+          {[['members','Members'],['whitelist','Fee Whitelist'],['analytics','Analytics'],['buddyfinder','🤿 Buddy Finder']].map(([t,label]) => (
             <button key={t} onClick={() => setTab(t)}
               className={`px-4 py-2.5 text-sm font-bold border-b-2 transition -mb-px whitespace-nowrap ${tab===t ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
               {label}
@@ -160,6 +160,7 @@ function MemberAdminInner() {
 
         {tab === 'analytics' && <AnalyticsDashboard />}
         {tab === 'whitelist' && <WhitelistAdmin />}
+        {tab === 'buddyfinder' && <BuddyFinderAdmin />}
         {tab === 'members' && (
           <div>
             {/* Title row */}
@@ -718,5 +719,135 @@ function RunBackupButton({ showToast }) {
       className="px-3 py-2 rounded-lg text-xs font-bold border border-blue-300 text-blue-700 bg-blue-50 hover:bg-blue-100 transition disabled:opacity-50 whitespace-nowrap">
       {running ? 'Sending…' : '📧 Backup'}
     </button>
+  )
+}
+
+// ── Buddy Finder Admin ────────────────────────────────────────────────────────
+const BUDDY_EVENTS = { open: '🏆 Open', womens: "🔱 Women's", juniors: '🌟 Juniors', under_23: '🎯 U23', sixty_plus: '🎖️ 60+' }
+const BUDDY_AMBITIONS = { qualify_interpacs: 'Interpacifics', qualify_worlds: 'Worlds', gain_experience: 'Gain experience', just_for_fun: 'Just for fun', giving_it_a_try: 'Giving it a try' }
+
+function BuddyFinderAdmin() {
+  const [rows, setRows] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [deleting, setDeleting] = useState(null)
+  const [filter, setFilter] = useState('all')
+
+  const load = async () => {
+    setLoading(true)
+    const { data } = await supabase
+      .from('buddy_requests')
+      .select('*, member:members(name, email, phone, club)')
+      .order('created_at', { ascending: false })
+    setRows(data || [])
+    setLoading(false)
+  }
+
+  useEffect(() => { load() }, [])
+
+  const deleteRow = async (id) => {
+    if (!confirm('Delete this buddy request? This cannot be undone.')) return
+    setDeleting(id)
+    await supabase.from('buddy_requests').delete().eq('id', id)
+    await load()
+    setDeleting(null)
+  }
+
+  const exportCSV = () => {
+    const headers = ['Name', 'Email', 'Phone', 'Club', 'Events', 'Skill Level', 'Ambition', 'Other Info', 'Active', 'Created']
+    const esc = v => { const s = String(v ?? ''); return s.includes(',') ? `"${s}"` : s }
+    const csvRows = [
+      headers.join(','),
+      ...filtered.map(r => [
+        r.member?.name,
+        r.contact_email,
+        r.contact_phone,
+        r.member?.club,
+        (r.events || []).map(e => BUDDY_EVENTS[e] || e).join('; '),
+        r.skill_level,
+        (r.ambition || []).map(a => BUDDY_AMBITIONS[a] || a).join('; '),
+        r.other_info,
+        r.active ? 'Yes' : 'No',
+        new Date(r.created_at).toLocaleDateString('en-NZ'),
+      ].map(esc).join(','))
+    ]
+    const blob = new Blob([csvRows.join('\n')], { type: 'text/csv' })
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    a.download = `buddy-finder-${new Date().toISOString().slice(0,10)}.csv`
+    a.click()
+    URL.revokeObjectURL(a.href)
+  }
+
+  const filtered = rows.filter(r => filter === 'all' ? true : filter === 'active' ? r.active : !r.active)
+
+  return (
+    <div>
+      <div className="flex items-center justify-between gap-3 mb-5 flex-wrap">
+        <div>
+          <h2 className="text-lg font-black text-gray-900">Buddy Finder Requests</h2>
+          <p className="text-sm text-gray-400 mt-0.5">{rows.filter(r => r.active).length} active · {rows.filter(r => !r.active).length} inactive</p>
+        </div>
+        <div className="flex gap-2 flex-wrap">
+          <div className="flex rounded-lg border border-gray-200 overflow-hidden">
+            {[['all','All'],['active','Active'],['inactive','Inactive']].map(([v,l]) => (
+              <button key={v} onClick={() => setFilter(v)}
+                className={`px-3 py-1.5 text-xs font-bold transition ${filter === v ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>
+                {l}
+              </button>
+            ))}
+          </div>
+          <button onClick={exportCSV}
+            className="px-3 py-1.5 rounded-lg text-xs font-bold border border-gray-300 text-gray-700 bg-white hover:bg-gray-50 transition">
+            ↓ Export CSV
+          </button>
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="text-center py-12 text-gray-400">Loading…</div>
+      ) : filtered.length === 0 ? (
+        <div className="text-center py-12 text-gray-400 bg-white border border-gray-200 rounded-2xl">No requests found.</div>
+      ) : (
+        <div className="space-y-3">
+          {filtered.map(r => (
+            <div key={r.id} className={`bg-white border-2 rounded-2xl p-5 ${r.active ? 'border-gray-200' : 'border-gray-100 opacity-60'}`}>
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap mb-1">
+                    <p className="font-black text-gray-900">{r.member?.name || '—'}</p>
+                    {r.active
+                      ? <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700">Active</span>
+                      : <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">Inactive</span>
+                    }
+                    {r.skill_level && (
+                      <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700">{r.skill_level}</span>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-gray-500 mb-2">
+                    {r.contact_email && <span>✉ {r.contact_email}</span>}
+                    {r.contact_phone && <span>📞 {r.contact_phone}</span>}
+                    {r.member?.club && <span>🏊 {r.member.club}</span>}
+                    <span className="text-gray-400">Added {new Date(r.created_at).toLocaleDateString('en-NZ', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5 mb-1">
+                    {(r.events || []).map(e => (
+                      <span key={e} className="text-xs font-semibold px-2 py-0.5 rounded-lg bg-blue-50 text-blue-700">{BUDDY_EVENTS[e] || e}</span>
+                    ))}
+                  </div>
+                  {(r.ambition || []).length > 0 && (
+                    <p className="text-xs text-gray-500">{(r.ambition || []).map(a => BUDDY_AMBITIONS[a] || a).join(' · ')}</p>
+                  )}
+                  {r.other_info && <p className="text-xs text-gray-400 italic mt-1">"{r.other_info}"</p>}
+                </div>
+                <button onClick={() => deleteRow(r.id)} disabled={deleting === r.id}
+                  className="text-xs font-bold text-red-400 hover:text-red-600 disabled:opacity-40 flex-shrink-0 px-2 py-1 rounded-lg hover:bg-red-50 transition">
+                  {deleting === r.id ? '…' : 'Delete'}
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   )
 }
