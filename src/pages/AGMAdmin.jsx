@@ -166,6 +166,12 @@ function MeetingAdmin({ meeting, onEdit, onChange }) {
             <h2 className="text-xl font-black text-gray-900">{meeting.title}</h2>
             <p className="text-sm text-gray-500">{fmtDate(meeting.meeting_date)}</p>
             {meeting.location && <p className="text-sm text-gray-500">📍 {meeting.location}</p>}
+            {meeting.virtual_join_url && (
+              <a href={meeting.virtual_join_url} target="_blank" rel="noreferrer"
+                className="inline-flex items-center gap-1 mt-1 text-xs font-bold text-blue-600 hover:underline">
+                🔗 {meeting.virtual_join_url}
+              </a>
+            )}
           </div>
           <div className="flex gap-2">
             <button onClick={onEdit}
