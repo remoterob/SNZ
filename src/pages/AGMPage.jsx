@@ -10,9 +10,17 @@ function isEligibleMember(m) {
 }
 
 function meetingStatusBadge(s) {
-  if (s === 'open')   return 'bg-green-100 text-green-700 border border-green-300'
-  if (s === 'closed') return 'bg-gray-100 text-gray-500 border border-gray-300'
+  if (s === 'open')      return 'bg-green-100 text-green-700 border border-green-300'
+  if (s === 'closed')    return 'bg-gray-100 text-gray-500 border border-gray-300'
+  if (s === 'published') return 'bg-blue-100 text-blue-700 border border-blue-300'
   return 'bg-amber-100 text-amber-700 border border-amber-300'
+}
+
+function meetingStatusLabel(s) {
+  if (s === 'open')      return '● Live — voting open'
+  if (s === 'closed')    return 'Closed'
+  if (s === 'published') return '📋 Motions published'
+  return 'Upcoming'
 }
 
 function motionStatusBadge(s) {
@@ -100,7 +108,7 @@ function MeetingsList({ navigate }) {
                 <div>
                   <div className="flex items-center gap-2 mb-1">
                     <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${meetingStatusBadge(m.status)}`}>
-                      {m.status === 'open' ? '● Live' : m.status === 'closed' ? 'Closed' : 'Upcoming'}
+                      {meetingStatusLabel(m.status)}
                     </span>
                     <span className="text-xs font-bold text-gray-400 tracking-wider">{m.kind}</span>
                   </div>
@@ -207,7 +215,7 @@ function MeetingView({ meetingId, navigate }) {
       <header className="border-b border-gray-200 px-6 py-5 bg-white">
         <div className="flex items-center gap-2 mb-1">
           <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${meetingStatusBadge(meeting.status)}`}>
-            {meeting.status === 'open' ? '● Live' : meeting.status === 'closed' ? 'Closed' : 'Upcoming'}
+            {meetingStatusLabel(meeting.status)}
           </span>
           <span className="text-xs font-bold text-gray-400 tracking-wider">{meeting.kind}</span>
         </div>
@@ -246,7 +254,7 @@ function MeetingView({ meetingId, navigate }) {
               Active SNZ membership required to attend and vote
             </div>
           )}
-          {eligible && meeting.status === 'open' && (
+          {eligible && (meeting.status === 'open' || meeting.status === 'published') && (
             <button onClick={toggleAttend} disabled={busy}
               className={`px-4 py-2 rounded-xl text-sm font-bold disabled:opacity-50 ${
                 attending
@@ -257,12 +265,19 @@ function MeetingView({ meetingId, navigate }) {
               {attending ? '✓ Attending' : 'I\'m attending'}
             </button>
           )}
-          {eligible && meeting.status !== 'open' && (
+          {eligible && meeting.status !== 'open' && meeting.status !== 'published' && (
             <div className="text-xs text-gray-400 max-w-[180px] text-right">
               Check-in opens when the meeting goes live
             </div>
           )}
         </div>
+
+        {/* Published banner */}
+        {meeting.status === 'published' && (
+          <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 text-sm text-blue-800">
+            <strong>Motions are published for review.</strong> Voting will open when the chair starts the meeting.
+          </div>
+        )}
 
         {/* Motions */}
         <div>

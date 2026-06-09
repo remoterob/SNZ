@@ -102,11 +102,13 @@ export default function AGMAdmin() {
 
 function StatusChip({ status }) {
   const map = {
-    draft:  'bg-amber-100 text-amber-700 border-amber-300',
-    open:   'bg-green-100 text-green-700 border-green-300',
-    closed: 'bg-gray-100 text-gray-500 border-gray-300',
+    draft:     'bg-amber-100 text-amber-700 border-amber-300',
+    published: 'bg-blue-100 text-blue-700 border-blue-300',
+    open:      'bg-green-100 text-green-700 border-green-300',
+    closed:    'bg-gray-100 text-gray-500 border-gray-300',
   }
-  return <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full border ${map[status]}`}>{status}</span>
+  const labels = { draft: 'Draft', published: 'Published', open: 'Open', closed: 'Closed' }
+  return <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full border ${map[status] || map.draft}`}>{labels[status] || status}</span>
 }
 
 function MeetingAdmin({ meeting, onEdit, onChange }) {
@@ -161,10 +163,22 @@ function MeetingAdmin({ meeting, onEdit, onChange }) {
         </div>
         <div className="flex gap-2 flex-wrap mt-3">
           {meeting.status === 'draft' && (
-            <button onClick={() => updateMeetingStatus('open')}
+            <button onClick={() => updateMeetingStatus('published')}
               className="text-xs font-bold px-3 py-1.5 rounded-lg text-white" style={{ background: SNZ_BLUE }}>
-              Publish &amp; open meeting
+              Publish motions
             </button>
+          )}
+          {meeting.status === 'published' && (
+            <>
+              <button onClick={() => updateMeetingStatus('open')}
+                className="text-xs font-bold px-3 py-1.5 rounded-lg text-white bg-green-600 hover:bg-green-700">
+                Open voting
+              </button>
+              <button onClick={() => updateMeetingStatus('draft')}
+                className="text-xs font-bold px-3 py-1.5 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50">
+                Back to draft
+              </button>
+            </>
           )}
           {meeting.status === 'open' && (
             <button onClick={() => updateMeetingStatus('closed')}
