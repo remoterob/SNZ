@@ -69,7 +69,7 @@ function MeetingsList({ navigate }) {
 
   useEffect(() => {
     supabase.from('agm_meetings').select('*')
-      .neq('status', 'draft')
+      .in('status', ['published', 'open'])
       .order('meeting_date', { ascending: false })
       .then(({ data }) => { setMeetings(data || []); setLoading(false) })
   }, [])

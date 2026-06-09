@@ -142,6 +142,16 @@ function MeetingAdmin({ meeting, onEdit, onChange }) {
     onChange()
   }
 
+  const deleteMeeting = async () => {
+    if (!confirm(`Delete "${meeting.title}"? This will also delete all motions and votes. This cannot be undone.`)) return
+    await supabase.from('agm_votes').delete().eq('meeting_id', meeting.id)
+    await supabase.from('agm_motions').delete().eq('meeting_id', meeting.id)
+    await supabase.from('agm_attendees').delete().eq('meeting_id', meeting.id)
+    await supabase.from('agm_meetings').delete().eq('id', meeting.id)
+    toast('Meeting deleted')
+    onChange()
+  }
+
   return (
     <div className="space-y-4">
       {/* Meeting card */}
@@ -156,10 +166,16 @@ function MeetingAdmin({ meeting, onEdit, onChange }) {
             <p className="text-sm text-gray-500">{fmtDate(meeting.meeting_date)}</p>
             {meeting.location && <p className="text-sm text-gray-500">📍 {meeting.location}</p>}
           </div>
-          <button onClick={onEdit}
-            className="text-xs font-bold px-3 py-1.5 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50">
-            Edit
-          </button>
+          <div className="flex gap-2">
+            <button onClick={onEdit}
+              className="text-xs font-bold px-3 py-1.5 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50">
+              Edit
+            </button>
+            <button onClick={deleteMeeting}
+              className="text-xs font-bold px-3 py-1.5 rounded-lg border border-red-200 text-red-500 hover:bg-red-50">
+              Delete
+            </button>
+          </div>
         </div>
         <div className="flex gap-2 flex-wrap mt-3">
           {meeting.status === 'draft' && (
