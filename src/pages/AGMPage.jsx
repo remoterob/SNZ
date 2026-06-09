@@ -279,7 +279,7 @@ function MeetingView({ meetingId, navigate }) {
               Active SNZ membership required to attend and vote
             </div>
           )}
-          {eligible && (meeting.status === 'open' || meeting.status === 'published') && (
+          {eligible && meeting.status === 'open' && (
             <button onClick={toggleAttend} disabled={busy}
               className={`px-4 py-2 rounded-xl text-sm font-bold disabled:opacity-50 ${
                 attending
@@ -290,7 +290,7 @@ function MeetingView({ meetingId, navigate }) {
               {attending ? '✓ Attending' : 'I\'m attending'}
             </button>
           )}
-          {eligible && meeting.status !== 'open' && meeting.status !== 'published' && (
+          {eligible && meeting.status !== 'open' && (
             <div className="text-xs text-gray-400 max-w-[180px] text-right">
               Check-in opens when the meeting goes live
             </div>
