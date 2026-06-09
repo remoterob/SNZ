@@ -167,14 +167,12 @@ function MeetingAdmin({ meeting, onEdit, onChange }) {
             <p className="text-sm text-gray-500">{fmtDate(meeting.meeting_date)}</p>
             {meeting.location && <p className="text-sm text-gray-500">📍 {meeting.location}</p>}
             {meeting.virtual_join_url && (
-              <button
-                onClick={() => {
-                  const url = meeting.virtual_join_url.startsWith('http') ? meeting.virtual_join_url : `https://${meeting.virtual_join_url}`
-                  window.open(url, '_blank', 'noopener,noreferrer')
-                }}
-                className="inline-flex items-center gap-1 mt-1 text-xs font-bold text-blue-600 hover:underline text-left">
+              <a
+                href={meeting.virtual_join_url.startsWith('http') ? meeting.virtual_join_url : `https://${meeting.virtual_join_url}`}
+                target="_blank" rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 mt-1 text-xs font-bold text-blue-600 hover:underline">
                 🔗 {meeting.virtual_join_url}
-              </button>
+              </a>
             )}
           </div>
           <div className="flex gap-2">
