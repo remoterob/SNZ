@@ -228,21 +228,37 @@ function MeetingView({ meetingId, navigate }) {
   return (
     <PageShell navigate={navigate} crumb={`AGM & SGM / ${meeting.kind}`}>
       <header className="border-b border-gray-200 px-6 py-5 bg-white">
-        <div className="flex items-center gap-2 mb-1">
-          <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${meetingStatusBadge(meeting.status)}`}>
-            {meetingStatusLabel(meeting.status)}
-          </span>
-          <span className="text-xs font-bold text-gray-400 tracking-wider">{meeting.kind}</span>
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 mb-1">
+              <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${meetingStatusBadge(meeting.status)}`}>
+                {meetingStatusLabel(meeting.status)}
+              </span>
+              <span className="text-xs font-bold text-gray-400 tracking-wider">{meeting.kind}</span>
+            </div>
+            <h1 className="text-2xl font-black text-gray-900">{meeting.title}</h1>
+            <p className="text-sm text-gray-500 mt-1">{fmtDate(meeting.meeting_date)}</p>
+            {meeting.location && <p className="text-sm text-gray-500">📍 {meeting.location}</p>}
+            {meeting.virtual_join_url && (
+              <a href={meeting.virtual_join_url} target="_blank" rel="noreferrer"
+                className="inline-block text-sm font-bold mt-2" style={{ color: SNZ_BLUE }}>
+                Join virtually →
+              </a>
+            )}
+          </div>
+          <button
+            onClick={() => {
+              const url = `${window.location.origin}/agm/${meeting.id}`
+              if (navigator.share) {
+                navigator.share({ title: meeting.title, url })
+              } else {
+                navigator.clipboard.writeText(url)
+              }
+            }}
+            className="flex-shrink-0 flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50 transition">
+            🔗 Share
+          </button>
         </div>
-        <h1 className="text-2xl font-black text-gray-900">{meeting.title}</h1>
-        <p className="text-sm text-gray-500 mt-1">{fmtDate(meeting.meeting_date)}</p>
-        {meeting.location && <p className="text-sm text-gray-500">📍 {meeting.location}</p>}
-        {meeting.virtual_join_url && (
-          <a href={meeting.virtual_join_url} target="_blank" rel="noreferrer"
-            className="inline-block text-sm font-bold mt-2" style={{ color: SNZ_BLUE }}>
-            Join virtually →
-          </a>
-        )}
       </header>
 
       <div className="max-w-3xl mx-auto p-6 space-y-4">

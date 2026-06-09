@@ -208,6 +208,19 @@ function MeetingAdmin({ meeting, onEdit, onChange }) {
               Reopen
             </button>
           )}
+          <button
+            onClick={() => {
+              const url = `${window.location.origin}/agm/${meeting.id}`
+              if (navigator.share) {
+                navigator.share({ title: meeting.title, url })
+              } else {
+                navigator.clipboard.writeText(url)
+                toast('Link copied!')
+              }
+            }}
+            className="text-xs font-bold px-3 py-1.5 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50">
+            🔗 Share link
+          </button>
         </div>
       </div>
 
