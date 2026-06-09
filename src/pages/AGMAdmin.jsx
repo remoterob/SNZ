@@ -137,7 +137,8 @@ function MeetingAdmin({ meeting, onEdit, onChange }) {
   useEffect(() => { load() }, [meeting.id])
 
   const updateMeetingStatus = async (status) => {
-    await supabase.from('agm_meetings').update({ status }).eq('id', meeting.id)
+    const { error } = await supabase.from('agm_meetings').update({ status }).eq('id', meeting.id)
+    if (error) { toast(`Error: ${error.message}`); return }
     toast(`Meeting ${status}`)
     onChange()
   }
