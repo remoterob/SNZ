@@ -234,11 +234,15 @@ function MeetingView({ meetingId, navigate }) {
             <p className="text-sm text-gray-500 mt-1">{fmtDate(meeting.meeting_date)}</p>
             {meeting.location && <p className="text-sm text-gray-500">📍 {meeting.location}</p>}
             {meeting.virtual_join_url && (
-              <a href={meeting.virtual_join_url.startsWith('http') ? meeting.virtual_join_url : `https://${meeting.virtual_join_url}`} target="_blank" rel="noreferrer"
+              <button
+                onClick={() => {
+                  const url = meeting.virtual_join_url.startsWith('http') ? meeting.virtual_join_url : `https://${meeting.virtual_join_url}`
+                  window.open(url, '_blank', 'noopener,noreferrer')
+                }}
                 className="inline-flex items-center gap-1.5 mt-2 px-4 py-2 rounded-xl text-sm font-bold text-white"
                 style={{ background: SNZ_BLUE }}>
                 🔗 Join virtually →
-              </a>
+              </button>
             )}
           </div>
           <button
