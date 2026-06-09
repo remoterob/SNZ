@@ -118,22 +118,16 @@ function MeetingsList({ navigate }) {
         <div className="space-y-3">
           {meetings.map(m => (
             <button key={m.id} onClick={() => navigate(`/agm/${m.id}`)}
-              className="w-full text-left bg-white border-2 border-gray-100 rounded-2xl p-5 hover:border-blue-300 hover:shadow-md transition">
-              <div className="flex items-start justify-between gap-3 mb-1">
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${meetingStatusBadge(m.status)}`}>
-                      {meetingStatusLabel(m.status)}
-                    </span>
-                    <span className="text-xs font-bold text-gray-400 tracking-wider">{m.kind}</span>
-                  </div>
-                  <h2 className="text-lg font-black text-gray-900">{m.title}</h2>
-                  {m.location && <p className="text-sm text-gray-500 mt-0.5">📍 {m.location}</p>}
-                </div>
-                <div className="text-right text-xs text-gray-400 whitespace-nowrap">
-                  {fmtDate(m.meeting_date)}
-                </div>
+              className="w-full text-left bg-white border-2 border-gray-100 rounded-2xl p-4 hover:border-blue-300 hover:shadow-md transition">
+              <div className="flex items-center gap-2 mb-2 flex-wrap">
+                <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${meetingStatusBadge(m.status)}`}>
+                  {m.status === 'open' ? '● Live' : m.status === 'published' ? 'Published' : 'Upcoming'}
+                </span>
+                <span className="text-xs font-bold text-gray-400 tracking-wider uppercase">{m.kind}</span>
+                <span className="text-xs text-gray-400 ml-auto">{fmtDate(m.meeting_date)}</span>
               </div>
+              <h2 className="text-sm font-black text-gray-900 leading-snug">{m.title}</h2>
+              {m.location && <p className="text-xs text-gray-500 mt-1">📍 {m.location}</p>}
             </button>
           ))}
         </div>
