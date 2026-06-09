@@ -83,15 +83,30 @@ function MeetingsList({ navigate }) {
         </p>
       </header>
       <div className="max-w-3xl mx-auto p-6">
-        <div className="mb-6 rounded-2xl border-2 border-amber-100 bg-amber-50 p-4">
-          <p className="text-sm font-bold text-amber-900 mb-1">🛠 Coming soon</p>
-          <p className="text-sm text-amber-800 leading-relaxed">
-            We're trialling AGM &amp; SGM management on the Hub. Only active SNZ
-            members may vote, and the chair retains full control of how each
-            motion is conducted (open vote, secret ballot, or fallback to a
-            traditional show of hands).
-          </p>
-        </div>
+        {!loading && (() => {
+          const live = meetings.find(m => m.status === 'open')
+          const next = meetings.find(m => m.status === 'published') || meetings[0]
+          if (live) return (
+            <div className="mb-6 rounded-2xl border-2 border-green-200 bg-green-50 p-4 flex items-center gap-3">
+              <span className="text-green-600 text-xl">●</span>
+              <div>
+                <p className="text-sm font-black text-green-800">{live.title} is live — voting is open</p>
+                <p className="text-sm text-green-700">{fmtDate(live.meeting_date)}{live.location ? ` · 📍 ${live.location}` : ''}</p>
+              </div>
+            </div>
+          )
+          if (next) return (
+            <div className="mb-6 rounded-2xl border-2 border-blue-100 bg-blue-50 p-4">
+              <p className="text-sm font-black text-blue-900">📋 Next {next.kind}: {next.title}</p>
+              <p className="text-sm text-blue-800 mt-0.5">{fmtDate(next.meeting_date)}{next.location ? ` · 📍 ${next.location}` : ''}</p>
+            </div>
+          )
+          return (
+            <div className="mb-6 rounded-2xl border-2 border-gray-100 bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">No meetings currently scheduled. Check back closer to the next AGM or SGM.</p>
+            </div>
+          )
+        })()}
         {loading && <div className="text-center py-12 text-gray-400">Loading…</div>}
         {!loading && meetings.length === 0 && (
           <div className="text-center py-16 text-gray-400 bg-gray-50 rounded-2xl">

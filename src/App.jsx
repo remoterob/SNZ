@@ -806,6 +806,7 @@ function SNZHub() {
   const navigate = useNavigate()
   const [stats, setStats] = useState({})
   const [bigFishCount, setBigFishCount] = useState(null)
+  const [agmMeetings, setAgmMeetings] = useState([])
 
   useEffect(() => {
     Promise.all([
@@ -823,6 +824,13 @@ function SNZHub() {
       compsActive:  ca.count ?? 0,
       recipes:      rec.count ?? 0,
     }))
+  }, [])
+
+  useEffect(() => {
+    supabase.from('agm_meetings').select('id, title, kind, status, meeting_date')
+      .in('status', ['published', 'open'])
+      .order('meeting_date', { ascending: true })
+      .then(({ data }) => setAgmMeetings(data || []))
   }, [])
 
   useEffect(() => {
@@ -929,8 +937,14 @@ function SNZHub() {
       desc: 'Annual and Special General Meetings on the Hub — motions, attendance, voting and minutes. Active SNZ members only.',
       onClick: () => navigate('/agm'),
       icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={SNZ_BLUE} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21h18"/><path d="M5 21V8l7-4 7 4v13"/><path d="M9 21v-6h6v6"/><path d="M9 11h.01"/><path d="M15 11h.01"/></svg>,
-      status: 'soon',
-      summary: 'Trialling at the next SGM · Live for AGM 2027',
+      status: agmMeetings.some(m => m.status === 'open') ? 'live' : agmMeetings.length > 0 ? 'soon' : 'soon',
+      summary: (() => {
+        const live = agmMeetings.find(m => m.status === 'open')
+        if (live) return `● ${live.kind} live now — voting open`
+        const next = agmMeetings[0]
+        if (next) return `Next: ${next.kind} · ${new Date(next.meeting_date).toLocaleDateString('en-NZ', { day: 'numeric', month: 'long', year: 'numeric' })}`
+        return 'No meetings currently scheduled'
+      })(),
     },
   ]
 
