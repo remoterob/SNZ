@@ -1475,6 +1475,52 @@ function TeamsTab({ teams, members, weighins, comp, onRefresh, showToast }) {
     showToast('Team deleted')
   }
 
+  const refundTeam = async (t) => {
+    const adminPassword = sessionStorage.getItem('snz_admin_session') || import.meta.env.VITE_ADMIN_PASSWORD
+    try {
+      let res = await fetch('/.netlify/functions/refund-payment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ adminPassword, type: 'comp_entry', teamId: t.id, listOnly: true }),
+      })
+      let data = await res.json()
+      const payments = res.ok ? (data.payments || []) : []
+      if (!payments.length) { showToast(data.error || 'No refundable Stripe payment found', 'error'); return }
+
+      let pick = payments[0]
+      if (payments.length > 1) {
+        const list = payments.map((p, i) =>
+          `${i + 1}: $${(p.amountRemainingCents / 100).toFixed(2)} — ${p.email || p.description || p.id}`).join('\n')
+        const choice = prompt(`This team has ${payments.length} payments:\n${list}\n\nEnter the number to refund:`)
+        if (choice === null) return
+        const idx = parseInt(choice, 10) - 1
+        if (!(idx >= 0 && idx < payments.length)) { showToast('Invalid choice', 'error'); return }
+        pick = payments[idx]
+      }
+
+      const maxDollars = (pick.amountRemainingCents / 100).toFixed(2)
+      const amtStr = prompt(`Refund amount in dollars (max $${maxDollars}).\nA full refund marks the team as withdrawn; a partial refund leaves the entry unchanged.`, maxDollars)
+      if (amtStr === null) return
+      const amountCents = Math.round(parseFloat(amtStr) * 100)
+      if (!(amountCents > 0 && amountCents <= pick.amountRemainingCents)) { showToast('Invalid amount', 'error'); return }
+      if (!confirm(`Refund $${(amountCents / 100).toFixed(2)} for "${t.team_name}"?`)) return
+
+      res = await fetch('/.netlify/functions/refund-payment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ adminPassword, type: 'comp_entry', teamId: t.id, paymentIntentId: pick.id, amountCents }),
+      })
+      data = await res.json()
+      if (!res.ok) showToast(data.error || 'Refund failed', 'error')
+      else {
+        showToast(`✓ Refunded $${(data.amountCents / 100).toFixed(2)}${data.full ? ' — team withdrawn' : ' (partial)'}${data.dbUpdated === false ? ' — update status manually!' : ''}`)
+        onRefresh()
+      }
+    } catch (err) {
+      showToast('Refund error: ' + err.message, 'error')
+    }
+  }
+
   return (
     <div>
       {editingTeam && (
@@ -1543,6 +1589,10 @@ function TeamsTab({ teams, members, weighins, comp, onRefresh, showToast }) {
                   </button>
                   <button onClick={() => setEditingTeam(t)}
                     className="px-2.5 py-1 rounded-lg text-xs font-bold border border-gray-300 text-gray-700 hover:bg-gray-50">Edit</button>
+                  {t.payment_status === 'paid' && (
+                    <button onClick={() => refundTeam(t)}
+                      className="px-2.5 py-1 rounded-lg text-xs font-bold border border-red-200 text-red-500 hover:bg-red-50">Refund</button>
+                  )}
                   <button onClick={() => deleteTeam(t.id)}
                     className="px-2.5 py-1 rounded-lg text-xs font-bold border border-red-200 text-red-500 hover:bg-red-50">Delete</button>
                 </div>

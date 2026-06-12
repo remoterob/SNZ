@@ -91,5 +91,53 @@ exports.handler = async (event) => {
     }
   }
 
+  // Keep the DB in sync when a refund is issued (from the admin refund
+  // button or manually in the Stripe dashboard). Full refunds only —
+  // partial refunds don't change membership/entry status.
+  if (stripeEvent.type === 'charge.refunded') {
+    const charge = stripeEvent.data.object
+    const isFullRefund = charge.amount_refunded >= charge.amount
+    const intentId = typeof charge.payment_intent === 'string'
+      ? charge.payment_intent : charge.payment_intent?.id
+
+    if (isFullRefund && intentId) {
+      try {
+        const { type, member_id, team_id } = charge.metadata || {}
+
+        // Prefer the intent id stored on our rows; fall back to charge metadata
+        const { data: memberRows } = await supabase.from('members')
+          .select('id').eq('stripe_payment_intent', intentId)
+        const memberId = memberRows?.[0]?.id || (type === 'membership' ? member_id : null)
+
+        if (memberId) {
+          await safeUpdate('members', {
+            payment_status: 'pending',
+            membership_status: 'pending',
+            paid_at: null,
+          }, 'id', memberId)
+          console.log(`Refund synced: member ${memberId} back to pending (${intentId})`)
+        } else {
+          const { data: teamRows } = await supabase.from('comp_teams')
+            .select('id').eq('stripe_payment_intent_id', intentId)
+          const teamId = teamRows?.[0]?.id ||
+            ((type === 'competition_entry' || type === 'nationals_entry' || type === 'comp_entry') ? team_id : null)
+          if (teamId) {
+            await safeUpdate('comp_teams', {
+              payment_status: 'refunded',
+              status: 'withdrawn',
+              withdrawn_at: new Date().toISOString(),
+            }, 'id', teamId)
+            console.log(`Refund synced: team ${teamId} withdrawn (${intentId})`)
+          } else {
+            console.warn(`charge.refunded ${intentId}: no matching member or team — nothing to sync`)
+          }
+        }
+      } catch (err) {
+        console.error('Refund sync error:', err.message)
+        return { statusCode: 500, body: 'Refund sync failed' }
+      }
+    }
+  }
+
   return { statusCode: 200, body: JSON.stringify({ received: true }) }
 }

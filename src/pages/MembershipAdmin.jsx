@@ -100,6 +100,25 @@ function MemberAdminInner() {
     }
   }
 
+  const refundMember = async (m) => {
+    if (!confirm(`Refund the membership fee to ${m.name || m.email}?\n\nThe refund goes back to their card via Stripe and their membership returns to pending (they'd need to pay again to reactivate).`)) return
+    try {
+      const res = await fetch('/.netlify/functions/refund-payment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ adminPassword: ADMIN_PASSWORD, type: 'membership', memberId: m.id }),
+      })
+      const data = await res.json()
+      if (!res.ok) showToast(data.error || 'Refund failed', 'error')
+      else {
+        showToast(`Refunded $${(data.amountCents / 100).toFixed(2)} to ${m.name || m.email}${data.dbUpdated ? '' : ' — update status manually!'}`)
+        fetchMembers()
+      }
+    } catch (e) {
+      showToast(e.message, 'error')
+    }
+  }
+
   const resetPassword = async () => {
     if (!resetTarget || tempPwd.length < 8) return
     setResetting(true)
@@ -257,6 +276,12 @@ function MemberAdminInner() {
                             Activate
                           </button>
                         )}
+                        {m.payment_status === 'paid' && m.membership_fee_cents > 0 && (
+                          <button onClick={() => refundMember(m)}
+                            className="flex-1 text-xs font-bold px-3 py-2 rounded-lg border border-red-200 text-red-500 hover:bg-red-50">
+                            Refund
+                          </button>
+                        )}
                         <button onClick={() => { setResetTarget(m); setTempPwd('') }}
                           className="flex-1 text-xs font-bold px-3 py-2 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50">
                           Reset pwd
@@ -300,6 +325,12 @@ function MemberAdminInner() {
                                 <button onClick={() => activateMember(m)}
                                   className="text-xs font-bold px-3 py-1.5 rounded-lg border border-green-300 text-green-700 hover:bg-green-50 whitespace-nowrap">
                                   Activate
+                                </button>
+                              )}
+                              {m.payment_status === 'paid' && m.membership_fee_cents > 0 && (
+                                <button onClick={() => refundMember(m)}
+                                  className="text-xs font-bold px-3 py-1.5 rounded-lg border border-red-200 text-red-500 hover:bg-red-50 whitespace-nowrap">
+                                  Refund
                                 </button>
                               )}
                               <button onClick={() => { setResetTarget(m); setTempPwd('') }}

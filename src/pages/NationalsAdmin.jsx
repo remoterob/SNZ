@@ -462,6 +462,59 @@ function RegistrationsTab({ teams, comp, loading, onRefresh }) {
     setSaving(null)
   }
 
+  const refundTeam = async (team, e) => {
+    e.stopPropagation()
+    const adminPassword = sessionStorage.getItem('snz_admin_session') || import.meta.env.VITE_ADMIN_PASSWORD
+    setSaving(`${team.id}-refund`)
+    try {
+      // Find the refundable Stripe payment(s) — nationals teams can have two
+      // (each diver pays separately)
+      let res = await fetch('/.netlify/functions/refund-payment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ adminPassword, type: 'comp_entry', teamId: team.id, listOnly: true }),
+      })
+      let data = await res.json()
+      if (!res.ok) { window.alert(data.error || 'No refundable payment found'); return }
+      const payments = data.payments || []
+      if (!payments.length) { window.alert('No refundable Stripe payment found for this team.'); return }
+
+      let pick = payments[0]
+      if (payments.length > 1) {
+        const list = payments.map((p, i) =>
+          `${i + 1}: $${(p.amountRemainingCents / 100).toFixed(2)} — ${p.email || p.description || p.id} (${new Date(p.created).toLocaleDateString('en-NZ')})`
+        ).join('\n')
+        const choice = window.prompt(`This team has ${payments.length} payments:\n${list}\n\nEnter the number to refund:`)
+        if (choice === null) return
+        const idx = parseInt(choice, 10) - 1
+        if (!(idx >= 0 && idx < payments.length)) { window.alert('Invalid choice'); return }
+        pick = payments[idx]
+      }
+
+      const maxDollars = (pick.amountRemainingCents / 100).toFixed(2)
+      const amtStr = window.prompt(`Refund amount in dollars (max $${maxDollars}).\nA full refund marks the team as withdrawn; a partial refund leaves the entry unchanged.`, maxDollars)
+      if (amtStr === null) return
+      const amountCents = Math.round(parseFloat(amtStr) * 100)
+      if (!(amountCents > 0 && amountCents <= pick.amountRemainingCents)) { window.alert('Invalid amount'); return }
+
+      if (!window.confirm(`Refund $${(amountCents / 100).toFixed(2)} for "${team.team_name || '(no name)'}"?`)) return
+
+      res = await fetch('/.netlify/functions/refund-payment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ adminPassword, type: 'comp_entry', teamId: team.id, paymentIntentId: pick.id, amountCents }),
+      })
+      data = await res.json()
+      if (!res.ok) window.alert(data.error || 'Refund failed')
+      else window.alert(`✓ Refunded $${(data.amountCents / 100).toFixed(2)}${data.full ? ' — team marked withdrawn' : ' (partial — entry unchanged)'}${data.dbUpdated === false ? '\n\nDB update failed — adjust the team status manually.' : ''}`)
+      await onRefresh()
+    } catch (err) {
+      window.alert('Refund error: ' + err.message)
+    } finally {
+      setSaving(null)
+    }
+  }
+
   const counts = {
     all: teams.filter(t => t.status !== 'withdrawn').length,
     active: teams.filter(t => t.status === 'active').length,
@@ -624,6 +677,14 @@ function RegistrationsTab({ teams, comp, loading, onRefresh }) {
                       onClick={e => quickMark(team.id, 'diver2_payment_status', 'paid', e)}
                       className="text-xs font-bold px-3 py-1.5 rounded-lg border border-green-300 text-green-700 hover:bg-green-50 disabled:opacity-40">
                       D2 paid ✓
+                    </button>
+                  )}
+                  {team.payment_status === 'paid' && (
+                    <button
+                      disabled={saving === `${team.id}-refund`}
+                      onClick={e => refundTeam(team, e)}
+                      className="text-xs font-bold px-3 py-1.5 rounded-lg border border-red-200 text-red-500 hover:bg-red-50 disabled:opacity-40">
+                      {saving === `${team.id}-refund` ? '…' : 'Refund'}
                     </button>
                   )}
                   <button
