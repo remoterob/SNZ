@@ -313,6 +313,15 @@ export default function CompRegister() {
     // Handle return from Stripe
     const params = new URLSearchParams(window.location.search)
     if (params.get('payment') === 'success') {
+      // Verify server-side so the entry activates even if the webhook is delayed
+      const stripeSessionId = params.get('session_id')
+      if (stripeSessionId) {
+        fetch('/.netlify/functions/verify-checkout-session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId: stripeSessionId }),
+        }).catch(e => console.error('Payment verification failed:', e))
+      }
       setDone(true)
       setPaymentDone(true)
       const saved = sessionStorage.getItem(`snz_comp_entry_${id}`)

@@ -96,20 +96,23 @@ export default function NationalsRegister() {
     if (member?.emergency_phone) setEmergencyPhone(member.emergency_phone)
   }, [member])
 
-  // Returning from Stripe — mark payment paid and status active
+  // Returning from Stripe — verify the payment server-side (webhook is the
+  // primary path; this gives instant confirmation without trusting the URL)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     if (params.get('payment') === 'success') {
-      const teamId = params.get('team')
-      if (teamId) {
-        supabase.from('comp_teams').update({
-          payment_status: 'paid',
-          status: 'active',
-        }).eq('id', teamId).then(() => {
-          window.history.replaceState({}, '', '/nationals/register')
-          setSubmitted(true)
-        })
-      }
+      const stripeSessionId = params.get('session_id')
+      const verify = stripeSessionId
+        ? fetch('/.netlify/functions/verify-checkout-session', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sessionId: stripeSessionId }),
+          }).catch(e => console.error('Payment verification failed:', e))
+        : Promise.resolve()
+      verify.then(() => {
+        window.history.replaceState({}, '', '/nationals/register')
+        setSubmitted(true)
+      })
     }
     if (params.get('cancelled') === '1') {
       window.history.replaceState({}, '', '/nationals/register')

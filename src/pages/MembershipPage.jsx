@@ -1628,23 +1628,35 @@ function MemberDashboard({ session, navigate, onSignOut }) {
     if (!session) return
     const params = new URLSearchParams(window.location.search)
     const justPaid = params.get('payment') === 'success'
+    const stripeSessionId = params.get('session_id')
 
     const load = async () => {
-      // If returning from Stripe, activate membership directly then reload
+      // Returning from Stripe — verify the payment server-side (the webhook is
+      // the primary path; this covers webhook latency and gives instant feedback)
       if (justPaid) {
-        await supabase.from('members').update({
-          payment_status: 'paid',
-          membership_status: 'active',
-          paid_at: new Date().toISOString(),
-        }).eq('id', session.user.id)
+        let verified = false
+        if (stripeSessionId) {
+          try {
+            const res = await fetch('/.netlify/functions/verify-checkout-session', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ sessionId: stripeSessionId }),
+            })
+            const data = await res.json()
+            verified = res.ok && data.verified
+          } catch (e) {
+            console.error('Payment verification failed:', e)
+          }
+        }
         window.history.replaceState({}, '', '/membership/dashboard')
+        if (verified) showToast('Payment confirmed — membership activated!')
+        else showToast('Payment received — confirming now. Refresh in a minute if status hasn\'t updated.')
       }
 
       const { data: m } = await supabase.from('members').select('*').eq('id', session.user.id).single()
       setMember(m)
       setForm(m || {})
       setLoading(false)
-      if (justPaid) showToast('Payment confirmed — membership activated!')
     }
     load()
   }, [session])

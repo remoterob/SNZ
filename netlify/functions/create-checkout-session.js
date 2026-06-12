@@ -1,5 +1,11 @@
 // Netlify Function: create a Stripe Checkout session
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY)
+const { createClient } = require('@supabase/supabase-js')
+
+const supabase = createClient(
+  process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+)
 
 exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') {
@@ -10,14 +16,43 @@ exports.handler = async (event) => {
 
   try {
     const body = JSON.parse(event.body)
-    const { type, memberId, teamId, competitionId, competitionName, amountCents, memberEmail, memberName, lineItems } = body
+    const { type, memberId, teamId, competitionId, competitionName, memberEmail, memberName, lineItems } = body
+    let { amountCents } = body
 
     if (!type || !amountCents || amountCents <= 0) {
       return { statusCode: 400, body: JSON.stringify({ error: 'Invalid payment parameters' }) }
     }
 
-    // ── Clear labels for Stripe Dashboard reconciliation ──────────────────────
     const isMembership = type === 'membership'
+
+    // Membership price is NEVER taken from the client — look it up from the
+    // member's own record so a tampered request can't underpay.
+    if (isMembership) {
+      if (!memberId) {
+        return { statusCode: 400, body: JSON.stringify({ error: 'memberId is required for membership payments' }) }
+      }
+      const { data: member, error: memberErr } = await supabase
+        .from('members')
+        .select('membership_fee_cents, payment_status')
+        .eq('id', memberId)
+        .maybeSingle()
+      if (memberErr) {
+        console.error('Member lookup failed:', memberErr.message)
+        return { statusCode: 500, body: JSON.stringify({ error: 'Could not verify membership fee' }) }
+      }
+      if (!member) {
+        return { statusCode: 400, body: JSON.stringify({ error: 'Member not found' }) }
+      }
+      if (member.payment_status === 'paid') {
+        return { statusCode: 400, body: JSON.stringify({ error: 'Membership is already paid' }) }
+      }
+      if (!member.membership_fee_cents || member.membership_fee_cents <= 0) {
+        return { statusCode: 400, body: JSON.stringify({ error: 'No membership fee is due' }) }
+      }
+      amountCents = member.membership_fee_cents
+    }
+
+    // ── Clear labels for Stripe Dashboard reconciliation ──────────────────────
 
     // Top-level payment description — shows in Stripe payments list
     const paymentDescription = isMembership
@@ -48,13 +83,15 @@ exports.handler = async (event) => {
     if (competitionId) metadata.competition_id = String(competitionId)
     if (competitionName) metadata.competition_name = competitionName
 
-    // Nationals entry gets its own redirect URLs
+    // Success URLs carry the checkout session id so the app can verify the
+    // payment server-side (verify-checkout-session) instead of trusting the URL.
+    // Stripe substitutes the literal {CHECKOUT_SESSION_ID} placeholder.
     const isNationals = type === 'nationals_entry'
     const successUrl = isMembership
-      ? `${origin}/membership/dashboard?payment=success`
+      ? `${origin}/membership/dashboard?payment=success&session_id={CHECKOUT_SESSION_ID}`
       : isNationals
-        ? `${origin}/nationals/register?payment=success&team=${teamId}`
-        : `${origin}/competitions/${competitionId}/register?payment=success`
+        ? `${origin}/nationals/register?payment=success&team=${teamId}&session_id={CHECKOUT_SESSION_ID}`
+        : `${origin}/competitions/${competitionId}/register?payment=success&session_id={CHECKOUT_SESSION_ID}`
     const cancelUrl = isMembership
       ? `${origin}/membership/dashboard?payment=cancelled`
       : isNationals
