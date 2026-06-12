@@ -10,6 +10,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@netlify/functions": "^2.8.2",
     "@supabase/supabase-js": "^2.100.0",
     "nodemailer": "^8.0.4",
     "stripe": "^20.4.1"

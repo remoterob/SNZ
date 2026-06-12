@@ -697,7 +697,7 @@ function RunBackupButton({ showToast }) {
     if (!confirm('Send backup CSVs to secretary@spearfishingnz.co.nz now?')) return
     setRunning(true)
     try {
-      const res = await fetch('/.netlify/functions/daily-backup', {
+      const res = await fetch('/.netlify/functions/run-backup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

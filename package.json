@@ -8,6 +8,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@netlify/functions": "^2.8.2",
     "@supabase/supabase-js": "^2.39.0",
     "lucide-react": "^0.294.0",
     "nodemailer": "^8.0.5",

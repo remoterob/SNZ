@@ -31,5 +31,5 @@
     Referrer-Policy = "no-referrer"
     Permissions-Policy = "camera=(), microphone=(), geolocation=()"
 
-[functions."daily-backup"]
-  schedule = "0 18 * * *"
+# daily-backup's schedule is declared in code via the @netlify/functions
+# schedule() wrapper — the toml schedule key was silently never registered.
