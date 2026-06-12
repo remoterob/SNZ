@@ -16,6 +16,35 @@ const REGIONS = [
 
 const EXPERIENCE_LEVELS = ['Beginner', 'Intermediate', 'Experienced', 'Elite']
 
+// ── Fee whitelist ─────────────────────────────────────────────────────────────
+// Case-insensitive check against member_whitelist — pre-existing members get
+// their $10 fee waived. Used by every path that creates a members row
+// (signup, login recovery, buddy invite).
+async function isFeeWaived(email) {
+  if (!email) return false
+  // Escape ilike wildcards so e.g. an underscore in an email can't false-match
+  const pattern = email.trim().toLowerCase().replace(/[%_\\]/g, '\\$&')
+  const { data, error } = await supabase
+    .from('member_whitelist')
+    .select('email')
+    .ilike('email', pattern)
+    .maybeSingle()
+  if (error) console.error('Whitelist check failed:', error.message)
+  return !!data
+}
+
+// Membership fields for a newly created members row, fee waived or not
+function newMemberFeeFields(waived) {
+  return {
+    membership_year: 2026,
+    membership_expires: '2027-03-31',
+    membership_status: waived ? 'active' : 'pending',
+    membership_fee_cents: waived ? 0 : 1000,
+    payment_status: waived ? 'paid' : 'pending',
+    paid_at: waived ? new Date().toISOString() : null,
+  }
+}
+
 // ── Shared header ─────────────────────────────────────────────────────────────
 function MemberHeader({ session, onSignOut }) {
   const navigate = useNavigate()
@@ -194,16 +223,7 @@ function MemberSignup({ navigate }) {
       }
 
       // Step 3: Check whitelist — waive fee for pre-existing members
-      const { data: whitelisted } = await supabase
-        .from('member_whitelist')
-        .select('email')
-        .eq('email', email.trim().toLowerCase())
-        .maybeSingle()
-
-      const isWhitelisted = !!whitelisted
-      const membershipStatus = isWhitelisted ? 'active' : 'pending'
-      const paymentStatus = isWhitelisted ? 'paid' : 'pending'
-      const feeCents = isWhitelisted ? 0 : 1000
+      const isWhitelisted = await isFeeWaived(email)
 
       // Step 4: Write full profile while authenticated
       const { error: profileErr } = await supabase.from('members').upsert({
@@ -219,12 +239,7 @@ function MemberSignup({ navigate }) {
         experience: profile.experience || null,
         region: profile.region || null,
         fit_to_dive: profile.fit_to_dive,
-        membership_year: 2026,
-        membership_expires: '2027-03-31',
-        membership_status: membershipStatus,
-        membership_fee_cents: feeCents,
-        payment_status: paymentStatus,
-        paid_at: isWhitelisted ? new Date().toISOString() : null,
+        ...newMemberFeeFields(isWhitelisted),
       }, { onConflict: 'id' })
 
       if (profileErr) {
@@ -456,20 +471,20 @@ function MemberLogin({ navigate }) {
       // Check if profile exists
       const { data: existingProfile } = await supabase.from('members').select('id').eq('id', data.user.id).maybeSingle()
 
-      if (pendingProfile || !existingProfile) {
-        // Write full profile data (from signup form or create basic one)
+      if (!existingProfile) {
+        // Write full profile data (from signup form or create basic one),
+        // honouring the fee whitelist like the signup path does
+        const waived = await isFeeWaived(data.user.email)
         await supabase.from('members').upsert({
           id: data.user.id,
           ...(pendingProfile || {}),
           email: data.user.email, // always use confirmed email
-          membership_year: 2026,
-          membership_expires: '2027-03-31',
-          membership_status: 'pending',
-          membership_fee_cents: 1000,
-          payment_status: 'pending',
+          ...newMemberFeeFields(waived),
         }, { onConflict: 'id' })
-        localStorage.removeItem('snz_pending_profile')
       }
+      // Never overwrite an existing profile from stale localStorage — it could
+      // downgrade a paid member back to pending
+      localStorage.removeItem('snz_pending_profile')
       navigate('/membership/dashboard')
     } catch (err) {
       setError(err.message === 'Invalid login credentials' ? 'Incorrect email or password.' : err.message)
@@ -1892,17 +1907,19 @@ function InvitedMember({ navigate }) {
       if (err) throw err
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
-        // Upsert member profile
-        await supabase.from('members').upsert({
-          id: user.id,
-          email: user.email,
-          name: inviteData?.name || '',
-          membership_year: 2026,
-          membership_expires: '2027-03-31',
-          membership_status: 'pending',
-          membership_fee_cents: 1000,
-          payment_status: 'pending',
-        }, { onConflict: 'id' })
+        // Create member profile if it doesn't exist yet — honouring the fee
+        // whitelist, and never overwriting an existing (possibly paid) row
+        const { data: existingMember } = await supabase
+          .from('members').select('id').eq('id', user.id).maybeSingle()
+        if (!existingMember) {
+          const waived = await isFeeWaived(user.email)
+          await supabase.from('members').upsert({
+            id: user.id,
+            email: user.email,
+            name: inviteData?.name || '',
+            ...newMemberFeeFields(waived),
+          }, { onConflict: 'id' })
+        }
 
         // Find pending teams for this email and activate them
         const { data: pendingTeams } = await supabase
