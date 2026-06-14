@@ -675,6 +675,15 @@ function EntryModal({ comp, species, existingEntries, allEntries, session, membe
   const scalesRef = useRef(null)
   const lengthRef = useRef(null)
 
+  // Build preview URLs once per file (not on every render/keystroke) and revoke
+  // them when the file changes or the modal unmounts, to avoid blob-URL leaks.
+  const gloryUrl  = useMemo(() => (gloryFile  ? URL.createObjectURL(gloryFile)  : null), [gloryFile])
+  const scalesUrl = useMemo(() => (scalesFile ? URL.createObjectURL(scalesFile) : null), [scalesFile])
+  const lengthUrl = useMemo(() => (lengthFile ? URL.createObjectURL(lengthFile) : null), [lengthFile])
+  useEffect(() => () => { if (gloryUrl)  URL.revokeObjectURL(gloryUrl)  }, [gloryUrl])
+  useEffect(() => () => { if (scalesUrl) URL.revokeObjectURL(scalesUrl) }, [scalesUrl])
+  useEffect(() => () => { if (lengthUrl) URL.revokeObjectURL(lengthUrl) }, [lengthUrl])
+
   const fmtDate = (d) => new Date(d).toLocaleDateString('en-NZ', { day: 'numeric', month: 'short' })
 
   const deleteEntry = async (entry) => {
@@ -865,10 +874,10 @@ function EntryModal({ comp, species, existingEntries, allEntries, session, membe
             </label>
             <div className="grid grid-cols-3 gap-2">
               {[
-                { label: 'Competitor Photo', hint: 'You + fish',  ref: gloryRef,  file: gloryFile,  set: setGloryFile },
-                { label: 'Scales',      hint: 'Weight shown',   ref: scalesRef, file: scalesFile, set: setScalesFile },
-                { label: 'Length',      hint: 'Measure shown',  ref: lengthRef, file: lengthFile, set: setLengthFile },
-              ].map(({ label, hint, ref, file, set }) => (
+                { label: 'Competitor Photo', hint: 'You + fish',  ref: gloryRef,  file: gloryFile,  set: setGloryFile,  url: gloryUrl },
+                { label: 'Scales',      hint: 'Weight shown',   ref: scalesRef, file: scalesFile, set: setScalesFile, url: scalesUrl },
+                { label: 'Length',      hint: 'Measure shown',  ref: lengthRef, file: lengthFile, set: setLengthFile, url: lengthUrl },
+              ].map(({ label, hint, ref, file, set, url }) => (
                 <div key={label} className="flex flex-col items-center gap-1">
                   <button type="button" onClick={() => ref.current?.click()}
                     className="w-full relative overflow-hidden rounded-2xl border-2 transition active:scale-95"
@@ -879,7 +888,7 @@ function EntryModal({ comp, species, existingEntries, allEntries, session, membe
                     }}>
                     {file ? (
                       <>
-                        <img src={URL.createObjectURL(file)} alt={label}
+                        <img src={url} alt={label}
                           className="absolute inset-0 w-full h-full object-cover" />
                         <div className="absolute inset-0 flex items-end justify-end p-1.5">
                           <span className="bg-green-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-black">✓</span>
