@@ -173,10 +173,6 @@ export default function BigFishPage() {
   const isRegistered  = session
     ? registrations.some(r => r.user_id === session.user.id) || hasAnyEntry
     : false
-  const competitorCount = useMemo(() => {
-    const ids = new Set([...registrations.map(r => r.user_id), ...entries.map(e => e.user_id)])
-    return ids.size
-  }, [registrations, entries])
 
   const myTotal = myEntries.reduce((s, e) => s + parseFloat(e.weight_kg), 0)
   const myBest  = myEntries.length ? Math.max(...myEntries.map(e => parseFloat(e.weight_kg))) : 0
@@ -211,11 +207,6 @@ export default function BigFishPage() {
                 ? `${activeComp.name} · ${fmtDate(activeComp.start_date)} – ${fmtDate(activeComp.end_date)}`
                 : 'No active competition'}
             </p>
-            {competitorCount > 0 && (
-              <p className="text-sm font-semibold mt-1" style={{ color: SNZ_BLUE }}>
-                🤿 {competitorCount} competitor{competitorCount === 1 ? '' : 's'} preregistered
-              </p>
-            )}
           </div>
           {comps.length > 1 && (
             <select
