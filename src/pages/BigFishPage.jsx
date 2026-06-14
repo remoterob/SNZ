@@ -846,7 +846,7 @@ function EntryModal({ comp, species, existingEntries, allEntries, session, membe
             <div>
               <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Weight (kg) *</label>
               <input type="number" value={weightKg} onChange={e => setWeightKg(e.target.value)}
-                step="0.1" min="0" placeholder="12.4" required inputMode="decimal"
+                step="0.001" min="0" placeholder="12.400" required inputMode="decimal"
                 className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-base font-bold focus:outline-none focus:border-blue-400 focus:ring-0" />
             </div>
             <div>
