@@ -26,16 +26,29 @@ export default function HubCarousel() {
         supabase.from('bigfish_entries').select('id, photo_glory_url').not('photo_glory_url', 'is', null),
       ])
 
-      const all = [
-        ...(carouselRes.data || []).map(r => ({ id: r.id, photo_url: r.photo_url })),
+      // Uploaded carousel pics are the curated content; weigh-in + big fish
+      // photos are member catches that can vastly outnumber them.
+      const carousel = (carouselRes.data || [])
+        .map(r => ({ id: r.id, photo_url: r.photo_url }))
+        .filter(s => s.photo_url)
+      const catches = [
         ...(weighinsRes.data || []).map(r => ({ id: `w-${r.id}`, photo_url: r.catch_photo_url })),
         ...(bigfishRes.data || []).map(r => ({ id: `b-${r.id}`, photo_url: r.photo_glory_url })),
       ].filter(s => s.photo_url)
 
+      // Keep uploaded carousel pics at ~75% of the rotation: cap catches at a
+      // quarter of the total (carousel / 3). Each load picks a fresh subset.
+      let all
+      if (!carousel.length) {
+        all = shuffle(catches)
+      } else {
+        const catchQuota = Math.round(carousel.length / 3)
+        all = shuffle([...carousel, ...shuffle(catches).slice(0, catchQuota)])
+      }
+
       if (!all.length) return
-      const shuffled = shuffle(all)
-      setSlides(shuffled)
-      shuffled.forEach(s => { const img = new Image(); img.src = s.photo_url })
+      setSlides(all)
+      all.forEach(s => { const img = new Image(); img.src = s.photo_url })
     }
 
     loadSlides()
