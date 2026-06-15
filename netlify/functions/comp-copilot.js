@@ -154,9 +154,17 @@ exports.handler = async (event) => {
         )
 
         if (comp) {
-          const [teamsResult, fishResult] = await Promise.all([
+          const [teamsResult, membersResult, weighinsResult, fishResult] = await Promise.all([
             withTimeout(
-              supabase.from('comp_teams').select('*', { count: 'exact', head: true }).eq('competition_id', competitionId),
+              supabase.from('comp_teams').select('id, team_name, category, status').eq('competition_id', competitionId).neq('status', 'pending_payment'),
+              3000
+            ),
+            withTimeout(
+              supabase.from('comp_team_members').select('team_id, name').eq('competition_id', competitionId),
+              3000
+            ),
+            withTimeout(
+              supabase.from('comp_weighins').select('team_id, fish_name, weight_kg, points_awarded, is_bulk').eq('competition_id', competitionId),
               3000
             ),
             withTimeout(
@@ -164,7 +172,8 @@ exports.handler = async (event) => {
               3000
             ),
           ])
-          const teamCount = teamsResult.count || 0
+          const teamsData = teamsResult.data || []
+          const teamCount = teamsData.length
           const fishList = fishResult.data || []
 
           // Format dates
@@ -214,6 +223,45 @@ exports.handler = async (event) => {
             fishSection = `- Fish list: ${JSON.stringify(comp.fish_list).slice(0, 500)}`
           }
 
+          // Leaderboard / results — mirrors CompetitionDetail scoring: team total
+          // is the sum of points_awarded across its weigh-ins; non-bulk entries
+          // count as fish. Ranked by points, highest first.
+          // Privacy: competitors only see standings once the organiser publishes
+          // them (public_leaderboard) or the comp is closed — matching the app.
+          let resultsSection = ''
+          const resultsPublic = comp.public_leaderboard === true || comp.status === 'closed'
+          if (mode === 'competitor' && !resultsPublic) {
+            resultsSection = '- Leaderboard: not yet published. Standings appear once the organiser publishes them or the competition closes.'
+          } else {
+            const memberData  = membersResult.data || []
+            const weighinData = weighinsResult.data || []
+            const board = teamsData.map(team => {
+              const tw = weighinData.filter(w => w.team_id === team.id)
+              const total = tw.reduce((s, w) => s + (w.points_awarded || 0), 0)
+              const fishCount = tw.filter(w => !w.is_bulk).length
+              const divers = memberData.filter(m => m.team_id === team.id).map(m => m.name).filter(Boolean)
+              return { name: team.team_name || '(unnamed team)', category: team.category, total, fishCount, divers }
+            }).filter(t => t.total > 0).sort((a, b) => b.total - a.total)
+
+            if (board.length) {
+              const lines = board.slice(0, 50).map((t, i) => {
+                const who = t.divers.length ? ` (${t.divers.join(' & ')})` : ''
+                const cat = t.category ? ` [${t.category}]` : ''
+                return `  ${i + 1}. ${t.name}${who}${cat} — ${t.total} pts, ${t.fishCount} fish`
+              })
+              const heaviest = weighinData
+                .filter(w => !w.is_bulk && w.weight_kg != null)
+                .sort((a, b) => (b.weight_kg || 0) - (a.weight_kg || 0))[0]
+              const heaviestLine = heaviest
+                ? `\n- Heaviest single fish weighed in: ${heaviest.fish_name || 'fish'} at ${heaviest.weight_kg} kg`
+                : ''
+              const provisional = comp.status === 'closed' ? '' : ' (live/provisional — weigh-ins may still be coming in)'
+              resultsSection = `- Current leaderboard${provisional}, ranked by points:\n${lines.join('\n')}${heaviestLine}`
+            } else {
+              resultsSection = '- Current leaderboard: no weigh-ins recorded yet — no scores on the board.'
+            }
+          }
+
           compContext = `
 ## THIS COMPETITION'S DETAILS
 - Name: ${comp.name || '(no name)'}
@@ -227,6 +275,7 @@ ${comp.registration_cutoff ? `- Entries close: ${fmtDate(comp.registration_cutof
 ${comp.early_bird_cutoff ? `- Early bird cutoff: ${fmtDate(comp.early_bird_cutoff)}` : ''}
 ${feesSection}
 ${fishSection}
+${resultsSection}
 ${comp.description || comp.details ? `- Description: ${comp.description || comp.details}` : ''}
 ${comp.event_info ? `- Event info: ${comp.event_info}` : ''}
 ${comp.rules ? `- Competition rules/notes: ${comp.rules}` : ''}
@@ -257,6 +306,7 @@ ${compContext}
 ## YOUR ROLE
 
 Help competitors with:
+- **Results & standings**: the current leaderboard, who's leading, a team's points/rank/fish count, the heaviest fish — read these from the "Current leaderboard" in the competition details below
 - **What to bring**: mandatory safety gear, allowed equipment, what is and isn't permitted
 - **Fish & scoring**: eligible species, limits, how points are calculated, weight bonuses
 - **Weigh-in**: process, minimum weights, penalties for undersized or ineligible fish
@@ -280,7 +330,8 @@ Help competitors with:
 
 ## IMPORTANT
 - Always reference the specific competition's fish list and details when answering
-- If a detail isn't in the competition info provided (e.g. exact start time), say so and suggest they check with the organiser`
+- If a detail isn't in the competition info provided (e.g. exact start time), say so and suggest they check with the organiser
+- For results questions, use the "Current leaderboard" data: points are the ranking metric. If standings aren't published yet, say so. If the board is empty, say no weigh-ins have been recorded yet`
       : `You are "Comp Copilot" — an AI advisor helping New Zealand spearfishing club organisers run safe, fair, and well-promoted competitions. You work for Spearfishing New Zealand (SNZ).
 
 Your knowledge comes from two sources:
@@ -298,10 +349,11 @@ ${compContext}
 ## YOUR ROLE
 
 Help club organisers with:
+- **Results & standings**: read out the current leaderboard, a team's points/rank/fish count, the heaviest fish — use the "Current leaderboard" in the competition details below
 - **Promotion**: Facebook posts, email drafts, community announcements
 - **Pre-comp logistics**: briefings, safety checklists, weather decisions, permits, iwi partnerships
 - **During-comp**: quick rule clarifications, penalty guidance, dispute handling
-- **Post-comp**: results announcements, social media, incident reporting
+- **Post-comp**: results announcements (you can draft these straight from the live leaderboard), social media, incident reporting
 - **Fish list**: suggesting considerations, referencing typical lists
 
 ## TONE & STYLE
