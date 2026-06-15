@@ -123,6 +123,15 @@ const SNZ_RULES_SUMMARY = `
 - Ice should be available for competitors waiting in queue
 `.trim()
 
+// Maps the raw competition status to an unambiguous phase statement so the AI
+// never has to infer "is it running?" from dates alone.
+const STATUS_PHASE = {
+  draft:    'DRAFT — not yet published to competitors. Treat as not yet open; do not discuss results.',
+  upcoming: 'UPCOMING — published but has NOT started yet. Registration may be open, but the competition has not begun and there are no results yet.',
+  active:   'LIVE — the competition is currently running. Any standings are provisional and may still change.',
+  closed:   'CLOSED — the competition has FINISHED. Results are FINAL. Never describe it as upcoming or still running; speak about it in the past tense.',
+}
+
 exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, body: JSON.stringify({ error: 'Method Not Allowed' }) }
@@ -178,6 +187,8 @@ exports.handler = async (event) => {
 
           // Format dates
           const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-NZ', { day: 'numeric', month: 'long', year: 'numeric' }) : null
+          const todayNZ = new Date().toLocaleDateString('en-NZ', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+          const phase = STATUS_PHASE[comp.status] || `Status "${comp.status || 'unknown'}" — confirm with the organiser.`
 
           // Format category fees (Nationals multi-event or single entry fee)
           const EVENT_NAMES = {
@@ -255,8 +266,10 @@ exports.handler = async (event) => {
               const heaviestLine = heaviest
                 ? `\n- Heaviest single fish weighed in: ${heaviest.fish_name || 'fish'} at ${heaviest.weight_kg} kg`
                 : ''
-              const provisional = comp.status === 'closed' ? '' : ' (live/provisional — weigh-ins may still be coming in)'
-              resultsSection = `- Current leaderboard${provisional}, ranked by points:\n${lines.join('\n')}${heaviestLine}`
+              const provisional = comp.status === 'closed'
+                ? ' (FINAL results — competition is closed)'
+                : ' (live/provisional — weigh-ins may still be coming in)'
+              resultsSection = `- ${comp.status === 'closed' ? 'Final' : 'Current'} leaderboard${provisional}, ranked by points:\n${lines.join('\n')}${heaviestLine}`
             } else {
               resultsSection = '- Current leaderboard: no weigh-ins recorded yet — no scores on the board.'
             }
@@ -267,8 +280,10 @@ exports.handler = async (event) => {
 - Name: ${comp.name || '(no name)'}
 - Organiser/Club: ${comp.club_name || comp.host_club || '(not specified)'}
 - Location: ${comp.location || '(not specified)'}
+- Today's date: ${todayNZ}
 - Date: ${fmtDate(comp.date_start) || fmtDate(comp.start_date) || '(not specified)'}${(comp.date_end || comp.end_date) ? ` to ${fmtDate(comp.date_end || comp.end_date)}` : ''}
-- Status: ${comp.status || '(not specified)'}
+- Status (raw): ${comp.status || '(not specified)'}
+- Competition phase: ${phase}
 - Scoring: ${comp.scoring_mode === 'bingo' ? 'Fish Bingo (fixed points per species)' : 'Standard SNZ scoring (100 pts per fish + 10 pts/kg)'}
 - Registered teams so far: ${teamCount}
 ${comp.registration_cutoff ? `- Entries close: ${fmtDate(comp.registration_cutoff)}` : ''}
@@ -331,7 +346,8 @@ Help competitors with:
 ## IMPORTANT
 - Always reference the specific competition's fish list and details when answering
 - If a detail isn't in the competition info provided (e.g. exact start time), say so and suggest they check with the organiser
-- For results questions, use the "Current leaderboard" data: points are the ranking metric. If standings aren't published yet, say so. If the board is empty, say no weigh-ins have been recorded yet`
+- For results questions, use the "Current leaderboard" data: points are the ranking metric. If standings aren't published yet, say so. If the board is empty, say no weigh-ins have been recorded yet
+- ALWAYS respect the "Competition phase" line. If the comp is CLOSED, speak in the past tense and treat results as final — never say it is upcoming or still running. If it is UPCOMING, do not present any standings as results. Trust the phase over your own reading of the dates`
       : `You are "Comp Copilot" — an AI advisor helping New Zealand spearfishing club organisers run safe, fair, and well-promoted competitions. You work for Spearfishing New Zealand (SNZ).
 
 Your knowledge comes from two sources:
@@ -376,6 +392,7 @@ Help club organisers with:
 - When drafting promo or social posts, include realistic placeholders like [date], [entry link], [contact] where the user will need to fill in
 - When giving checklists, be thorough but practical — 5-10 items is usually enough
 - Always ground advice in the specific competition context provided above
+- ALWAYS respect the "Competition phase" line. If the comp is CLOSED, treat it as finished with final results and speak in the past tense — never imply it is still running or upcoming. If LIVE, standings are provisional; if UPCOMING/DRAFT, there are no results yet. Trust the phase over your own reading of the dates
 - If competition details are missing something important, flag it (e.g. "You haven't set an entry fee yet — worth confirming before promoting")`
 
     const callStart = Date.now()
