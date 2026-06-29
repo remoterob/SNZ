@@ -15,12 +15,6 @@ const SUB_EVENTS = [
     color: '#2B6CB0', bgColor: '#eff6ff', borderColor: '#bfdbfe',
   },
   {
-    id: 'womens', name: "Women's Championship", emoji: '🔱',
-    perDiver: false, baseFee: false, feeCents: 0,
-    desc: 'Per team — both divers must be women.',
-    color: '#db2777', bgColor: '#fdf2f8', borderColor: '#fbcfe8',
-  },
-  {
     id: 'juniors', name: 'Junior Championship', emoji: '🌟',
     perDiver: false, baseFee: false, feeCents: 0,
     desc: 'Per team — select if either diver is under 18.',
@@ -127,7 +121,7 @@ export default function NationalsRegister() {
   const [p2Error, setP2Error] = useState('')
 
   // Per-team event selection: { juniors: bool, over60: bool }
-  const [teamEvents, setTeamEvents] = useState({ open: false, womens: false, juniors: false, goldenoldie: false })
+  const [teamEvents, setTeamEvents] = useState({ open: false, juniors: false, goldenoldie: false })
 
   // Per-diver event selection: { photography: { d1: bool, d2: bool }, finswim: { d1: bool, d2: bool } }
   const [diverEvents, setDiverEvents] = useState({
@@ -184,7 +178,7 @@ export default function NationalsRegister() {
       return
     }
     const { data } = await supabase.from('members')
-      .select('id, name, email, membership_status, payment_status')
+      .select('id, name, email, gender, membership_status, payment_status')
       .eq('email', trimmed)
       .maybeSingle()
     setCheckingP2(false)
@@ -297,6 +291,10 @@ export default function NationalsRegister() {
   const superDiverD1 = teamEvents.open && diverEvents.photography.d1 && diverEvents.finswim.d1
   const superDiverD2 = teamEvents.open && diverEvents.photography.d2 && diverEvents.finswim.d2
 
+  // Women's is a sub-division of the Open (pairs) — auto-flag when both divers
+  // are women. Resolves on Diver 2 confirmation if D2 is still pending here.
+  const bothWomen = member?.gender === 'Female' && p2Member?.gender === 'Female'
+
   const handleSubmit = async () => {
     if (!validate()) { window.scrollTo({ top: 0, behavior: 'smooth' }); return }
     setSubmitting(true)
@@ -312,6 +310,7 @@ export default function NationalsRegister() {
 
       const nationalsEvents = {
         ...Object.fromEntries(Object.entries(teamEvents).filter(([, v]) => v)),
+        womens: bothWomen,
         photography_d1: diverEvents.photography.d1,
         photography_d2: diverEvents.photography.d2,
         finswim_d1: diverEvents.finswim.d1,
@@ -652,6 +651,16 @@ export default function NationalsRegister() {
             </div>
           ))}
         </div>
+
+        {/* Women's sub-division — auto-derived from the Open, no separate entry */}
+        {bothWomen && (
+          <div className="rounded-2xl p-4 border" style={{ background: '#fdf2f8', borderColor: '#fbcfe8' }}>
+            <p className="text-sm font-black" style={{ color: '#db2777' }}>🔱 You'll also be in the Women's sub-division</p>
+            <p className="text-xs mt-0.5" style={{ color: '#9d174d' }}>
+              As a women's pair you're automatically ranked in the Women's leaderboard within the 2-Day Open — no separate entry or fee needed.
+            </p>
+          </div>
+        )}
 
         {/* Fee summary */}
         <div className="bg-white border border-gray-200 rounded-2xl p-5">

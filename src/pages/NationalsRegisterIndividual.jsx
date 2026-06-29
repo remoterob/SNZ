@@ -7,14 +7,9 @@ const SNZ_BLUE = '#2B6CB0'
 const SNZ_DARK = '#1e3a5f'
 
 // Events available for individual entry (Open excluded - pairs only;
+// Women's excluded - now a pairs sub-division of the Open, not a solo entry;
 // Silver Oldie excluded - auto-qualifies from Open; Golden Oldie excluded - pair event)
 const INDIVIDUAL_EVENTS = [
-  {
-    id: 'womens', name: "Women's Championship", emoji: '🔱',
-    desc: 'Entry for women competing individually with a safety diver.',
-    earlyBird: true,
-    color: '#db2777', bgColor: '#fdf2f8', borderColor: '#fbcfe8',
-  },
   {
     id: 'juniors', name: 'Junior Championship', emoji: '🌟',
     desc: 'Individual entry for junior competitors (under 18).',

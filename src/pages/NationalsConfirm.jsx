@@ -100,7 +100,7 @@ export default function NationalsConfirm() {
       // Fetch diver 1
       if (teamData.diver1_member_id) {
         const { data: d1 } = await supabase.from('members')
-          .select('name, email').eq('id', teamData.diver1_member_id).maybeSingle()
+          .select('name, email, gender').eq('id', teamData.diver1_member_id).maybeSingle()
         setD1Member(d1)
       }
 
@@ -272,6 +272,9 @@ export default function NationalsConfirm() {
         under23_d2: myEvents.under23_d2,
         // Auto superdiver D2 if Open + Photo + FinSwim
         superdiver_d2: !!(teamEvents.open && myEvents.photography_d2 && myEvents.finswim_d2),
+        // Women's sub-division (pairs) — both divers must be women. Now that D2 has
+        // confirmed we know both genders, so resolve the flag here.
+        womens: d1Member?.gender === 'Female' && member?.gender === 'Female',
       }
 
       const merch_d2 = {

@@ -45,7 +45,7 @@ function calcBulkBonus(kg) { return Math.floor((parseFloat(kg || 0) || 0) * 10) 
 
 const STANDARD_DIVS = [
   { id: 'open',        label: '🏆 Open' },
-  { id: 'womens',      label: "🔱 Women's" },
+  { id: 'womens',      label: "🔱 Women's", derived: true },  // sub-division of Open — women's pairs ranked off their Open scores
   { id: 'juniors',     label: '🌟 Juniors' },
   { id: 'goldenoldie', label: '🎖️ Golden Oldie' },  // day boat comp — own fish list & weigh-in
   { id: 'silveroldie', label: '🥈 Silver Oldie', derived: true },  // derived from Open (50+)
@@ -1351,7 +1351,7 @@ function DivisionLeaderboard({ divId, teams, allWeighins }) {
       })
 
     // Age divisions (Silver/Golden Oldie) ranked by Open score
-    ;[{ id: 'silveroldie', label: '🥈 Silver Oldie' }, { id: 'goldenoldie', label: '🎖️ Golden Oldie' }]
+    ;[{ id: 'womens', label: "🔱 Women's" }, { id: 'silveroldie', label: '🥈 Silver Oldie' }, { id: 'goldenoldie', label: '🎖️ Golden Oldie' }]
       .filter(ag => team.nationals_event?.[ag.id])
       .forEach(ag => {
         const ranked = teams
