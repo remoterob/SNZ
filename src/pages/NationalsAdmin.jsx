@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import CompCopilotFAB from './CompCopilotFAB'
-import { superDiverLeaderboard, medalFor } from '../lib/nationalsScoring'
+import { teamLeaderboard, photographyLeaderboard, finSwimLeaderboard, superDiverLeaderboard, medalFor } from '../lib/nationalsScoring'
+import { toCSV, downloadCSV } from '../lib/csvExport'
 
 const SNZ_BLUE = '#2B6CB0'
 const SNZ_DARK = '#1e3a5f'
@@ -526,6 +527,40 @@ function RegistrationsTab({ teams, comp, loading, onRefresh }) {
     withdrawn: teams.filter(t => t.status === 'withdrawn').length,
   }
 
+  const exportEntries = () => {
+    const eventNames = (t) => Object.entries(t.nationals_event || {})
+      .filter(([, v]) => v).map(([k]) => EVENT_LABELS[k]).filter(Boolean).join('; ')
+    const merchStr = (m) => {
+      if (!m) return ''
+      const parts = []
+      if (m.jacket?.size) parts.push(`Jacket ${m.jacket.gender || ''} ${m.jacket.size}`.trim())
+      if (m.shirt?.size) parts.push(`Shirt ${m.shirt.gender || ''} ${m.shirt.size}`.trim())
+      if (m.meal_qty) parts.push(`Meals x${m.meal_qty}`)
+      return parts.join('; ')
+    }
+    const hasD2 = (t) => !!(t._d2 || t.diver2_email)
+    const columns = [
+      { label: 'Team Name', value: t => t.team_name || '' },
+      { label: 'Type', value: t => t.nationals_event?.is_individual ? 'Individual' : 'Pair' },
+      { label: 'Status', value: t => t.status || '' },
+      { label: 'Diver 1', value: t => t._d1?.name || '' },
+      { label: 'Diver 1 Email', value: t => t._d1?.email || '' },
+      { label: 'Diver 2', value: t => t._d2?.name || '' },
+      { label: 'Diver 2 Email', value: t => t._d2?.email || t.diver2_email || '' },
+      { label: 'Events', value: t => eventNames(t) },
+      { label: 'D1 Payment', value: t => t.payment_status || '' },
+      { label: 'D2 Payment', value: t => hasD2(t) ? (t.diver2_payment_status || '') : '' },
+      { label: 'Entry Fee ($)', value: t => t.entry_fee_cents ? (t.entry_fee_cents / 100).toFixed(2) : '' },
+      { label: 'Merch D1', value: t => merchStr(t.merch_d1) },
+      { label: 'Merch D2', value: t => merchStr(t.merch_d2) },
+      { label: 'Safety Diver', value: t => t.nationals_event?.safety_diver_name || '' },
+      { label: 'Stripe PI', value: t => t.stripe_payment_intent_id || '' },
+      { label: 'Registered', value: t => t.created_at ? new Date(t.created_at).toLocaleString('en-NZ') : '' },
+    ]
+    const stamp = new Date().toISOString().slice(0, 10)
+    downloadCSV(`nationals-2027-entries-${filter}-${stamp}.csv`, toCSV(filtered, columns))
+  }
+
   if (loading) return <div className="text-center py-12 text-gray-400 text-sm">Loading registrations…</div>
 
   return (
@@ -574,6 +609,11 @@ function RegistrationsTab({ teams, comp, loading, onRefresh }) {
           <input value={search} onChange={e => setSearch(e.target.value)}
             placeholder="Search name, email, Stripe PI…"
             className="flex-1 min-w-48 border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200" />
+          <button onClick={exportEntries} disabled={filtered.length === 0}
+            className="px-4 py-1.5 rounded-lg text-xs font-black whitespace-nowrap border border-gray-200 text-gray-700 hover:border-gray-300 disabled:opacity-40"
+            title="Export the entries shown below to CSV">
+            ⬇ Export CSV ({filtered.length})
+          </button>
           <button onClick={() => setModalTeam(null)}
             className="px-4 py-1.5 rounded-lg text-xs font-black text-white whitespace-nowrap"
             style={{ background: SNZ_BLUE }}>
@@ -1714,6 +1754,42 @@ function ResultsTab({ comp, teams, fishLists, allWeighins, onRefresh }) {
     { id: 'superdiver', label: '⭐ Super Diver' },
   ]
 
+  // ── Results CSV export ──
+  const EVENT_TYPE = { open: 'team', womens: 'team', juniors: 'team', under23: 'team', goldenoldie: 'team', silveroldie: 'team', photography: 'photo', finswim: 'finswim', superdiver: 'superdiver' }
+  const SCORE_FROM = { womens: 'open', silveroldie: 'open' }
+  const EXPORT_LABEL = { open: 'Open', womens: "Women's", juniors: 'Juniors', under23: 'Under 23', goldenoldie: 'Golden Oldie (60+)', silveroldie: 'Silver Oldie', photography: 'Photography', finswim: 'Fin Swim', superdiver: 'Super Diver' }
+  const EXPORT_ORDER = ['open', 'womens', 'juniors', 'under23', 'goldenoldie', 'silveroldie', 'photography', 'finswim', 'superdiver']
+
+  const unifiedRows = (id) => {
+    const lbl = EXPORT_LABEL[id]
+    const partnerLine = r => `${r._d1?.name || ''}${r._d2?.name ? ` & ${r._d2.name}` : ''}`
+    if (EVENT_TYPE[id] === 'photo')
+      return photographyLeaderboard(teams, allWeighins).filter(r => r.hasResult)
+        .map(r => ({ event: lbl, rank: r.rank, competitor: r.name, team: r.team.team_name, score: r.count, detail: 'species' }))
+    if (EVENT_TYPE[id] === 'finswim')
+      return finSwimLeaderboard(teams, allWeighins).filter(r => r.hasResult)
+        .map(r => ({ event: lbl, rank: r.placing, competitor: r.name, team: r.team.team_name, score: r.placing, detail: 'placing' }))
+    if (EVENT_TYPE[id] === 'superdiver')
+      return superDiverLeaderboard(teams, allWeighins).filter(r => r.complete)
+        .map(r => ({ event: lbl, rank: r.rank, competitor: r.name, team: r.team.team_name, score: r.aggregate, detail: `Open ${r.openPlacing} / Photo ${r.photoPlacing} / Swim ${r.swimPlacing}` }))
+    return teamLeaderboard(teams, allWeighins, id, SCORE_FROM[id] || null).filter(r => r.hasEntry)
+      .map(r => ({ event: lbl, rank: r.rank, competitor: r.team_name, team: partnerLine(r), score: r.total, detail: `${r.fishCount} fish` }))
+  }
+
+  const RESULT_COLUMNS = [
+    { label: 'Event', value: r => r.event },
+    { label: 'Rank', value: r => r.rank },
+    { label: 'Competitor', value: r => r.competitor },
+    { label: 'Team / Partner', value: r => r.team },
+    { label: 'Score', value: r => r.score },
+    { label: 'Detail', value: r => r.detail },
+  ]
+  const stamp = () => new Date().toISOString().slice(0, 10)
+  const exportSelected = () => downloadCSV(`nationals-2027-${selEvent}-results-${stamp()}.csv`, toCSV(unifiedRows(selEvent), RESULT_COLUMNS))
+  const exportAll = () => downloadCSV(`nationals-2027-all-results-${stamp()}.csv`, toCSV(EXPORT_ORDER.flatMap(unifiedRows), RESULT_COLUMNS))
+
+  const selectedRowCount = unifiedRows(selEvent).length
+
   return (
     <div className="space-y-4">
       <div className="flex gap-1.5 flex-wrap">
@@ -1724,6 +1800,19 @@ function ResultsTab({ comp, teams, fishLists, allWeighins, onRefresh }) {
             {ev.label}
           </button>
         ))}
+      </div>
+
+      <div className="flex gap-2 flex-wrap">
+        <button onClick={exportSelected} disabled={selectedRowCount === 0}
+          className="px-4 py-1.5 rounded-lg text-xs font-black whitespace-nowrap border border-gray-200 text-gray-700 hover:border-gray-300 disabled:opacity-40"
+          title="Export the selected event's results to CSV">
+          ⬇ Export this event ({selectedRowCount})
+        </button>
+        <button onClick={exportAll}
+          className="px-4 py-1.5 rounded-lg text-xs font-black whitespace-nowrap border border-gray-200 text-gray-700 hover:border-gray-300"
+          title="Export every event's results to a single CSV">
+          ⬇ Export all results
+        </button>
       </div>
 
       {selEvent === 'photography' && (
