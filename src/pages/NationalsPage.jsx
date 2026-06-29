@@ -141,6 +141,9 @@ function fmtEventDateRange(d) {
   return `${s.toLocaleDateString('en-NZ', { day: 'numeric', month: 'short' })} – ${e.toLocaleDateString('en-NZ', { day: 'numeric', month: 'short', year: 'numeric' })}`
 }
 
+// Women's is a sub-division of the Open, so it shares the Open's dates.
+const eventDatesFor = (nat, id) => nat?.event_dates?.[id === 'womens' ? 'open' : id]
+
 // ── Nationals Public Page ────────────────────────────────────────────────────
 export default function NationalsPage() {
   const navigate = useNavigate()
@@ -278,9 +281,9 @@ export default function NationalsPage() {
                   <div className="flex-1 min-w-0">
                     <p className="font-black text-gray-900 text-sm">{ev.name}</p>
                     <p className="text-xs text-gray-500 truncate">{ev.format}</p>
-                    {fmtEventDateRange(nationals?.event_dates?.[ev.id]) && (
+                    {fmtEventDateRange(eventDatesFor(nationals, ev.id)) && (
                       <p className="text-xs font-semibold mt-0.5" style={{ color: ev.color }}>
-                        📅 {fmtEventDateRange(nationals?.event_dates?.[ev.id])}
+                        📅 {fmtEventDateRange(eventDatesFor(nationals, ev.id))}
                       </p>
                     )}
                   </div>
@@ -326,13 +329,13 @@ export default function NationalsPage() {
                   </div>
                 </div>
                 <div className="px-5 py-4 space-y-3">
-                  {fmtEventDateRange(nationals?.event_dates?.[ev.id]) ? (
+                  {fmtEventDateRange(eventDatesFor(nationals, ev.id)) ? (
                     <div className="flex items-center gap-3 rounded-xl px-4 py-3 border"
                       style={{ background: ev.bgColor, borderColor: ev.borderColor }}>
                       <span className="text-xl">📅</span>
                       <div>
                         <p className="text-xs font-bold uppercase tracking-wide" style={{ color: ev.color }}>Date</p>
-                        <p className="font-black text-gray-900">{fmtEventDateRange(nationals?.event_dates?.[ev.id])}</p>
+                        <p className="font-black text-gray-900">{fmtEventDateRange(eventDatesFor(nationals, ev.id))}</p>
                       </div>
                     </div>
                   ) : (

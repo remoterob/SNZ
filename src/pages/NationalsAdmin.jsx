@@ -22,9 +22,10 @@ const EVENT_LABELS = {
   superdiver_d2: '⭐ SuperDiver D2',
 }
 
+// Women's is a sub-division of the Open (no separate fee/date) — excluded here so
+// it can't be priced or dated independently; it inherits the Open entry & dates.
 const NATIONALS_EVENTS = [
   { id: 'open', label: '🏆 Open Championship' },
-  { id: 'womens', label: "🔱 Women's Championship" },
   { id: 'juniors', label: '🌟 Junior Championship' },
   { id: 'goldenoldie', label: '🎖️ Golden Oldie Day Boat (60+)' },
   { id: 'under23', label: '🎯 Under 23 Division' },

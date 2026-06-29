@@ -9,7 +9,7 @@ const SIZES = ['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL']
 
 const EVENT_LABELS = {
   open: { label: '🏆 2-Day Open Championship', individual: false },
-  womens: { label: "🔱 Women's Championship", individual: false },
+  // Women's is a free sub-division of the Open — not a billable team event.
   juniors: { label: '🌟 Junior Championship', individual: false },
   goldenoldie: { label: '🎖️ Golden Oldie', individual: false },
   photography_d2: { label: '📸 Snorkel Photography', individual: true },
