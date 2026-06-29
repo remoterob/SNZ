@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import CompCopilotFAB from './CompCopilotFAB'
+import { superDiverLeaderboard, medalFor } from '../lib/nationalsScoring'
 
 const SNZ_BLUE = '#2B6CB0'
 const SNZ_DARK = '#1e3a5f'
@@ -1657,6 +1658,51 @@ function FinSwimResults({ comp, teams, allWeighins, onRefresh }) {
   )
 }
 
+// ── Super Diver Results (aggregate of Open + Photography + Fin Swim placings) ──
+function SuperDiverResults({ teams, allWeighins }) {
+  const ranked = superDiverLeaderboard(teams, allWeighins)
+  return (
+    <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+      <div className="px-4 py-3 border-b border-gray-100 bg-gray-50">
+        <h3 className="font-black text-gray-900">⭐ Super Diver — Leaderboard</h3>
+        <p className="text-xs text-gray-400 mt-0.5">Lowest aggregate of Open + Photography + Fin Swim placings wins · needs a result in all three</p>
+      </div>
+      {ranked.length === 0 ? (
+        <div className="p-8 text-center text-gray-400 text-sm">No Super Diver entrants — divers must be entered in Open, Photography &amp; Fin Swim.</div>
+      ) : (
+        <div className="divide-y divide-gray-100">
+          {ranked.map((c, i) => (
+            <div key={c.key} className={`px-4 py-3 flex items-center gap-3 ${i === 0 && c.complete ? 'bg-amber-50' : ''}`}>
+              <span className="w-9 text-center font-black text-base flex-shrink-0">
+                {c.rank ? medalFor(c.rank) : <span className="text-gray-300 text-sm">–</span>}
+              </span>
+              <div className="flex-1 min-w-0">
+                <p className="font-bold text-gray-900 text-sm truncate">{c.name}</p>
+                <p className="text-xs text-gray-400 truncate">{c.team.team_name}</p>
+              </div>
+              <div className="text-right flex-shrink-0">
+                {c.complete ? (
+                  <>
+                    <p className="text-base font-black" style={{ color: SNZ_BLUE }}>{c.aggregate}</p>
+                    <p className="text-xs text-gray-400">Open {c.openPlacing} · Photo {c.photoPlacing} · Swim {c.swimPlacing}</p>
+                  </>
+                ) : (
+                  <p className="text-xs text-amber-500">
+                    Incomplete{' '}
+                    <span className="text-gray-400">
+                      ({[c.openPlacing ? null : 'Open', c.photoPlacing ? null : 'Photo', c.swimPlacing ? null : 'Swim'].filter(Boolean).join(', ')} pending)
+                    </span>
+                  </p>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Results Tab ───────────────────────────────────────────────────────────────
 function ResultsTab({ comp, teams, fishLists, allWeighins, onRefresh }) {
   const [selEvent, setSelEvent] = useState('open')
@@ -1665,6 +1711,7 @@ function ResultsTab({ comp, teams, fishLists, allWeighins, onRefresh }) {
     ...STANDARD_DIVS,
     { id: 'photography', label: '📸 Photography' },
     { id: 'finswim', label: '🐟 Fin Swim' },
+    { id: 'superdiver', label: '⭐ Super Diver' },
   ]
 
   return (
@@ -1684,6 +1731,9 @@ function ResultsTab({ comp, teams, fishLists, allWeighins, onRefresh }) {
       )}
       {selEvent === 'finswim' && (
         <FinSwimResults comp={comp} teams={teams} allWeighins={allWeighins} onRefresh={onRefresh} />
+      )}
+      {selEvent === 'superdiver' && (
+        <SuperDiverResults teams={teams} allWeighins={allWeighins} />
       )}
       {STANDARD_DIVS.find(d => d.id === selEvent && !d.derived) && (
         <StandardDivisionResults

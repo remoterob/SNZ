@@ -445,7 +445,11 @@ export default function NationalsPage() {
           <div className="bg-white border border-gray-200 rounded-2xl p-6 text-center">
             <p className="text-4xl mb-3">🏆</p>
             <h2 className="text-xl font-black text-gray-900 mb-2">2027 Results</h2>
-            <p className="text-gray-500 text-sm">Results will be published here during and after the event.</p>
+            <p className="text-gray-500 text-sm mb-4">Live leaderboards for every event — Open, Women's, Juniors, Under 23, Photography, 60+ Boat, Fin Swim and Super Diver.</p>
+            <button onClick={() => navigate('/nationals/leaderboard')}
+              className="px-5 py-2.5 rounded-xl font-black text-white text-sm" style={{ background: SNZ_BLUE }}>
+              View Live Leaderboards →
+            </button>
           </div>
         )}
 

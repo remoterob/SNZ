@@ -25,6 +25,7 @@ import NationalsRegister from './pages/NationalsRegister'
 import NationalsRegisterIndividual from './pages/NationalsRegisterIndividual'
 import NationalsConfirm from './pages/NationalsConfirm'
 import NationalsBuddyFinder from './pages/NationalsBuddyFinder'
+import NationalsLeaderboard from './pages/NationalsLeaderboard'
 import CatfishCullPage from './pages/CatfishCullPage'
 import CompSuperAdmin from './pages/CompSuperAdmin'
 import CompDeepLink from './pages/CompDeepLink'
@@ -1092,6 +1093,7 @@ export default function App() {
       <Route path="/nationals/register/individual" element={<NationalsRegisterIndividual />} />
       <Route path="/nationals/confirm"       element={<NationalsConfirm />} />
       <Route path="/nationals/buddy-finder"  element={<NationalsBuddyFinder />} />
+      <Route path="/nationals/leaderboard"   element={<NationalsLeaderboard />} />
       <Route path="/competitions"           element={<CompetitionsPage />} />
       <Route path="/competitions/admin"     element={<CompSuperAdmin />} />
       <Route path="/competitions/:id"       element={<CompetitionDetail />} />
