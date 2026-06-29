@@ -20,6 +20,35 @@ const BOARDS = [
 
 const diverLine = (t) => `${t._d1?.name || 'Diver 1'}${t._d2?.name ? ` & ${t._d2.name}` : ''}`
 
+// Per-team fish breakdown — the weigh-ins that make up a team's score.
+function FishBreakdown({ teamId, weighins, scoreDiv }) {
+  const entries = weighins.filter(w => w.team_id === teamId && w.division === scoreDiv)
+  const fish = entries.filter(w => !w.is_bulk)
+  const bulk = entries.find(w => w.is_bulk)
+  return (
+    <div className="px-4 py-3 bg-blue-50/60 border-t border-blue-100">
+      <div className="space-y-1.5 max-w-sm mx-auto sm:mx-0">
+        {fish.map((w, i) => (
+          <div key={i} className="flex items-center justify-between text-xs">
+            <span className="font-semibold text-gray-700">🐟 {w.fish_name}{w.instance > 1 ? ` #${w.instance}` : ''}</span>
+            <div className="flex items-center gap-3">
+              {w.weight_kg != null && <span className="text-gray-400">{w.weight_kg} kg</span>}
+              <span className="font-black w-14 text-right" style={{ color: SNZ_BLUE }}>{w.points_awarded} pts</span>
+            </div>
+          </div>
+        ))}
+        {bulk && (
+          <div className="flex items-center justify-between text-xs border-t border-blue-200 pt-1.5">
+            <span className="font-semibold text-gray-500">⚖ Bulk — {bulk.weight_kg} kg</span>
+            <span className="font-black w-14 text-right" style={{ color: SNZ_BLUE }}>+{bulk.points_awarded} pts</span>
+          </div>
+        )}
+        {fish.length === 0 && !bulk && <p className="text-xs text-gray-400">No individual fish recorded.</p>}
+      </div>
+    </div>
+  )
+}
+
 function Row({ rank, title, sub, right, rightSub, top }) {
   return (
     <div className={`px-4 py-3 flex items-center gap-3 ${top ? 'bg-amber-50' : ''}`}>
@@ -38,19 +67,58 @@ function Row({ rank, title, sub, right, rightSub, top }) {
   )
 }
 
+function TeamBoardRows({ board, teams, weighins }) {
+  const [expandedId, setExpandedId] = useState(null)
+  const rows = teamLeaderboard(teams, weighins, board.id, board.scoreFrom)
+  const scoreDiv = board.scoreFrom || board.id
+  if (rows.length === 0) {
+    return <div className="p-8 text-center text-gray-400 text-sm">No teams registered for this event yet.</div>
+  }
+  return (
+    <div className="divide-y divide-gray-100">
+      {rows.map((t, i) => {
+        const open = expandedId === t.id
+        return (
+          <div key={t.id}>
+            <button type="button" disabled={!t.hasEntry}
+              onClick={() => setExpandedId(open ? null : t.id)}
+              className={`w-full text-left px-4 py-3 flex items-center gap-3 ${t.hasEntry ? 'cursor-pointer hover:bg-gray-50' : 'cursor-default'} ${open ? 'bg-blue-50' : i === 0 && t.hasEntry ? 'bg-amber-50' : ''}`}>
+              <span className="w-9 text-center font-black text-base flex-shrink-0">
+                {t.rank ? medalFor(t.rank) : <span className="text-gray-300 text-sm">–</span>}
+              </span>
+              <div className="flex-1 min-w-0">
+                <p className="font-bold text-gray-900 text-sm truncate flex items-center gap-1">
+                  {t.team_name}{t.hasEntry && <span className="text-gray-400 text-xs">{open ? '▲' : '▼'}</span>}
+                </p>
+                <p className="text-xs text-gray-400 truncate">{diverLine(t)}</p>
+              </div>
+              <div className="text-right flex-shrink-0">
+                {t.hasEntry
+                  ? <><p className="text-base font-black" style={{ color: SNZ_BLUE }}>{t.total} pts</p><p className="text-xs text-gray-400">{t.fishCount} fish</p></>
+                  : <p className="text-xs text-gray-300">Not weighed in</p>}
+              </div>
+            </button>
+            {open && <FishBreakdown teamId={t.id} weighins={weighins} scoreDiv={scoreDiv} />}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 function Board({ board, teams, weighins }) {
   let rows, render, empty
 
   if (board.type === 'team') {
-    rows = teamLeaderboard(teams, weighins, board.id, board.scoreFrom)
-    empty = 'No teams registered for this event yet.'
-    render = (t, i) => (
-      <Row key={t.id} top={i === 0 && t.hasEntry} rank={t.rank}
-        title={t.team_name} sub={diverLine(t)}
-        right={t.hasEntry
-          ? <p className="text-base font-black" style={{ color: SNZ_BLUE }}>{t.total} pts</p>
-          : <p className="text-xs text-gray-300">Not weighed in</p>}
-        rightSub={t.hasEntry ? `${t.fishCount} fish` : null} />
+    const count = teamLeaderboard(teams, weighins, board.id, board.scoreFrom).filter(r => r.hasEntry).length
+    return (
+      <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+        <div className="px-4 py-3 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
+          <h2 className="font-black text-gray-900">{board.label} — Leaderboard</h2>
+          <span className="text-xs text-gray-400">{count} result{count !== 1 ? 's' : ''} · tap a pair for their fish</span>
+        </div>
+        <TeamBoardRows board={board} teams={teams} weighins={weighins} />
+      </div>
     )
   } else if (board.type === 'photo') {
     rows = photographyLeaderboard(teams, weighins)

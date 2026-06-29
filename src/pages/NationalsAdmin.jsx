@@ -952,8 +952,38 @@ function SetupTab({ comp, onRefresh }) {
   )
 }
 
+// ── Per-team fish breakdown (the weigh-ins making up a score) ─────────────────
+function NatFishBreakdown({ teamId, allWeighins, scoreDiv }) {
+  const entries = allWeighins.filter(w => w.team_id === teamId && w.division === scoreDiv)
+  const fish = entries.filter(w => !w.is_bulk)
+  const bulk = entries.find(w => w.is_bulk)
+  return (
+    <div className="px-4 py-3 bg-blue-50/60 border-t border-blue-100">
+      <div className="space-y-1.5 max-w-sm">
+        {fish.map((w, i) => (
+          <div key={w.id ?? i} className="flex items-center justify-between text-xs">
+            <span className="font-semibold text-gray-700">🐟 {w.fish_name}{w.instance > 1 ? ` #${w.instance}` : ''}</span>
+            <div className="flex items-center gap-3">
+              {w.weight_kg != null && <span className="text-gray-400">{w.weight_kg} kg</span>}
+              <span className="font-black w-14 text-right" style={{ color: SNZ_BLUE }}>{w.points_awarded} pts</span>
+            </div>
+          </div>
+        ))}
+        {bulk && (
+          <div className="flex items-center justify-between text-xs border-t border-blue-200 pt-1.5">
+            <span className="font-semibold text-gray-500">⚖ Bulk — {bulk.weight_kg} kg</span>
+            <span className="font-black w-14 text-right" style={{ color: SNZ_BLUE }}>+{bulk.points_awarded} pts</span>
+          </div>
+        )}
+        {fish.length === 0 && !bulk && <p className="text-xs text-gray-400">No individual fish recorded.</p>}
+      </div>
+    </div>
+  )
+}
+
 // ── Derived Division Leaderboard (Silver/Golden Oldie ranked by Open score) ───
 function DerivedDivLeaderboard({ divId, label, teams, allWeighins }) {
+  const [expandedId, setExpandedId] = useState(null)
   const divTeams = teams.filter(t => t.nationals_event?.[divId])
   const withPoints = divTeams.map(t => {
     const tw = allWeighins.filter(w => w.team_id === t.id && w.division === 'open')
@@ -972,24 +1002,34 @@ function DerivedDivLeaderboard({ divId, label, teams, allWeighins }) {
         <div className="p-8 text-center text-gray-400 text-sm">No {label} qualifiers registered.</div>
       ) : (
         <div className="divide-y divide-gray-100">
-          {withPoints.map((t, i) => (
-            <div key={t.id} className={`px-4 py-3 flex items-center gap-3 ${i === 0 && t.hasEntry ? 'bg-amber-50' : ''}`}>
-              <span className="w-7 text-center font-bold text-sm flex-shrink-0">
-                {t.hasEntry ? (medals[i] || `#${i + 1}`) : <span className="text-gray-300">–</span>}
-              </span>
-              <div className="flex-1 min-w-0">
-                <p className="font-bold text-gray-900 text-sm truncate">{t.team_name}</p>
-                <p className="text-xs text-gray-400 truncate">
-                  {t._d1?.name}{!t.nationals_event?.is_individual && t._d2?.name ? ` & ${t._d2.name}` : ''}
-                </p>
+          {withPoints.map((t, i) => {
+            const open = expandedId === t.id
+            return (
+              <div key={t.id}>
+                <button type="button" disabled={!t.hasEntry}
+                  onClick={() => setExpandedId(open ? null : t.id)}
+                  className={`w-full text-left px-4 py-3 flex items-center gap-3 ${t.hasEntry ? 'cursor-pointer hover:bg-gray-50' : 'cursor-default'} ${open ? 'bg-blue-50' : i === 0 && t.hasEntry ? 'bg-amber-50' : ''}`}>
+                  <span className="w-7 text-center font-bold text-sm flex-shrink-0">
+                    {t.hasEntry ? (medals[i] || `#${i + 1}`) : <span className="text-gray-300">–</span>}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-gray-900 text-sm truncate flex items-center gap-1">
+                      {t.team_name}{t.hasEntry && <span className="text-gray-400 text-xs">{open ? '▲' : '▼'}</span>}
+                    </p>
+                    <p className="text-xs text-gray-400 truncate">
+                      {t._d1?.name}{!t.nationals_event?.is_individual && t._d2?.name ? ` & ${t._d2.name}` : ''}
+                    </p>
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    {t.hasEntry
+                      ? <><p className="text-base font-black" style={{ color: SNZ_BLUE }}>{t.total} pts</p><p className="text-xs text-gray-400">{t.fishCount} fish</p></>
+                      : <p className="text-xs text-gray-300">No Open entry</p>}
+                  </div>
+                </button>
+                {open && <NatFishBreakdown teamId={t.id} allWeighins={allWeighins} scoreDiv="open" />}
               </div>
-              <div className="text-right flex-shrink-0">
-                {t.hasEntry
-                  ? <><p className="text-base font-black" style={{ color: SNZ_BLUE }}>{t.total} pts</p><p className="text-xs text-gray-400">{t.fishCount} fish</p></>
-                  : <p className="text-xs text-gray-300">No Open entry</p>}
-              </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
     </div>
@@ -1363,6 +1403,7 @@ function WeighInPanel({ team, divId, fishList, allWeighins, compId, onSaved, onC
 
 // ── Division Leaderboard ──────────────────────────────────────────────────────
 function DivisionLeaderboard({ divId, teams, allWeighins }) {
+  const [expandedId, setExpandedId] = useState(null)
   const divTeams = teamsInDiv(teams, divId)
 
   const withPoints = divTeams.map(t => {
@@ -1433,36 +1474,44 @@ function DivisionLeaderboard({ divId, teams, allWeighins }) {
       <div className="divide-y divide-gray-100">
         {withPoints.map((t, i) => {
           const badges = getDivBadges(t)
+          const open = expandedId === t.id
           return (
-            <div key={t.id} className={`px-4 py-3 flex items-center gap-3 ${i === 0 && t.hasEntry ? 'bg-amber-50' : ''}`}>
-              <span className="w-7 text-center flex-shrink-0 font-bold text-sm">
-                {t.hasEntry ? (medals[i] || `#${i + 1}`) : <span className="text-gray-300">–</span>}
-              </span>
-              <div className="flex-1 min-w-0">
-                <p className="font-bold text-gray-900 text-sm truncate">{t.team_name}</p>
-                <div className="flex items-center gap-1 flex-wrap mt-0.5">
-                  {t._d1?.name && (
-                    <span className="text-xs text-gray-400">
-                      {t._d1.name}{!t.nationals_event?.is_individual && t._d2?.name ? ` & ${t._d2.name}` : ''}
-                    </span>
-                  )}
-                  {badges.map(b => (
-                    <span key={b.label} className="text-xs px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-100 font-bold">
-                      {b.label} #{b.rank}
-                    </span>
-                  ))}
+            <div key={t.id}>
+              <button type="button" disabled={!t.hasEntry}
+                onClick={() => setExpandedId(open ? null : t.id)}
+                className={`w-full text-left px-4 py-3 flex items-center gap-3 ${t.hasEntry ? 'cursor-pointer hover:bg-gray-50' : 'cursor-default'} ${open ? 'bg-blue-50' : i === 0 && t.hasEntry ? 'bg-amber-50' : ''}`}>
+                <span className="w-7 text-center flex-shrink-0 font-bold text-sm">
+                  {t.hasEntry ? (medals[i] || `#${i + 1}`) : <span className="text-gray-300">–</span>}
+                </span>
+                <div className="flex-1 min-w-0">
+                  <p className="font-bold text-gray-900 text-sm truncate flex items-center gap-1">
+                    {t.team_name}{t.hasEntry && <span className="text-gray-400 text-xs">{open ? '▲' : '▼'}</span>}
+                  </p>
+                  <div className="flex items-center gap-1 flex-wrap mt-0.5">
+                    {t._d1?.name && (
+                      <span className="text-xs text-gray-400">
+                        {t._d1.name}{!t.nationals_event?.is_individual && t._d2?.name ? ` & ${t._d2.name}` : ''}
+                      </span>
+                    )}
+                    {badges.map(b => (
+                      <span key={b.label} className="text-xs px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-100 font-bold">
+                        {b.label} #{b.rank}
+                      </span>
+                    ))}
+                  </div>
                 </div>
-              </div>
-              <div className="text-right flex-shrink-0">
-                {t.hasEntry ? (
-                  <>
-                    <p className="text-base font-black" style={{ color: SNZ_BLUE }}>{t.total} pts</p>
-                    <p className="text-xs text-gray-400">{t.fishCount} fish</p>
-                  </>
-                ) : (
-                  <p className="text-xs text-gray-300">Not entered</p>
-                )}
-              </div>
+                <div className="text-right flex-shrink-0">
+                  {t.hasEntry ? (
+                    <>
+                      <p className="text-base font-black" style={{ color: SNZ_BLUE }}>{t.total} pts</p>
+                      <p className="text-xs text-gray-400">{t.fishCount} fish</p>
+                    </>
+                  ) : (
+                    <p className="text-xs text-gray-300">Not entered</p>
+                  )}
+                </div>
+              </button>
+              {open && <NatFishBreakdown teamId={t.id} allWeighins={allWeighins} scoreDiv={divId} />}
             </div>
           )
         })}
