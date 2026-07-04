@@ -113,9 +113,9 @@ function Board({ board, teams, weighins }) {
     const count = teamLeaderboard(teams, weighins, board.id, board.scoreFrom).filter(r => r.hasEntry).length
     return (
       <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
-        <div className="px-4 py-3 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
+        <div className="px-4 py-3 border-b border-gray-100 bg-gray-50">
           <h2 className="font-black text-gray-900">{board.label} — Leaderboard</h2>
-          <span className="text-xs text-gray-400">{count} result{count !== 1 ? 's' : ''} · tap a pair for their fish</span>
+          <p className="text-xs text-gray-400 mt-0.5">{count} result{count !== 1 ? 's' : ''} · tap a pair to see their fish</p>
         </div>
         <TeamBoardRows board={board} teams={teams} weighins={weighins} />
       </div>
@@ -160,9 +160,9 @@ function Board({ board, teams, weighins }) {
 
   return (
     <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
-      <div className="px-4 py-3 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
-        <h2 className="font-black text-gray-900">{board.label} — Leaderboard</h2>
-        <span className="text-xs text-gray-400">{entered} result{entered !== 1 ? 's' : ''}</span>
+      <div className="px-4 py-3 border-b border-gray-100 bg-gray-50 flex items-center justify-between gap-3">
+        <h2 className="font-black text-gray-900 truncate">{board.label} — Leaderboard</h2>
+        <span className="text-xs text-gray-400 flex-shrink-0">{entered} result{entered !== 1 ? 's' : ''}</span>
       </div>
       {board.id === 'superdiver' && (
         <p className="px-4 pt-3 text-xs text-gray-400">Lowest aggregate of Open + Photography + Fin Swim placings wins.</p>
@@ -205,12 +205,12 @@ export default function NationalsLeaderboard() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div style={{ background: SNZ_DARK }} className="px-6 py-3 flex items-center justify-between border-b border-blue-900">
+      <div style={{ background: SNZ_DARK }} className="px-4 sm:px-6 py-3 flex items-center justify-between gap-3 border-b border-blue-900">
         <button onClick={() => navigate('/nationals')}
-          className="flex items-center gap-1.5 text-white font-bold text-sm bg-white/15 hover:bg-white/25 px-3 py-1.5 rounded-lg transition">
+          className="flex items-center gap-1.5 text-white font-bold text-sm bg-white/15 hover:bg-white/25 px-3 py-1.5 rounded-lg transition whitespace-nowrap flex-shrink-0">
           ← Nationals
         </button>
-        <span className="text-white/70 text-xs font-semibold">{data?.comp?.name || 'SNZ Nationals 2027'}</span>
+        <span className="text-white/70 text-xs font-semibold truncate min-w-0">{data?.comp?.name || 'SNZ Nationals 2027'}</span>
       </div>
 
       <div className="max-w-2xl mx-auto px-4 py-6">

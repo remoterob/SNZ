@@ -167,14 +167,14 @@ export default function NationalsPage() {
   return (
     <div className="min-h-screen" style={{ background: '#f8fafc' }}>
       {/* Header */}
-      <div style={{ background: SNZ_DARK }} className="px-6 py-3 flex items-center justify-between border-b border-blue-900">
-        <div className="flex items-center gap-3">
+      <div style={{ background: SNZ_DARK }} className="px-4 sm:px-6 py-3 flex items-center justify-between gap-2 border-b border-blue-900">
+        <div className="flex items-center gap-3 flex-shrink-0">
           <button onClick={() => navigate('/')}
-            className="flex items-center gap-1.5 text-white font-bold text-sm bg-white/15 hover:bg-white/25 px-3 py-1.5 rounded-lg transition">
+            className="flex items-center gap-1.5 text-white font-bold text-sm bg-white/15 hover:bg-white/25 px-3 py-1.5 rounded-lg transition whitespace-nowrap">
             ← SNZ Hub
           </button>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-shrink-0">
           <button onClick={() => navigate('/nationals/admin')}
             className="text-xs font-bold text-white bg-white/15 hover:bg-white/25 px-3 py-1.5 rounded-lg transition">
             ⚙ Admin
