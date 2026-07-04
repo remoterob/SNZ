@@ -423,7 +423,7 @@ export default function NationalsPage() {
             <div className="bg-white border border-gray-200 rounded-2xl p-6">
               <h2 className="text-xl font-black text-gray-900 mb-2">Individual Event Entry</h2>
               <p className="text-gray-500 text-sm leading-relaxed mb-4">
-                Not entering the Open? You can enter individual events (Women's, Juniors, Photography, Fin Swim, Under 23) on their own with an optional safety diver.
+                Not entering the Open? You can enter individual events (Juniors, Photography, Fin Swim, Under 23) on their own with an optional safety diver. The Women's Championship is a sub-division of the Open — enter as a pair.
               </p>
               <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-xs text-gray-600 space-y-1.5 mb-4">
                 <p>• Pick one or more individual events</p>
