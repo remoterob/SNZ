@@ -938,13 +938,14 @@ function SNZHub() {
       desc: 'Annual and Special General Meetings on the Hub — motions, attendance, voting and minutes. Active SNZ members only.',
       onClick: () => navigate('/agm'),
       icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={SNZ_BLUE} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21h18"/><path d="M5 21V8l7-4 7 4v13"/><path d="M9 21v-6h6v6"/><path d="M9 11h.01"/><path d="M15 11h.01"/></svg>,
-      status: agmMeetings.some(m => m.status === 'open') ? 'live' : agmMeetings.length > 0 ? 'soon' : 'soon',
+      status: agmMeetings.some(m => m.status === 'open') ? 'live' : 'soon',
+      statusLabel: agmMeetings.length === 0 ? 'AGM 21st Jan 2027' : undefined,
       summary: (() => {
         const live = agmMeetings.find(m => m.status === 'open')
         if (live) return `● ${live.kind} live now — voting open`
         const next = agmMeetings[0]
         if (next) return `Next: ${next.kind} · ${new Date(next.meeting_date).toLocaleDateString('en-NZ', { day: 'numeric', month: 'long', year: 'numeric' })}`
-        return 'No meetings currently scheduled'
+        return 'No meetings currently booked'
       })(),
     },
   ]
@@ -1023,7 +1024,7 @@ function SNZHub() {
                   {st && (
                     <span className="absolute top-4 right-4 text-xs font-bold px-2.5 py-1 rounded-full border whitespace-nowrap"
                       style={{ background: st.bg, color: st.color, borderColor: st.border }}>
-                      {st.label}
+                      {m.statusLabel || st.label}
                     </span>
                   )}
                   <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-blue-50 border border-blue-100 flex-shrink-0">
