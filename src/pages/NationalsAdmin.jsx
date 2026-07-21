@@ -1059,6 +1059,8 @@ function NationalsSpeciesPickerModal({ comp, division, existingFish, onClose, on
   }, [])
 
   const isSelected = slug => selected.find(x => x.slug === slug)
+  const getCount = slug => selected.find(x => x.slug === slug)?.count || 1
+  const setCount = (slug, n) => setSelected(s => s.map(x => x.slug === slug ? { ...x, count: Math.max(1, Math.min(10, n || 1)) } : x))
 
   const toggle = slug => {
     setSelected(s => {
@@ -1144,6 +1146,13 @@ function NationalsSpeciesPickerModal({ comp, division, existingFish, onClose, on
                               onChange={e => setSetting(s.slug, 'maxKg', parseFloat(e.target.value) || 8)}
                               className="w-12 border border-gray-300 rounded px-1 py-0.5 text-xs text-center" />
                             <span className="text-xs text-gray-400">kg</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <span className="text-xs text-gray-500">×</span>
+                            <input type="number" min="1" max="10" value={getCount(s.slug)}
+                              onChange={e => setCount(s.slug, parseInt(e.target.value))}
+                              className="w-12 border border-gray-300 rounded px-1 py-0.5 text-xs font-bold text-center" />
+                            <span className="text-xs text-gray-400">allowed (weigh each in)</span>
                           </div>
                         </div>
                       )}
@@ -1258,7 +1267,8 @@ function FishListTab({ comp, fishLists, onRefresh }) {
                 <div className="p-2">
                   <p className="font-bold text-gray-900 text-xs leading-tight">{f.species_name}</p>
                   <p className="text-xs text-gray-400 mt-0.5">{f.points} pts + up to {f.max_weight_kg}kg</p>
-                  {f.weigh_separately && <span className="text-xs font-bold text-amber-600">⚖ Weigh sep.</span>}
+                  {f.weigh_separately && <span className="text-xs font-bold text-amber-600 block">⚖ Weigh sep.</span>}
+                  {f.allow_multiples && f.max_count > 1 && <span className="text-xs font-bold text-blue-600 block">×{f.max_count} allowed</span>}
                 </div>
                 <button onClick={() => deleteFish(f.id)} disabled={saving === f.id}
                   className="absolute top-1 right-1 w-6 h-6 rounded-full bg-red-500 text-white text-xs font-bold opacity-0 group-hover:opacity-100 transition flex items-center justify-center disabled:opacity-40">
@@ -1277,14 +1287,16 @@ function FishListTab({ comp, fishLists, onRefresh }) {
 function WeighInPanel({ team, divId, fishList, allWeighins, compId, onSaved, onClose }) {
   const existing = allWeighins.filter(w => w.team_id === team.id && w.division === divId)
 
+  const instancesFor = f => (f.allow_multiples ? (f.max_count || 1) : 1)
+
   const [caught, setCaught] = useState(() => {
     const m = {}
-    existing.filter(w => !w.is_bulk && w.fish_id).forEach(w => { m[w.fish_id] = true })
+    existing.filter(w => !w.is_bulk && w.fish_id).forEach(w => { m[`${w.fish_id}-${w.instance || 1}`] = true })
     return m
   })
   const [weights, setWeights] = useState(() => {
     const m = {}
-    existing.filter(w => !w.is_bulk && w.fish_id && w.weight_kg).forEach(w => { m[w.fish_id] = String(w.weight_kg) })
+    existing.filter(w => !w.is_bulk && w.fish_id && w.weight_kg).forEach(w => { m[`${w.fish_id}-${w.instance || 1}`] = String(w.weight_kg) })
     return m
   })
   const [bulkKg, setBulkKg] = useState(() => {
@@ -1294,8 +1306,13 @@ function WeighInPanel({ team, divId, fishList, allWeighins, compId, onSaved, onC
   const [saving, setSaving] = useState(false)
 
   const previewPoints = fishList.reduce((sum, f) => {
-    if (!caught[f.id]) return sum
-    return sum + calcNatPts(f, f.weigh_separately ? (weights[f.id] || 0) : 0)
+    let s = 0
+    for (let inst = 1; inst <= instancesFor(f); inst++) {
+      const key = `${f.id}-${inst}`
+      if (!caught[key]) continue
+      s += calcNatPts(f, f.weigh_separately ? (weights[key] || 0) : 0)
+    }
+    return sum + s
   }, 0) + calcBulkBonus(bulkKg)
 
   const save = async () => {
@@ -1305,14 +1322,17 @@ function WeighInPanel({ team, divId, fishList, allWeighins, compId, onSaved, onC
 
     const rows = []
     for (const f of fishList) {
-      if (!caught[f.id]) continue
-      rows.push({
-        competition_id: compId, team_id: team.id, division: divId,
-        fish_id: f.id, fish_name: f.species_name,
-        weight_kg: f.weigh_separately ? (parseFloat(weights[f.id]) || null) : null,
-        points_awarded: calcNatPts(f, f.weigh_separately ? (weights[f.id] || 0) : 0),
-        instance: 1, is_bulk: false, weighed_at: new Date().toISOString(),
-      })
+      for (let inst = 1; inst <= instancesFor(f); inst++) {
+        const key = `${f.id}-${inst}`
+        if (!caught[key]) continue
+        rows.push({
+          competition_id: compId, team_id: team.id, division: divId,
+          fish_id: f.id, fish_name: f.species_name,
+          weight_kg: f.weigh_separately ? (parseFloat(weights[key]) || null) : null,
+          points_awarded: calcNatPts(f, f.weigh_separately ? (weights[key] || 0) : 0),
+          instance: inst, is_bulk: false, weighed_at: new Date().toISOString(),
+        })
+      }
     }
     if (parseFloat(bulkKg) > 0) {
       rows.push({
@@ -1344,33 +1364,39 @@ function WeighInPanel({ team, divId, fishList, allWeighins, compId, onSaved, onC
         <div className="p-6 text-center text-gray-400 text-sm">No species in the {DIV_LABELS[divId]} fish list. Add species in the Fish Lists tab first.</div>
       ) : (
         <div className="p-4 space-y-2">
-          {fishList.map(f => (
-            <div key={f.id} className={`border rounded-xl p-3 transition ${caught[f.id] ? 'border-blue-300 bg-blue-50/50' : 'border-gray-200'}`}>
-              <label className="flex items-center gap-3 cursor-pointer select-none">
-                <input type="checkbox" checked={!!caught[f.id]}
-                  onChange={() => setCaught(prev => ({ ...prev, [f.id]: !prev[f.id] }))}
-                  className="w-4 h-4 flex-shrink-0" />
-                <span className="font-semibold text-gray-900 flex-1 text-sm">{f.species_name}</span>
-                <span className="text-xs text-gray-400 flex-shrink-0">{f.points} pts base</span>
-              </label>
-              {caught[f.id] && f.weigh_separately && (
-                <div className="mt-2 ml-7 flex items-center gap-2">
-                  <input type="number" min="0" step="0.1"
-                    value={weights[f.id] || ''}
-                    onChange={e => setWeights(prev => ({ ...prev, [f.id]: e.target.value }))}
-                    placeholder="0.0"
-                    className="w-24 border border-amber-300 rounded-lg px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-300" />
-                  <span className="text-xs text-gray-500">kg</span>
-                  <span className="text-xs font-black ml-auto" style={{ color: SNZ_BLUE }}>
-                    = {calcNatPts(f, weights[f.id] || 0)} pts
-                  </span>
+          {fishList.map(f => {
+            const instances = instancesFor(f)
+            return Array.from({ length: instances }, (_, i) => i + 1).map(inst => {
+              const key = `${f.id}-${inst}`
+              return (
+                <div key={key} className={`border rounded-xl p-3 transition ${caught[key] ? 'border-blue-300 bg-blue-50/50' : 'border-gray-200'}`}>
+                  <label className="flex items-center gap-3 cursor-pointer select-none">
+                    <input type="checkbox" checked={!!caught[key]}
+                      onChange={() => setCaught(prev => ({ ...prev, [key]: !prev[key] }))}
+                      className="w-4 h-4 flex-shrink-0" />
+                    <span className="font-semibold text-gray-900 flex-1 text-sm">{f.species_name}{instances > 1 ? ` #${inst}` : ''}</span>
+                    <span className="text-xs text-gray-400 flex-shrink-0">{f.points} pts base</span>
+                  </label>
+                  {caught[key] && f.weigh_separately && (
+                    <div className="mt-2 ml-7 flex items-center gap-2">
+                      <input type="number" min="0" step="0.1"
+                        value={weights[key] || ''}
+                        onChange={e => setWeights(prev => ({ ...prev, [key]: e.target.value }))}
+                        placeholder="0.0"
+                        className="w-24 border border-amber-300 rounded-lg px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-300" />
+                      <span className="text-xs text-gray-500">kg</span>
+                      <span className="text-xs font-black ml-auto" style={{ color: SNZ_BLUE }}>
+                        = {calcNatPts(f, weights[key] || 0)} pts
+                      </span>
+                    </div>
+                  )}
+                  {caught[key] && !f.weigh_separately && (
+                    <p className="text-xs font-bold mt-1 ml-7" style={{ color: SNZ_BLUE }}>{f.points} pts (fixed)</p>
+                  )}
                 </div>
-              )}
-              {caught[f.id] && !f.weigh_separately && (
-                <p className="text-xs font-bold mt-1 ml-7" style={{ color: SNZ_BLUE }}>{f.points} pts (fixed)</p>
-              )}
-            </div>
-          ))}
+              )
+            })
+          })}
 
           <div className="border border-gray-200 rounded-xl p-3">
             <p className="text-sm font-semibold text-gray-700 mb-2">Bulk bin (other valid species)</p>
