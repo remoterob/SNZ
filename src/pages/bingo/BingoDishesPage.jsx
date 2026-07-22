@@ -2,7 +2,9 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { supabase } from '../../lib/supabase'
 import { isBonusSlug } from '../../lib/bingo/helpers'
 
+const SNZ_BLUE = '#2B6CB0'
 const STORAGE_BUCKET = 'snz-media'
+const inputClass = 'w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300'
 
 export default function BingoDishesPage({ species, me, signedIn, compCfg }) {
   const [name,        setName]       = useState('')
@@ -29,9 +31,9 @@ export default function BingoDishesPage({ species, me, signedIn, compCfg }) {
 
   if (!signedIn || !me?.id) {
     return (
-      <div className="card">
-        <h3>Dishes</h3>
-        <p className="small muted">Sign in to add and view your dishes.</p>
+      <div className="bg-white border border-gray-200 rounded-2xl p-6 text-center">
+        <h3 className="font-black text-gray-900 mb-1">Dishes</h3>
+        <p className="text-sm text-gray-400">Sign in to add and view your dishes.</p>
       </div>
     )
   }
@@ -82,47 +84,53 @@ export default function BingoDishesPage({ species, me, signedIn, compCfg }) {
   }
 
   return (
-    <div className="card">
-      <h3>Add a New Dish</h3>
-      <form onSubmit={onSubmit} className="add-dish-form">
-        <div className="row2">
-          <input className="input" placeholder="Dish name *" value={name} onChange={e => setName(e.target.value)} />
-          <select className="input" value={speciesSlug} onChange={e => setSpeciesSlug(e.target.value)}>
-            <option value="">Select species *</option>
-            {edibleSpecies.map(s => <option key={s.slug} value={s.slug}>{s.name}</option>)}
-          </select>
-        </div>
-        <div className="row2">
-          <input className="input" placeholder="Recipe URL (optional)" value={recipeLink} onChange={e => setRecipeLink(e.target.value)} />
-          <input className="input" type="file" accept="image/*" onChange={e => setFile(e.target.files?.[0] || null)} />
-        </div>
-        <textarea className="input" placeholder="Description & Cooking Guide (optional)" value={desc} onChange={e => setDesc(e.target.value)} />
-        <div className="actions">
-          <button className="btn primary" disabled={busy}>{busy ? 'Saving…' : 'Add Dish'}</button>
-          <span className="small muted right">Photo max 10 MB</span>
-        </div>
-      </form>
+    <div className="space-y-4">
+      <div className="bg-white border border-gray-200 rounded-2xl p-4 sm:p-5">
+        <h3 className="font-black text-gray-900 mb-3">Add a New Dish</h3>
+        <form onSubmit={onSubmit} className="space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <input className={inputClass} placeholder="Dish name *" value={name} onChange={e => setName(e.target.value)} />
+            <select className={inputClass} value={speciesSlug} onChange={e => setSpeciesSlug(e.target.value)}>
+              <option value="">Select species *</option>
+              {edibleSpecies.map(s => <option key={s.slug} value={s.slug}>{s.name}</option>)}
+            </select>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <input className={inputClass} placeholder="Recipe URL (optional)" value={recipeLink} onChange={e => setRecipeLink(e.target.value)} />
+            <input className={inputClass} type="file" accept="image/*" onChange={e => setFile(e.target.files?.[0] || null)} />
+          </div>
+          <textarea className={`${inputClass} min-h-[90px] resize-y`} placeholder="Description & Cooking Guide (optional)" value={desc} onChange={e => setDesc(e.target.value)} />
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <button className="text-sm font-bold px-4 py-2 rounded-lg text-white disabled:opacity-50" style={{ background: SNZ_BLUE }} disabled={busy}>
+              {busy ? 'Saving…' : 'Add Dish'}
+            </button>
+            <span className="text-xs text-gray-400">Photo max 10 MB</span>
+          </div>
+        </form>
+      </div>
 
-      <div style={{ marginTop: 16 }}>
-        <h3>Your Dishes</h3>
+      <div className="bg-white border border-gray-200 rounded-2xl p-4 sm:p-5">
+        <h3 className="font-black text-gray-900 mb-3">Your Dishes</h3>
         {mine.length === 0 ? (
-          <p className="small muted">No dishes yet – add your first above!</p>
+          <p className="text-sm text-gray-400 text-center py-6">No dishes yet – add your first above!</p>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 12 }}>
+          <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))' }}>
             {mine.map(d => (
-              <div key={d.id} className="card" style={{ padding: 8 }}>
-                <a href={d.photo_url} target="_blank" rel="noreferrer" style={{ display: 'block', position: 'relative' }}>
-                  <img src={d.thumb_url || d.photo_url} alt={d.title} style={{ width: '100%', borderRadius: 8 }} loading="lazy" />
-                  <div className="badge" style={{ position: 'absolute', top: 6, right: 6 }}>
+              <div key={d.id} className="bg-white border border-gray-200 rounded-xl p-2">
+                <a href={d.photo_url} target="_blank" rel="noreferrer" className="relative block">
+                  <img src={d.thumb_url || d.photo_url} alt={d.title} className="w-full rounded-lg" loading="lazy" />
+                  <span className="absolute top-1.5 right-1.5 text-xs font-bold px-1.5 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-100">
                     {edibleSpecies.find(s => s.slug === d.species_slug)?.name || d.species_slug}
-                  </div>
+                  </span>
                 </a>
-                <div style={{ marginTop: 6 }}><strong>{d.title}</strong></div>
+                <p className="font-bold text-gray-900 text-sm mt-1.5">{d.title}</p>
                 {d.recipe_link && (
-                  <div className="small"><a href={d.recipe_link} target="_blank" rel="noreferrer" style={{ color: '#009688' }}>View Recipe</a></div>
+                  <a href={d.recipe_link} target="_blank" rel="noreferrer" className="text-xs font-semibold underline" style={{ color: SNZ_BLUE }}>
+                    View Recipe
+                  </a>
                 )}
                 {d.description && (
-                  <div className="small muted" style={{ marginTop: 4, whiteSpace: 'pre-wrap' }}>{d.description}</div>
+                  <p className="text-xs text-gray-500 mt-1 whitespace-pre-wrap">{d.description}</p>
                 )}
               </div>
             ))}

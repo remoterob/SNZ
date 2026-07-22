@@ -1,10 +1,10 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
-import { pointsForSlug, isBonusSlug, imgFor } from '../../lib/bingo/helpers'
-import '../../bingo.css'
+import { isBonusSlug, imgFor } from '../../lib/bingo/helpers'
 
 const SNZ_BLUE = '#2B6CB0'
+const SNZ_DARK = '#1e3a5f'
 
 function useQuery() {
   const { search } = useLocation()
@@ -79,14 +79,14 @@ export default function BingoDiverPage() {
 
   if (!userId) {
     return (
-      <div className="bingo-app">
-        <div style={{ background: SNZ_BLUE }} className="px-6 py-3 flex items-center border-b border-blue-700">
+      <div className="min-h-screen bg-gray-50">
+        <div style={{ background: SNZ_DARK }} className="px-4 sm:px-6 py-3 flex items-center border-b border-blue-900">
           <button onClick={() => navigate('/bingo')}
-            style={{ background: 'rgba(255,255,255,0.15)', border: 'none', color: '#fff', fontWeight: 700, fontSize: 13, padding: '6px 10px', borderRadius: 8, cursor: 'pointer' }}>
+            className="flex items-center gap-1.5 text-white font-bold text-sm bg-white/15 hover:bg-white/25 px-3 py-1.5 rounded-lg transition">
             ← Fish Bingo
           </button>
         </div>
-        <div className="container"><p className="muted">No diver specified.</p></div>
+        <p className="max-w-3xl mx-auto px-4 py-8 text-sm text-gray-400">No diver specified.</p>
       </div>
     )
   }
@@ -94,46 +94,44 @@ export default function BingoDiverPage() {
   const displayName = profile?.name || diverName
 
   return (
-    <div className="bingo-app">
-      <div style={{ background: SNZ_BLUE, position: 'sticky', top: 0, zIndex: 20, padding: '8px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.15)' }}>
+    <div className="min-h-screen bg-gray-50">
+      <div style={{ background: SNZ_DARK }} className="sticky top-0 z-20 px-4 sm:px-6 py-3 flex items-center justify-between gap-2 border-b border-blue-900">
         <button onClick={() => navigate('/bingo')}
-          style={{ background: 'rgba(255,255,255,0.15)', border: 'none', color: '#fff', fontWeight: 700, fontSize: 13, padding: '6px 10px', borderRadius: 8, cursor: 'pointer' }}>
+          className="flex items-center gap-1.5 text-white font-bold text-sm bg-white/15 hover:bg-white/25 px-3 py-1.5 rounded-lg transition whitespace-nowrap flex-shrink-0">
           ← Fish Bingo
         </button>
-        <span style={{ color: '#fff', fontWeight: 700, fontSize: 14 }}>{displayName}</span>
-        <span style={{ background: 'rgba(255,255,255,0.2)', borderRadius: 999, padding: '3px 10px', fontSize: 13, color: '#fff', fontWeight: 700 }}>
+        <span className="text-white font-bold text-sm truncate min-w-0 text-center">{displayName}</span>
+        <span className="bg-white/15 text-white text-xs font-bold px-3 py-1.5 rounded-full whitespace-nowrap flex-shrink-0">
           {totalScore} pts
         </span>
       </div>
 
-      <div className="container" style={{ paddingTop: 12 }}>
-        <div className="card" style={{ marginBottom: 12 }}>
-          <h2 style={{ margin: 0 }}>{displayName}</h2>
-          {profile?.region && <div className="small muted" style={{ marginTop: 4 }}>{profile.region}</div>}
+      <div className="max-w-3xl mx-auto px-4 py-6 space-y-5">
+        <div className="bg-white border border-gray-200 rounded-2xl p-4">
+          <h2 className="font-black text-gray-900 text-lg">{displayName}</h2>
+          {profile?.region && <p className="text-xs text-gray-400 mt-0.5">{profile.region}</p>}
         </div>
 
-        <section style={{ marginBottom: 24 }}>
-          <h3>Catches</h3>
-          {loading && <p className="small muted">Loading…</p>}
-          {!loading && catches.length === 0 && <p className="small muted">No catches yet.</p>}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+        <section>
+          <h3 className="font-black text-gray-900 mb-3">Catches</h3>
+          {loading && <p className="text-sm text-gray-400">Loading…</p>}
+          {!loading && catches.length === 0 && <p className="text-sm text-gray-400">No catches yet.</p>}
+          <div className="grid grid-cols-3 gap-3">
             {catches.map(cl => (
-              <div key={cl.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                <div style={{ padding: 6, border: '1px solid #3F444A', borderRadius: 10, background: '#33383D', width: '100%' }}>
-                  <div style={{ width: '100%', aspectRatio: '1', background: '#2B2F33', border: '1px solid #3F444A', borderRadius: 8, overflow: 'hidden' }}>
-                    {cl._imageSrc ? (
-                      <img src={cl._imageSrc} alt={cl._displayName}
-                        style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} loading="lazy" />
-                    ) : (
-                      <div style={{ width: '100%', height: '100%', display: 'grid', placeItems: 'center', color: '#A8B0B6', fontSize: 11 }}>No image</div>
-                    )}
-                  </div>
-                  <div className="diver-caption">
-                    <span>{cl._displayName}</span>
-                    <span className={cl._isFirst ? 'first-time' : ''} style={{ fontVariantNumeric: 'tabular-nums' }}>
-                      {cl._points} pts{cl._isFirst ? ' (first!)' : ''}
-                    </span>
-                  </div>
+              <div key={cl.id} className="bg-white border border-gray-200 rounded-xl p-1.5">
+                <div className="w-full aspect-square bg-gray-50 rounded-lg overflow-hidden">
+                  {cl._imageSrc ? (
+                    <img src={cl._imageSrc} alt={cl._displayName}
+                      className="w-full h-full object-cover" loading="lazy" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-gray-300 text-xs">No image</div>
+                  )}
+                </div>
+                <div className="text-center mt-1.5">
+                  <p className="text-xs font-semibold text-gray-700 truncate">{cl._displayName}</p>
+                  <p className={`text-xs font-bold ${cl._isFirst ? 'text-green-600' : 'text-gray-400'}`}>
+                    {cl._points} pts{cl._isFirst ? ' (first!)' : ''}
+                  </p>
                 </div>
               </div>
             ))}
@@ -142,15 +140,15 @@ export default function BingoDiverPage() {
 
         {bonusClaims.length > 0 && (
           <section>
-            <h3>Bonuses</h3>
-            <ul style={{ border: '1px solid #3F444A', borderRadius: 12, overflow: 'hidden', listStyle: 'none', padding: 0, margin: 0 }}>
+            <h3 className="font-black text-gray-900 mb-3">Bonuses</h3>
+            <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden divide-y divide-gray-100">
               {bonusClaims.map(b => (
-                <li key={b.id} style={{ background: '#33383D', padding: '8px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #3F444A' }}>
-                  <div style={{ fontSize: 13, fontWeight: 500 }}>{b._displayName}</div>
-                  <div style={{ fontSize: 13, fontVariantNumeric: 'tabular-nums' }}>{b._points} pts</div>
-                </li>
+                <div key={b.id} className="px-4 py-2.5 flex items-center justify-between gap-3">
+                  <p className="text-sm font-semibold text-gray-800">{b._displayName}</p>
+                  <p className="text-sm font-bold flex-shrink-0" style={{ color: SNZ_BLUE }}>{b._points} pts</p>
+                </div>
               ))}
-            </ul>
+            </div>
           </section>
         )}
       </div>

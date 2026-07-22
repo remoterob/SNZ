@@ -2,6 +2,7 @@ import { supabase } from '../../lib/supabase'
 import { imgFor, infoFor, pointsForSlug, scoreForClaims, isBonusSlug, windowState, nzFormat } from '../../lib/bingo/helpers'
 import { notify } from '../../utils/toasts'
 
+const SNZ_BLUE = '#2B6CB0'
 const BINGO_CLAIM_API = '/.netlify/functions/bingo-claim'
 const NO_FIRST_TIME = new Set(['rescue', 'Dishes'])
 const STORAGE_BUCKET = 'snz-media'
@@ -110,28 +111,26 @@ export default function BingoPlayPage(props) {
     ? windowState(new Date().toISOString(), compCfg.comp_start, compCfg.comp_end)
     : { ok: true, state: 'unknown' }
 
-  if (!species) return <div className="card"><p className="small muted">Loading species…</p></div>
+  if (!species) return <div className="bg-white border border-gray-200 rounded-2xl p-6 text-center text-gray-400 text-sm">Loading species…</div>
 
   return (
-    <div>
+    <div className="space-y-4">
       {/* Score chip */}
       {signedIn && (
-        <div className="card" style={{ marginBottom: 12, padding: 10 }}>
-          <div className="row" style={{ alignItems: 'center' }}>
-            <strong>Welcome, {me.name}</strong>
-            <div className="right badge" style={{ fontSize: 13 }}>
-              {scoreForClaims(myClaims, pMap)} pts
-            </div>
-          </div>
+        <div className="bg-white border border-gray-200 rounded-2xl px-4 py-3 flex items-center justify-between">
+          <p className="font-bold text-gray-900 text-sm">Welcome, {me.name}</p>
+          <span className="text-xs font-black px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-100">
+            {scoreForClaims(myClaims, pMap)} pts
+          </span>
         </div>
       )}
 
       {/* Comp window info */}
-      <div className="card" style={{ marginBottom: 12 }}>
-        <div className="row" style={{ alignItems: 'baseline' }}>
-          <h3 style={{ marginRight: 8 }}>Claim a Fish</h3>
+      <div className="bg-white border border-gray-200 rounded-2xl p-4 sm:p-5">
+        <div className="flex items-baseline justify-between gap-3 mb-1 flex-wrap">
+          <h3 className="font-black text-gray-900">Claim a Fish</h3>
           {compCfg && (
-            <span className="small muted">
+            <span className="text-xs text-gray-400">
               {windowGate.ok
                 ? `Season closes ${nzFormat(compCfg.comp_end)}`
                 : windowGate.state === 'before'
@@ -140,9 +139,9 @@ export default function BingoPlayPage(props) {
             </span>
           )}
         </div>
-        <p className="small muted">Tick "First time" if it's truly your first ever claim for that species — you get double points.</p>
+        <p className="text-xs text-gray-400 mb-4">Tick "First time" if it's truly your first ever claim for that species — you get double points.</p>
 
-        <div className="grid grid-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           {species.filter(s => !isBonusSlug(s.slug)).map(s => {
             const mine  = myClaimFor(s.slug)
             const info  = infoFor(infoMap, s.name)
@@ -150,130 +149,142 @@ export default function BingoPlayPage(props) {
             const checked = !!firstChoice[s.slug]
 
             return (
-              <div key={s.slug} className="card">
-                <div className="img-box" style={{ position: 'relative' }}>
+              <div key={s.slug} className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+                <div className="relative w-full aspect-[4/3] bg-gray-50">
                   <img
                     src={mine?.photo_url || mine?.thumb_url || imgFor(s) || ''}
                     alt={s.name}
-                    onError={e => { e.currentTarget.style.opacity = 0.3 }}
+                    className="w-full h-full object-cover"
+                    onError={e => { e.currentTarget.style.opacity = 0.2 }}
                   />
                   {mine && (
-                    <div style={{ position: 'absolute', top: 6, right: 6, background: '#009688', color: '#fff', padding: '4px 8px', borderRadius: 6, fontSize: 12, fontWeight: 600 }}>
+                    <div className="absolute top-1.5 right-1.5 bg-green-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
                       Claimed
                     </div>
                   )}
                 </div>
 
-                <div className="row" style={{ marginTop: 8, alignItems: 'baseline' }}>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
-                      <strong>{s.name}</strong>
-                      {info && (info.tips || info.recipe) && (
+                <div className="p-2.5">
+                  <div className="flex items-baseline gap-1.5 flex-wrap">
+                    <p className="font-bold text-gray-900 text-sm leading-tight">{s.name}</p>
+                    {info && (info.tips || info.recipe) && (
+                      <button
+                        onClick={() => setOpenInfoSlug(openInfoSlug === s.slug ? null : s.slug)}
+                        className="text-xs font-semibold border-b border-dashed"
+                        style={{ color: SNZ_BLUE, borderColor: SNZ_BLUE }}
+                      >
+                        Tips &amp; recipes
+                      </button>
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-400">{s.points} pts</p>
+
+                  {openInfoSlug === s.slug && info && (
+                    <div className="text-xs mt-2 bg-blue-50 border border-blue-100 rounded-lg p-2 text-gray-700 space-y-1">
+                      {info.tips && (
+                        <p><span className="font-bold">Tips:</span> <span className="text-gray-600" dangerouslySetInnerHTML={{ __html: info.tips }} /></p>
+                      )}
+                      {info.recipe && (
+                        <p><span className="font-bold">Recipe:</span>{' '}
+                          <a href={info.recipe} target="_blank" rel="noreferrer" className="underline" style={{ color: SNZ_BLUE }}>
+                            {(() => { try { return new URL(info.recipe).hostname } catch { return 'Open link' } })()}
+                          </a>
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {!mine ? (
+                    <div className="flex items-center gap-2 mt-2">
+                      {!NO_FIRST_TIME.has(s.slug) && (
+                        <label className="flex items-center gap-1.5 text-xs text-gray-500 cursor-pointer flex-1 min-w-0">
+                          <input type="checkbox" checked={checked} className="w-3.5 h-3.5 flex-shrink-0"
+                            onChange={e => setFirstChoice(prev => ({ ...prev, [s.slug]: e.target.checked }))} />
+                          <span className="truncate">First time (2x)</span>
+                        </label>
+                      )}
+                      <button
+                        className="text-xs font-bold px-3 py-1.5 rounded-lg text-white disabled:opacity-40 ml-auto flex-shrink-0"
+                        style={{ background: SNZ_BLUE }}
+                        onClick={() => { setFirstChoice(p => ({ ...p, [s.slug]: false })); claim(s.slug) }}
+                        disabled={!signedIn || (compCfg && !windowGate.ok)}>
+                        Claim
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="mt-2">
+                      <p className="text-xs text-gray-600 mb-1.5">
+                        <span className="font-black text-gray-900">{pts}</span> pts {mine.first_time ? '(first-time ×2)' : ''}
+                      </p>
+                      <div className="flex gap-1.5 flex-wrap">
+                        {mine.photo_url ? (
+                          <a href={mine.photo_url} target="_blank" rel="noreferrer"
+                            className="text-xs font-bold px-2.5 py-1 rounded-lg text-white text-center"
+                            style={{ background: SNZ_BLUE }}>
+                            View Pic
+                          </a>
+                        ) : (
+                          <>
+                            <input type="file" accept="image/*" id={`upload-${s.slug}`} className="hidden"
+                              onChange={e => { const f = e.target.files?.[0]; if (f) uploadPhoto(f, s.slug) }} />
+                            <label htmlFor={`upload-${s.slug}`}
+                              className="text-xs font-bold px-2.5 py-1 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50 cursor-pointer">
+                              Add Pic
+                            </label>
+                          </>
+                        )}
                         <button
-                          onClick={() => setOpenInfoSlug(openInfoSlug === s.slug ? null : s.slug)}
-                          className="small"
-                          style={{ all: 'unset', cursor: 'pointer', color: '#009688', borderBottom: '1px dashed #009688' }}
-                        >
-                          Tips & recipes
+                          className="text-xs font-bold px-2.5 py-1 rounded-lg border border-red-200 text-red-500 hover:bg-red-50"
+                          onClick={() => unclaim(s.slug)}>
+                          Unclaim
                         </button>
-                      )}
+                      </div>
                     </div>
-                    <div className="small muted">{s.points} pts</div>
-                  </div>
+                  )}
                 </div>
-
-                {openInfoSlug === s.slug && info && (
-                  <div className="small" style={{ marginTop: 8, background: '#2B2F33', border: '1px solid #3F444A', padding: 8, borderRadius: 8 }}>
-                    {info.tips && (
-                      <div style={{ marginBottom: 6 }}>
-                        <strong>Tips:</strong>{' '}
-                        <span className="muted" dangerouslySetInnerHTML={{ __html: info.tips }} />
-                      </div>
-                    )}
-                    {info.recipe && (
-                      <div>
-                        <strong>Recipe:</strong>{' '}
-                        <a href={info.recipe} target="_blank" rel="noreferrer" style={{ color: '#009688' }}>
-                          {(() => { try { return new URL(info.recipe).hostname } catch { return 'Open link' } })()}
-                        </a>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {!mine ? (
-                  <div className="row" style={{ marginTop: 8, alignItems: 'center' }}>
-                    {!NO_FIRST_TIME.has(s.slug) && (
-                      <>
-                        <input type="checkbox" id={`ft-${s.slug}`} checked={checked}
-                          onChange={e => setFirstChoice(prev => ({ ...prev, [s.slug]: e.target.checked }))} />
-                        <label htmlFor={`ft-${s.slug}`} className="small" style={{ marginLeft: 6 }}>First time (2x pts)</label>
-                      </>
-                    )}
-                    <button className="btn primary right"
-                      onClick={() => { setFirstChoice(p => ({ ...p, [s.slug]: false })); claim(s.slug) }}
-                      disabled={!signedIn || (compCfg && !windowGate.ok)}>
-                      Claim
-                    </button>
-                  </div>
-                ) : (
-                  <div className="row" style={{ marginTop: 8, alignItems: 'center', justifyContent: 'space-between' }}>
-                    <div className="small" style={{ flex: '1 1 auto' }}>
-                      <strong>{pts}</strong> pts {mine.first_time ? '(first-time ×2)' : ''}
-                    </div>
-                    <div style={{ flexShrink: 0, display: 'flex', gap: 6 }}>
-                      {mine.photo_url ? (
-                        <a href={mine.photo_url} target="_blank" rel="noreferrer"
-                          className="btn small" style={{ background: '#009688', color: '#fff', textAlign: 'center' }}>
-                          View Pic
-                        </a>
-                      ) : (
-                        <>
-                          <input type="file" accept="image/*" id={`upload-${s.slug}`} style={{ display: 'none' }}
-                            onChange={e => { const f = e.target.files?.[0]; if (f) uploadPhoto(f, s.slug) }} />
-                          <label htmlFor={`upload-${s.slug}`} className="btn small" style={{ background: '#444', color: '#fff', cursor: 'pointer' }}>
-                            Add Pic
-                          </label>
-                        </>
-                      )}
-                      <button className="btn small" onClick={() => unclaim(s.slug)}>Unclaim</button>
-                    </div>
-                  </div>
-                )}
               </div>
             )
           })}
         </div>
       </div>
 
-      {/* My claims table */}
-      <div className="card">
-        <h3>Your Claims</h3>
+      {/* My claims */}
+      <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+        <div className="px-4 sm:px-5 py-4 border-b border-gray-100">
+          <h3 className="font-black text-gray-900">Your Claims</h3>
+        </div>
         {!signedIn ? (
-          <p className="small muted">Sign in to see your claims.</p>
+          <p className="px-4 sm:px-5 py-6 text-sm text-gray-400 text-center">Sign in to see your claims.</p>
         ) : myClaims.length === 0 ? (
-          <p className="small muted">No claims yet — get out there!</p>
+          <p className="px-4 sm:px-5 py-6 text-sm text-gray-400 text-center">No claims yet — get out there!</p>
         ) : (
-          <table className="table">
-            <thead><tr><th>Time</th><th>Species</th><th>Points</th><th></th></tr></thead>
-            <tbody>
-              {myClaims.map(c => {
-                const sp = species.find(s => s.slug === c.species_slug)
-                const isBonus = isBonusSlug(c.species_slug)
-                const name = sp ? sp.name : c.species_slug
-                const base = pointsForSlug(c.species_slug, pMap)
-                const pts  = base * (isBonus ? 1 : c.first_time ? 2 : 1)
-                return (
-                  <tr key={c.id}>
-                    <td className="small">{c.created_at ? new Date(c.created_at).toLocaleString('en-NZ') : ''}</td>
-                    <td>{name}{!isBonus && c.first_time ? ' (first-time)' : ''}</td>
-                    <td><strong>{pts}</strong></td>
-                    <td><button className="btn" onClick={() => unclaim(c.species_slug)} style={{ padding: '3px 8px', fontSize: 12 }}>Unclaim</button></td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+          <div className="divide-y divide-gray-100">
+            {myClaims.map(c => {
+              const sp = species.find(s => s.slug === c.species_slug)
+              const isBonus = isBonusSlug(c.species_slug)
+              const name = sp ? sp.name : c.species_slug
+              const base = pointsForSlug(c.species_slug, pMap)
+              const pts  = base * (isBonus ? 1 : c.first_time ? 2 : 1)
+              return (
+                <div key={c.id} className="px-4 sm:px-5 py-3 flex items-center gap-3">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-gray-900 text-sm truncate">
+                      {name}{!isBonus && c.first_time ? ' (first-time)' : ''}
+                    </p>
+                    <p className="text-xs text-gray-400">
+                      {c.created_at ? new Date(c.created_at).toLocaleString('en-NZ') : ''}
+                    </p>
+                  </div>
+                  <span className="text-sm font-black flex-shrink-0" style={{ color: SNZ_BLUE }}>{pts} pts</span>
+                  <button
+                    className="text-xs font-bold px-2.5 py-1 rounded-lg border border-red-200 text-red-500 hover:bg-red-50 flex-shrink-0"
+                    onClick={() => unclaim(c.species_slug)}>
+                    Unclaim
+                  </button>
+                </div>
+              )
+            })}
+          </div>
         )}
       </div>
     </div>

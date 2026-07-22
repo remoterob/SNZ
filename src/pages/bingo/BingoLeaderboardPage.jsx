@@ -2,6 +2,9 @@ import { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { pointsForSlug, isBonusSlug } from '../../lib/bingo/helpers'
 
+const SNZ_BLUE = '#2B6CB0'
+const medalFor = (rank) => rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `#${rank}`
+
 export default function BingoLeaderboardPage({ allClaims, pMap }) {
   const navigate = useNavigate()
 
@@ -25,31 +28,28 @@ export default function BingoLeaderboardPage({ allClaims, pMap }) {
   }, [allClaims, pMap])
 
   return (
-    <div className="card">
-      <h3>Leaderboard</h3>
+    <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+      <div className="px-4 sm:px-5 py-4 border-b border-gray-100 bg-gray-50">
+        <h3 className="font-black text-gray-900">Leaderboard</h3>
+        <p className="text-xs text-gray-400 mt-0.5">{leaderboard.length} diver{leaderboard.length !== 1 ? 's' : ''} on the board</p>
+      </div>
       {leaderboard.length === 0 ? (
-        <p className="small muted">No claims yet — be the first on the board!</p>
+        <p className="px-4 sm:px-5 py-8 text-sm text-gray-400 text-center">No claims yet — be the first on the board!</p>
       ) : (
-        <>
-          <div className="leaderboard-grid leaderboard-header" style={{ marginBottom: 8 }}>
-            <div className="col-rank">#</div>
-            <div className="col-name">Name</div>
-            <div className="col-score">Score</div>
-          </div>
+        <div className="divide-y divide-gray-100">
           {leaderboard.map((r, i) => (
-            <div key={r.id} className="leaderboard-grid" style={{ padding: '6px 0', borderTop: i ? '1px solid #3F444A' : 'none' }}>
-              <div className="col-rank">{i + 1}</div>
-              <div className="col-name">
-                <button
-                  onClick={() => navigate(`/bingo/diver?uid=${r.id}&name=${encodeURIComponent(r.name)}`)}
-                  style={{ all: 'unset', cursor: 'pointer', color: '#009688', textDecoration: 'underline', textUnderlineOffset: 2, wordBreak: 'break-word' }}>
-                  {r.name}
-                </button>
-              </div>
-              <div className="col-score">{r.score}</div>
+            <div key={r.id} className={`px-4 sm:px-5 py-3 flex items-center gap-3 ${i === 0 ? 'bg-amber-50' : ''}`}>
+              <span className="w-9 text-center font-black text-sm flex-shrink-0">{medalFor(i + 1)}</span>
+              <button
+                onClick={() => navigate(`/bingo/diver?uid=${r.id}&name=${encodeURIComponent(r.name)}`)}
+                className="flex-1 min-w-0 text-left font-bold text-sm truncate hover:underline"
+                style={{ color: SNZ_BLUE }}>
+                {r.name}
+              </button>
+              <span className="text-sm font-black flex-shrink-0" style={{ color: SNZ_BLUE }}>{r.score} pts</span>
             </div>
           ))}
-        </>
+        </div>
       )}
     </div>
   )

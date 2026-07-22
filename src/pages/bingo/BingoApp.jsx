@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useMemberSession, MemberAuthGate } from '../../components/MemberAuthGate'
 import { pointsMapFromSpecies, buildInfoMap, scoreForClaims } from '../../lib/bingo/helpers'
-import '../../bingo.css'
 
 import BingoPlayPage from './BingoPlayPage'
 import BingoBonusesPage from './BingoBonusesPage'
@@ -13,12 +12,13 @@ import BingoDishesPage from './BingoDishesPage'
 import BingoRulesPage from './BingoRulesPage'
 
 const SNZ_BLUE = '#2B6CB0'
+const SNZ_DARK = '#1e3a5f'
 
 // ── Shared closed-season UI ───────────────────────────────────────────────────
 
 function SeasonClosedHero() {
   return (
-    <div style={{ background: 'linear-gradient(135deg, #1e3a5f 0%, #2B6CB0 100%)' }}
+    <div style={{ background: `linear-gradient(135deg, ${SNZ_DARK} 0%, ${SNZ_BLUE} 100%)` }}
       className="px-6 py-12 text-center">
       <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/15 text-white text-xs font-bold mb-4 tracking-wide uppercase">
         🏁 Season Closed
@@ -26,7 +26,7 @@ function SeasonClosedHero() {
       <h1 className="text-3xl sm:text-4xl font-black text-white mb-3 leading-tight">
         Fish Bingo 2025–26
       </h1>
-      <p className="text-blue-200 text-base leading-relaxed max-w-md mx-auto mb-2">
+      <p className="text-blue-100 text-base leading-relaxed max-w-md mx-auto mb-2">
         That's a wrap on this season — thanks to everyone who got out there and speared something worth bragging about.
       </p>
       <p className="text-white font-black text-lg mt-4">
@@ -38,21 +38,19 @@ function SeasonClosedHero() {
 
 function SeasonClosedBanner() {
   return (
-    <div style={{ background: 'linear-gradient(135deg, #1e3a5f 0%, #2B6CB0 100%)', borderRadius: 12, marginBottom: 16, padding: '20px 20px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-        <span style={{ background: 'rgba(255,255,255,0.2)', borderRadius: 999, padding: '2px 10px', fontSize: 11, color: '#fff', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
-          🏁 Season Closed
-        </span>
-      </div>
-      <p style={{ color: '#fff', fontWeight: 900, fontSize: 18, margin: '0 0 4px' }}>
-        The 2025–26 season has wrapped up
-      </p>
-      <p style={{ color: 'rgba(255,255,255,0.75)', fontSize: 14, margin: 0 }}>
+    <div style={{ background: `linear-gradient(135deg, ${SNZ_DARK} 0%, ${SNZ_BLUE} 100%)` }}
+      className="rounded-2xl p-5 mb-4">
+      <span className="inline-block bg-white/20 rounded-full px-2.5 py-0.5 text-xs font-bold text-white tracking-wide uppercase mb-2">
+        🏁 Season Closed
+      </span>
+      <p className="text-white font-black text-lg mb-1">The 2025–26 season has wrapped up</p>
+      <p className="text-blue-100 text-sm">
         Fish Bingo is coming back bigger than ever later this season — check the leaderboard to see how you finished.
       </p>
     </div>
   )
 }
+
 const TABS = [
   { id: 'play',        label: 'Play' },
   { id: 'bonuses',     label: 'Bonuses' },
@@ -177,19 +175,19 @@ export default function BingoApp() {
 
   if (!session) {
     return (
-      <div className="min-h-screen bg-white">
-        <div style={{ background: SNZ_BLUE }} className="px-6 py-3 flex items-center justify-between border-b border-blue-700">
+      <div className="min-h-screen bg-gray-50">
+        <div style={{ background: SNZ_BLUE }} className="px-4 sm:px-6 py-3 flex items-center justify-between gap-2 border-b border-blue-700">
           <button onClick={() => navigate('/')}
-            className="flex items-center gap-1.5 text-white font-bold text-sm bg-white/15 hover:bg-white/25 px-3 py-1.5 rounded-lg transition">
+            className="flex items-center gap-1.5 text-white font-bold text-sm bg-white/15 hover:bg-white/25 px-3 py-1.5 rounded-lg transition whitespace-nowrap">
             ← SNZ Hub
           </button>
           <button onClick={() => navigate('/bingo/admin')}
-            className="flex items-center gap-1.5 text-white font-bold text-sm bg-white/15 hover:bg-white/25 px-3 py-1.5 rounded-lg transition">
+            className="text-xs font-bold text-white bg-white/15 hover:bg-white/25 px-3 py-1.5 rounded-lg transition whitespace-nowrap">
             ⚙ Admin
           </button>
         </div>
         <SeasonClosedHero />
-        <div className="max-w-sm mx-auto px-6 pb-12">
+        <div className="max-w-sm mx-auto px-6 py-8">
           <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Sign in to view your results</p>
           <MemberAuthGate message="Sign in with your SNZ membership." />
         </div>
@@ -199,14 +197,14 @@ export default function BingoApp() {
 
   if (!isActiveMember) {
     return (
-      <div className="min-h-screen bg-white">
-        <div style={{ background: SNZ_BLUE }} className="px-6 py-3 flex items-center justify-between border-b border-blue-700">
+      <div className="min-h-screen bg-gray-50">
+        <div style={{ background: SNZ_BLUE }} className="px-4 sm:px-6 py-3 flex items-center justify-between gap-2 border-b border-blue-700">
           <button onClick={() => navigate('/')}
-            className="flex items-center gap-1.5 text-white font-bold text-sm bg-white/15 hover:bg-white/25 px-3 py-1.5 rounded-lg transition">
+            className="flex items-center gap-1.5 text-white font-bold text-sm bg-white/15 hover:bg-white/25 px-3 py-1.5 rounded-lg transition whitespace-nowrap">
             ← SNZ Hub
           </button>
           <button onClick={() => navigate('/bingo/admin')}
-            className="flex items-center gap-1.5 text-white font-bold text-sm bg-white/15 hover:bg-white/25 px-3 py-1.5 rounded-lg transition">
+            className="text-xs font-bold text-white bg-white/15 hover:bg-white/25 px-3 py-1.5 rounded-lg transition whitespace-nowrap">
             ⚙ Admin
           </button>
         </div>
@@ -233,45 +231,44 @@ export default function BingoApp() {
   }
 
   return (
-    <div className="bingo-app">
-      {/* Top nav */}
-      <div style={{ background: SNZ_BLUE, position: 'sticky', top: 0, zIndex: 20 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', borderBottom: '1px solid rgba(255,255,255,0.15)' }}>
-          <button onClick={() => navigate('/')}
-            style={{ background: 'rgba(255,255,255,0.15)', border: 'none', color: '#fff', fontWeight: 700, fontSize: 13, padding: '6px 10px', borderRadius: 8, cursor: 'pointer' }}>
-            ← SNZ Hub
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <div style={{ background: SNZ_DARK }} className="px-4 sm:px-6 py-3 flex items-center justify-between gap-2 border-b border-blue-900">
+        <button onClick={() => navigate('/')}
+          className="flex items-center gap-1.5 text-white font-bold text-sm bg-white/15 hover:bg-white/25 px-3 py-1.5 rounded-lg transition whitespace-nowrap flex-shrink-0">
+          ← SNZ Hub
+        </button>
+        <span className="text-white/70 text-xs font-semibold truncate min-w-0 hidden sm:block">🐟 Fish Bingo</span>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {signedIn && (
+            <span className="bg-white/15 text-white text-xs font-bold px-3 py-1.5 rounded-full whitespace-nowrap">
+              {myScore} pts
+            </span>
+          )}
+          <button onClick={() => navigate('/bingo/admin')}
+            className="text-xs font-bold text-white bg-white/15 hover:bg-white/25 px-3 py-1.5 rounded-lg transition whitespace-nowrap">
+            ⚙ Admin
           </button>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            {signedIn && (
-              <span style={{ background: 'rgba(255,255,255,0.2)', borderRadius: 999, padding: '3px 10px', fontSize: 13, color: '#fff', fontWeight: 700 }}>
-                {myScore} pts
-              </span>
-            )}
-            <button onClick={() => navigate('/bingo/admin')}
-              style={{ background: 'rgba(255,255,255,0.15)', border: 'none', color: '#fff', fontWeight: 700, fontSize: 13, padding: '6px 10px', borderRadius: 8, cursor: 'pointer' }}>
-              ⚙ Admin
-            </button>
-          </div>
         </div>
-        {/* Tab bar */}
-        <div className="tabs-scroll">
-          <div className="tabs">
-            {TABS.map(t => (
-              <button key={t.id} className={`tab${tab === t.id ? ' active' : ''}`} onClick={() => changeTab(t.id)}>
-                {t.label}
-              </button>
-            ))}
-          </div>
+      </div>
+
+      {/* Tab bar */}
+      <div className="sticky top-0 z-10 bg-white border-b border-gray-200 px-4 overflow-x-auto">
+        <div className="flex gap-1 max-w-3xl mx-auto">
+          {TABS.map(t => (
+            <button key={t.id} onClick={() => changeTab(t.id)}
+              className={`px-4 py-3 text-sm font-bold whitespace-nowrap border-b-2 transition ${tab === t.id ? 'border-blue-600 text-blue-700' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+              {t.label}
+            </button>
+          ))}
         </div>
       </div>
 
       {/* Page content */}
       {!dataReady && species === null ? (
-        <div className="container" style={{ paddingTop: 40, textAlign: 'center' }}>
-          <p className="muted">Loading…</p>
-        </div>
+        <div className="max-w-3xl mx-auto px-4 py-12 text-center text-gray-400 text-sm">Loading…</div>
       ) : (
-        <div className="container">
+        <div className="max-w-3xl mx-auto px-4 py-6">
           {seasonClosed && tab === 'play' && <SeasonClosedBanner />}
           {tab === 'play'        && <BingoPlayPage        {...sharedProps} />}
           {tab === 'bonuses'     && <BingoBonusesPage     {...sharedProps} />}

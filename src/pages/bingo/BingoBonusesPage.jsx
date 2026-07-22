@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../../lib/supabase'
 import { imgFor } from '../../lib/bingo/helpers'
 
+const SNZ_BLUE = '#2B6CB0'
 const BINGO_CLAIM_API = '/.netlify/functions/bingo-claim'
 const normalize = (s = '') => s.toString().trim().toLowerCase()
 
@@ -39,7 +40,7 @@ export default function BingoBonusesPage({ species, myClaims, compCfg, signedIn,
   const onChanged = () => setRefreshKey(k => k + 1)
 
   if (!species || bonuses.length === 0) {
-    return <div className="card"><p className="small muted">Loading bonuses…</p></div>
+    return <div className="bg-white border border-gray-200 rounded-2xl p-6 text-center text-gray-400 text-sm">Loading bonuses…</div>
   }
 
   const month = getCurrentMonth()
@@ -47,27 +48,27 @@ export default function BingoBonusesPage({ species, myClaims, compCfg, signedIn,
   const evergreen = bonuses.filter(b => b.bonus_type === 'evergreen')
 
   return (
-    <div>
+    <div className="space-y-4">
       {monthRow && (
-        <div className="card" style={{ marginBottom: 12 }}>
-          <div className="row" style={{ alignItems: 'baseline', marginBottom: 6 }}>
-            <h3 style={{ margin: 0 }}>Row of the Month</h3>
-            <div className="right small muted">{monthRow.title} · +{monthRow.points} pts</div>
+        <div className="bg-white border border-gray-200 rounded-2xl p-4 sm:p-5">
+          <div className="flex items-baseline justify-between gap-3 mb-2 flex-wrap">
+            <h3 className="font-black text-gray-900">Row of the Month</h3>
+            <span className="text-xs text-gray-400">{monthRow.title} · +{monthRow.points} pts</span>
           </div>
           <BonusGroup group={monthRow} species={species} claimedSpecies={claimedSpecies}
             signedIn={signedIn} token={token} compCfg={compCfg} onChanged={onChanged} />
         </div>
       )}
 
-      <div className="card">
-        <h3>Full competition bonuses</h3>
-        {evergreen.map(g => (
-          <div key={g.id} style={{ borderTop: '1px solid #222', paddingTop: 12, marginTop: 12 }}>
-            <div className="row" style={{ alignItems: 'baseline' }}>
-              <strong>{g.title}</strong>
-              <div className="right small muted">+{g.points} pts</div>
+      <div className="bg-white border border-gray-200 rounded-2xl p-4 sm:p-5">
+        <h3 className="font-black text-gray-900 mb-3">Full competition bonuses</h3>
+        {evergreen.map((g, i) => (
+          <div key={g.id} className={i > 0 ? 'border-t border-gray-100 pt-4 mt-4' : ''}>
+            <div className="flex items-baseline justify-between gap-3 flex-wrap">
+              <p className="font-bold text-gray-900 text-sm">{g.title}</p>
+              <span className="text-xs text-gray-400">+{g.points} pts</span>
             </div>
-            {g.description && <p className="small muted" style={{ margin: '4px 0 0' }}>{g.description}</p>}
+            {g.description && <p className="text-xs text-gray-500 mt-1">{g.description}</p>}
             <BonusGroup group={g} species={species} claimedSpecies={claimedSpecies}
               signedIn={signedIn} token={token} compCfg={compCfg} onChanged={onChanged} />
           </div>
@@ -119,34 +120,34 @@ function BonusGroup({ group, species, claimedSpecies, signedIn, token, compCfg, 
 
   return (
     <div>
-      <div className="grid grid-3" style={{ marginTop: 8 }}>
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-3">
         {items.map(({ name, sp, has }) => (
-          <div key={name} className="row" style={{ alignItems: 'center' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0 }}>
-              {sp ? (
-                <img src={imgFor(sp) || ''} alt={name}
-                  style={{ width: 60, height: 60, objectFit: 'cover', borderRadius: 6, border: '1px solid #2a2a2a' }}
-                  onError={e => { e.target.style.display = 'none' }}
-                />
-              ) : (
-                <div className="small muted" style={{ width: 40, height: 40, display: 'grid', placeItems: 'center', border: '1px solid #2a2a2a', borderRadius: 6 }}>?</div>
-              )}
-              <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{name}</span>
-              {has && <span style={{ fontSize: '1.6em', color: '#10b981', lineHeight: 1, marginLeft: 4 }}>✓</span>}
-            </div>
+          <div key={name} className="flex items-center gap-2 bg-gray-50 border border-gray-100 rounded-lg p-1.5">
+            {sp ? (
+              <img src={imgFor(sp) || ''} alt={name}
+                className="w-9 h-9 object-cover rounded-md border border-gray-200 flex-shrink-0"
+                onError={e => { e.target.style.display = 'none' }} />
+            ) : (
+              <div className="w-9 h-9 flex items-center justify-center text-xs text-gray-400 border border-gray-200 rounded-md flex-shrink-0">?</div>
+            )}
+            <span className="text-xs text-gray-700 truncate flex-1 min-w-0">{name}</span>
+            {has && <span className="text-green-600 font-black text-sm flex-shrink-0">✓</span>}
           </div>
         ))}
       </div>
-      <div className="row" style={{ marginTop: 8, alignItems: 'center' }}>
-        <div className="small muted">{claimed} / {items.length} claimed</div>
-        <div className="right">
+      <div className="flex items-center justify-between gap-3 mt-3">
+        <p className="text-xs text-gray-400">{claimed} / {items.length} claimed</p>
+        <div className="flex gap-2">
           {bonusClaimed ? (
             <>
-              <button className="btn" disabled>Claimed ✓</button>
-              <button className="btn" style={{ marginLeft: 8 }} onClick={doUnclaim}>Unclaim</button>
+              <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-green-50 text-green-700 border border-green-200">Claimed ✓</span>
+              <button className="text-xs font-bold px-2.5 py-1 rounded-lg border border-red-200 text-red-500 hover:bg-red-50" onClick={doUnclaim}>Unclaim</button>
             </>
           ) : allMet ? (
-            <button className="btn primary" disabled={!signedIn} onClick={doClaimBonus}>Claim bonus</button>
+            <button className="text-xs font-bold px-3 py-1.5 rounded-lg text-white disabled:opacity-40"
+              style={{ background: SNZ_BLUE }} disabled={!signedIn} onClick={doClaimBonus}>
+              Claim bonus
+            </button>
           ) : null}
         </div>
       </div>
