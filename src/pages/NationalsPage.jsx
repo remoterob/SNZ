@@ -17,9 +17,6 @@ const SUB_EVENTS = [
     format: 'Pairs · 2 days · 6 hrs/day · Standard SNZ scoring',
     prizes: 'Howe Cup (1st) · Dowling Cup (2nd) · Woolworths Cup (3rd) · Tomlin Trophy (Top NZ Team) · Carver Trophy (Most Meritorious Fish) · ISCO Cup (Largest Kingfish) · Russell George Trophy (Largest Snapper) · Milner Trophy (Most Species) · Lance Baker Trophy (1st Novice) · Plylite Cup (Top Club) · B Division Stewards Trophy (1st B Division) · Parent & Child Mug',
     eligibility: 'All active SNZ members. Both divers must be registered.',
-    earlyBird: true,
-    baseFee: false,
-    feeCents: 0,
     color: '#2B6CB0',
     bgColor: '#eff6ff',
     borderColor: '#bfdbfe',
@@ -32,8 +29,6 @@ const SUB_EVENTS = [
     format: 'Included with Open entry — scored from Open results · No additional fee',
     prizes: 'Eddie Davidson Cup (1st — NZ Women\'s Champion) · GHB Cup (2nd)',
     eligibility: 'Both divers must be women. Automatically applied from your member profiles.',
-    baseFee: false,
-    feeCents: 0,
     autoQualify: true,
     color: '#db2777',
     bgColor: '#fdf2f8',
@@ -47,8 +42,6 @@ const SUB_EVENTS = [
     format: 'Pairs · Standard SNZ scoring',
     prizes: 'Daves Sports Centre Plate (NZ Junior Champion) · Trail Cup (2nd) · Underwater Sports Trophy (3rd) · Mayor Island Trophy (1st U/16) · Lifou Trophy (1st Junior Woman) · McCoy & Thomas Trophy (Largest Fish) · Wilkinson Trophy (Most Meritorious Fish U/18) · Shields Family Trophy (1st U/10) · Committee\'s Choice Cup',
     eligibility: 'Under 18 years of age on the day of competition.',
-    baseFee: false,
-    feeCents: 0,
     color: '#7c3aed',
     bgColor: '#faf5ff',
     borderColor: '#ddd6fe',
@@ -61,9 +54,6 @@ const SUB_EVENTS = [
     format: 'Individual · Swim in pairs · Up to 4 hrs · Judged on species count',
     prizes: 'Rollie Cup (1st Most Species — NZ Champion Snorkel Photographer) · Bay of Islands Cup (2nd Most Species) · Nelson U/W Club Trophy (Best Photo) · Spence & Ross Cup (1st Junior Snorkel Photographer)',
     eligibility: 'All registered Nationals competitors. Competitors under 16 must swim with an adult.',
-    baseFee: false,
-    feeCents: 0,
-    perDiver: true,
     color: '#0891b2',
     bgColor: '#ecfeff',
     borderColor: '#a5f3fc',
@@ -76,9 +66,6 @@ const SUB_EVENTS = [
     format: 'Individual · Timed · Distance confirmed day of race · Fins only',
     prizes: 'Thornbury Cup (1st 200m) · NZ Swimfin Champion · NZ Swimfin Champion Team',
     eligibility: 'All registered Nationals competitors.',
-    baseFee: false,
-    feeCents: 0,
-    perDiver: true,
     color: '#059669',
     bgColor: '#ecfdf5',
     borderColor: '#a7f3d0',
@@ -91,8 +78,6 @@ const SUB_EVENTS = [
     format: 'Included with Open entry — scored from Open results · No additional fee',
     prizes: 'Silver Oldie Trophy',
     eligibility: 'At least one diver aged 50+ on day of competition. Cannot compete in both Silver and Golden Oldie.',
-    baseFee: false,
-    feeCents: 0,
     autoQualify: true,
     color: '#6b7280',
     bgColor: '#f9fafb',
@@ -106,9 +91,6 @@ const SUB_EVENTS = [
     format: 'Boat comp · Competitors aged 60+',
     prizes: 'Golden Oldie Cup — Timbs & Davidson (60 years of age and over)',
     eligibility: 'At least one diver aged 60+ on day of competition.',
-    baseFee: false,
-    feeCents: 0,
-    autoQualify: true,
     color: '#d97706',
     bgColor: '#fffbeb',
     borderColor: '#fde68a',
@@ -121,8 +103,6 @@ const SUB_EVENTS = [
     format: 'No additional fee — automatically eligible when entered in all three: Open + Photography + Fin Swim · Aggregate scoring on placings',
     prizes: 'Super Diver Trophy — NZ Spearfishing Superdiver (Highest aggregate in snorkel photography, fin swim and spearfishing)',
     eligibility: 'Must be entered in Open Championship, Snorkel Photography, and Fin Swimming.',
-    baseFee: false,
-    feeCents: 0,
     autoQualify: true,
     color: '#b45309',
     bgColor: '#fefce8',
@@ -144,6 +124,19 @@ function fmtEventDateRange(d) {
 // Women's is a sub-division of the Open, so it shares the Open's dates.
 const eventDatesFor = (nat, id) => nat?.event_dates?.[id === 'womens' ? 'open' : id]
 
+// Resolve an event's live fee from the competition's category_fees — mirrors
+// the resolution used at checkout (NationalsRegister.jsx) so displayed prices
+// never drift from what a diver is actually charged.
+function feeFor(nat, id) {
+  const fees = nat?.category_fees?.[id]
+  if (!fees) return null // no fee row set up yet — TBC
+  const standard = fees.standard ?? 0
+  const earlyBird = fees.early_bird ?? null
+  const isEarlyBirdNow = nat?.early_bird_cutoff ? new Date() < new Date(nat.early_bird_cutoff) : false
+  const current = isEarlyBirdNow && earlyBird != null ? earlyBird : standard
+  return { standard, earlyBird, current, isEarlyBirdNow: isEarlyBirdNow && earlyBird != null }
+}
+
 // ── Nationals Public Page ────────────────────────────────────────────────────
 export default function NationalsPage() {
   const navigate = useNavigate()
@@ -155,7 +148,7 @@ export default function NationalsPage() {
   useEffect(() => {
     supabase
       .from('competitions')
-      .select('id, name, status, registration_cutoff, early_bird_cutoff, event_dates')
+      .select('id, name, status, registration_cutoff, early_bird_cutoff, event_dates, category_fees')
       .ilike('name', '%nationals%2027%')
       .maybeSingle()
       .then(({ data }) => {
@@ -254,7 +247,7 @@ export default function NationalsPage() {
               </p>
               <p className="text-gray-600 leading-relaxed mb-4">
                 The 2027 Nationals will be held at Tairua, Coromandel Peninsula, 19–24 January 2027.
-                Registration details will be published here — follow SNZ on Facebook for announcements.
+                <strong> Registrations are open now</strong> — see the Events tab for entry fees and the Register tab to enter your team.
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6">
                 {[
@@ -300,8 +293,10 @@ export default function NationalsPage() {
         {/* Events tab */}
         {activeTab === 'events' && (
           <div className="space-y-6">
-            <p className="text-gray-500 text-sm">Full event details, rules, and prize information will be published once confirmed by the committee.</p>
-            {SUB_EVENTS.filter(ev => ev.id !== 'silveroldie').map(ev => (
+            <p className="text-gray-500 text-sm">Registration is open now. Entry fees below are charged per diver at checkout.</p>
+            {SUB_EVENTS.filter(ev => ev.id !== 'silveroldie').map(ev => {
+              const fee = feeFor(nationals, ev.id)
+              return (
               <div key={ev.id} className="bg-white border-2 rounded-2xl overflow-hidden"
                 style={{ borderColor: ev.borderColor }}>
                 <div className="px-5 py-4" style={{ background: ev.bgColor }}>
@@ -311,17 +306,15 @@ export default function NationalsPage() {
                       <h3 className="font-black text-gray-900 text-lg">{ev.name}</h3>
                       <p className="text-xs font-semibold" style={{ color: ev.color }}>{ev.format}</p>
                     </div>
-                    {ev.earlyBird && (
-                      <span className="ml-auto text-xs font-black px-2 py-1 rounded-full bg-amber-100 text-amber-700 border border-amber-200">
-                        🐦 Early bird pricing coming
-                      </span>
-                    )}
-                    {ev.autoQualify && (
+                    {ev.autoQualify ? (
                       <span className="ml-auto text-xs font-black px-2 py-1 rounded-full bg-gray-100 text-gray-600 border border-gray-200">
                         ✦ Auto-qualify
                       </span>
-                    )}
-                    {ev.perDiver && !ev.baseFee && !ev.autoQualify && (
+                    ) : fee?.isEarlyBirdNow ? (
+                      <span className="ml-auto text-xs font-black px-2 py-1 rounded-full bg-amber-100 text-amber-700 border border-amber-200">
+                        🐦 Early bird price
+                      </span>
+                    ) : (
                       <span className="ml-auto text-xs font-black px-2 py-1 rounded-full bg-teal-100 text-teal-700 border border-teal-200">
                         👤 Per diver
                       </span>
@@ -359,18 +352,33 @@ export default function NationalsPage() {
                     </div>
                   </div>
                   <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-1">
-                    <p className="text-xs font-bold text-amber-700">
-                      {ev.feeCents > 0
-                        ? `Entry fee: $${ev.feeCents} ${ev.perDiver ? 'per diver' : 'per team'}`
-                        : `Entry fee: TBC${ev.perDiver ? ' · charged per diver' : ' · charged per team'}`}
-                    </p>
-                    {ev.earlyBird && (
-                      <p className="text-xs text-amber-600">🐦 Early bird discounts will be available — watch this space.</p>
+                    {ev.autoQualify ? (
+                      <p className="text-xs font-bold text-amber-700">No additional fee — automatic when you qualify</p>
+                    ) : !nationals?.category_fees ? (
+                      <p className="text-xs font-bold text-amber-700">Entry fee: TBC</p>
+                    ) : !fee ? (
+                      <p className="text-xs font-bold text-amber-700">Entry fee: TBC</p>
+                    ) : fee.current === 0 ? (
+                      <p className="text-xs font-bold text-amber-700">Free entry — no charge, per diver</p>
+                    ) : (
+                      <>
+                        <p className="text-xs font-bold text-amber-700">
+                          Entry fee: ${fee.current} per diver{fee.isEarlyBirdNow ? ' 🐦 early bird price' : ''}
+                        </p>
+                        {fee.earlyBird != null && (
+                          <p className="text-xs text-amber-600">
+                            {fee.isEarlyBirdNow
+                              ? `Standard price $${fee.standard} applies from ${new Date(nationals.early_bird_cutoff).toLocaleDateString('en-NZ', { day: 'numeric', month: 'short', year: 'numeric' })}`
+                              : `Early bird pricing has closed — standard price applies`}
+                          </p>
+                        )}
+                      </>
                     )}
                   </div>
                 </div>
               </div>
-            ))}
+              )
+            })}
           </div>
         )}
 
@@ -380,7 +388,7 @@ export default function NationalsPage() {
             <div className="bg-white border border-gray-200 rounded-2xl p-6">
               <h2 className="text-xl font-black text-gray-900 mb-2">Team Registration</h2>
               <p className="text-gray-500 text-sm leading-relaxed mb-4">
-                Registration for the 2027 Nationals will open soon. When it opens, both divers must be active paid SNZ members to register.
+                Registration for the 2027 Nationals is open now. Both divers must be active paid SNZ members to register.
                 You'll select your events and pay the combined entry fee in a single checkout.
               </p>
               <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4">
@@ -392,7 +400,11 @@ export default function NationalsPage() {
                   <li>• 📸 Photography and 🐟 Fin Swim are per diver — one or both can enter independently</li>
                   <li>• You only pay for the events you choose</li>
                   <li>• One Stripe payment covers your full entry</li>
-                  <li>• 🐦 Early bird pricing will be available — register early to save</li>
+                  <li>
+                    • {nationals?.early_bird_cutoff && new Date() < new Date(nationals.early_bird_cutoff)
+                      ? `🐦 Early bird pricing is active now — ends ${new Date(nationals.early_bird_cutoff).toLocaleDateString('en-NZ', { day: 'numeric', month: 'short', year: 'numeric' })}`
+                      : '🐦 Early bird pricing has closed — standard prices apply'}
+                  </li>
                   <li>• Merch orders can be placed at registration</li>
                 </ul>
               </div>
