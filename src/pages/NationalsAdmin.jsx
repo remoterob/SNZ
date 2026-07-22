@@ -73,6 +73,12 @@ function individualCompetitors(teams, type) {
   return result
 }
 
+function TeamAvatar({ url, size = 'w-8 h-8' }) {
+  return url
+    ? <img src={url} alt="" className={`${size} rounded-full object-cover flex-shrink-0 border border-gray-200`} />
+    : <div className={`${size} rounded-full bg-gray-100 flex items-center justify-center text-sm flex-shrink-0`}>👥</div>
+}
+
 // ── Status badges ─────────────────────────────────────────────────────────────
 function StatusBadge({ status }) {
   if (status === 'active') return <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700">✓ Active</span>
@@ -1012,6 +1018,7 @@ function DerivedDivLeaderboard({ divId, label, teams, allWeighins }) {
                   <span className="w-7 text-center font-bold text-sm flex-shrink-0">
                     {t.hasEntry ? (medals[i] || `#${i + 1}`) : <span className="text-gray-300">–</span>}
                   </span>
+                  <TeamAvatar url={t.team_photo_url} />
                   <div className="flex-1 min-w-0">
                     <p className="font-bold text-gray-900 text-sm truncate flex items-center gap-1">
                       {t.team_name}{t.hasEntry && <span className="text-gray-400 text-xs">{open ? '▲' : '▼'}</span>}
@@ -1509,6 +1516,7 @@ function DivisionLeaderboard({ divId, teams, allWeighins }) {
                 <span className="w-7 text-center flex-shrink-0 font-bold text-sm">
                   {t.hasEntry ? (medals[i] || `#${i + 1}`) : <span className="text-gray-300">–</span>}
                 </span>
+                <TeamAvatar url={t.team_photo_url} />
                 <div className="flex-1 min-w-0">
                   <p className="font-bold text-gray-900 text-sm truncate flex items-center gap-1">
                     {t.team_name}{t.hasEntry && <span className="text-gray-400 text-xs">{open ? '▲' : '▼'}</span>}

@@ -28,7 +28,7 @@ exports.handler = async () => {
 
     const { data: teamRows, error: teamErr } = await supabase
       .from('comp_teams')
-      .select('id, team_name, nationals_event, status, diver1_member_id, diver2_member_id')
+      .select('id, team_name, nationals_event, status, diver1_member_id, diver2_member_id, team_photo_url')
       .eq('competition_id', comp.id)
     if (teamErr) throw teamErr
     const teams = (teamRows || []).filter(t => t.status !== 'withdrawn')
@@ -43,6 +43,7 @@ exports.handler = async () => {
       id: t.id,
       team_name: t.team_name,
       nationals_event: t.nationals_event || {},
+      team_photo_url: t.team_photo_url || null,
       _d1: { name: nameById.get(t.diver1_member_id) || null },
       _d2: t.diver2_member_id ? { name: nameById.get(t.diver2_member_id) || null } : null,
     }))

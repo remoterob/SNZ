@@ -49,12 +49,19 @@ function FishBreakdown({ teamId, weighins, scoreDiv }) {
   )
 }
 
-function Row({ rank, title, sub, right, rightSub, top }) {
+function TeamAvatar({ url, size = 'w-9 h-9' }) {
+  return url
+    ? <img src={url} alt="" className={`${size} rounded-full object-cover flex-shrink-0 border border-gray-200`} />
+    : <div className={`${size} rounded-full bg-gray-100 flex items-center justify-center text-sm flex-shrink-0`}>👥</div>
+}
+
+function Row({ rank, title, sub, right, rightSub, top, photoUrl }) {
   return (
     <div className={`px-4 py-3 flex items-center gap-3 ${top ? 'bg-amber-50' : ''}`}>
       <span className="w-9 text-center font-black text-base flex-shrink-0">
         {rank ? medalFor(rank) : <span className="text-gray-300 text-sm">–</span>}
       </span>
+      <TeamAvatar url={photoUrl} />
       <div className="flex-1 min-w-0">
         <p className="font-bold text-gray-900 text-sm truncate">{title}</p>
         {sub && <p className="text-xs text-gray-400 truncate">{sub}</p>}
@@ -86,6 +93,7 @@ function TeamBoardRows({ board, teams, weighins }) {
               <span className="w-9 text-center font-black text-base flex-shrink-0">
                 {t.rank ? medalFor(t.rank) : <span className="text-gray-300 text-sm">–</span>}
               </span>
+              <TeamAvatar url={t.team_photo_url} />
               <div className="flex-1 min-w-0">
                 <p className="font-bold text-gray-900 text-sm truncate flex items-center gap-1">
                   {t.team_name}{t.hasEntry && <span className="text-gray-400 text-xs">{open ? '▲' : '▼'}</span>}
@@ -125,7 +133,7 @@ function Board({ board, teams, weighins }) {
     empty = 'No photography competitors registered yet.'
     render = (c, i) => (
       <Row key={c.key} top={i === 0 && c.hasResult} rank={c.rank}
-        title={c.name} sub={c.team.team_name}
+        title={c.name} sub={c.team.team_name} photoUrl={c.team.team_photo_url}
         right={c.hasResult
           ? <p className="text-base font-black" style={{ color: SNZ_BLUE }}>{c.count}</p>
           : <p className="text-xs text-gray-300">No result</p>}
@@ -136,7 +144,7 @@ function Board({ board, teams, weighins }) {
     empty = 'No fin swimmers registered yet.'
     render = (c, i) => (
       <Row key={c.key} top={c.placing === 1} rank={c.placing}
-        title={c.name} sub={c.team.team_name}
+        title={c.name} sub={c.team.team_name} photoUrl={c.team.team_photo_url}
         right={c.hasResult
           ? <p className="text-sm font-bold text-gray-700">{c.placing === 1 ? '1st' : c.placing === 2 ? '2nd' : c.placing === 3 ? '3rd' : `${c.placing}th`}</p>
           : <p className="text-xs text-gray-300">No placing</p>} />
@@ -146,7 +154,7 @@ function Board({ board, teams, weighins }) {
     empty = 'No Super Diver entrants yet — requires Open, Photography & Fin Swim.'
     render = (c, i) => (
       <Row key={c.key} top={i === 0 && c.complete} rank={c.rank}
-        title={c.name} sub={c.team.team_name}
+        title={c.name} sub={c.team.team_name} photoUrl={c.team.team_photo_url}
         right={c.complete
           ? <p className="text-base font-black" style={{ color: SNZ_BLUE }}>{c.aggregate}</p>
           : <p className="text-xs text-amber-500">Incomplete</p>}
