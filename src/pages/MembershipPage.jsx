@@ -51,18 +51,21 @@ function MemberHeader({ session, onSignOut }) {
   // Check if SNZ admin is logged in (stored in sessionStorage by AdminLogin)
   const isSnzAdmin = !!sessionStorage.getItem('snz_admin_session')
   return (
-    <div style={{ background: SNZ_BLUE }} className="px-6 py-3 flex items-center justify-between border-b border-blue-700">
-      <div className="flex items-center gap-3">
-        <button onClick={() => navigate('/')} className="flex items-center gap-1.5 text-white font-bold text-sm bg-white/15 hover:bg-white/25 px-3 py-1.5 rounded-lg transition">← SNZ Hub</button>
-        <span className="text-blue-200 text-sm opacity-75">/ Membership</span>
+    <div style={{ background: SNZ_BLUE }} className="px-3 sm:px-6 py-3 flex items-center justify-between gap-2 border-b border-blue-700">
+      <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+        <button onClick={() => navigate('/')}
+          className="flex items-center gap-1.5 text-white font-bold text-xs sm:text-sm bg-white/15 hover:bg-white/25 px-2.5 sm:px-3 py-1.5 rounded-lg transition whitespace-nowrap flex-shrink-0">
+          ← SNZ Hub
+        </button>
+        <span className="text-blue-200 text-sm opacity-75 hidden sm:inline whitespace-nowrap">/ Membership</span>
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 flex-shrink-0">
         <button onClick={() => isSnzAdmin ? navigate('/membership/admin') : navigate('/admin/login', { state: { from: '/membership/admin' } })}
-          className="text-xs font-bold text-white bg-white/15 hover:bg-white/25 px-3 py-1.5 rounded-lg transition">
+          className="text-xs font-bold text-white bg-white/15 hover:bg-white/25 px-2.5 sm:px-3 py-1.5 rounded-lg transition whitespace-nowrap">
           ⚙ Admin
         </button>
         {session && (
-          <button onClick={onSignOut} className="text-xs text-blue-200 hover:text-white transition">Sign out</button>
+          <button onClick={onSignOut} className="text-xs text-blue-200 hover:text-white transition whitespace-nowrap">Sign out</button>
         )}
       </div>
     </div>
@@ -1033,10 +1036,10 @@ function MyCompetitions({ session, memberId, member, showToast }) {
   }
 
   const statusBadge = (team) => {
-    if (team.status === 'active') return <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700">✓ Active</span>
-    if (team.status === 'pending_payment') return <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700">⚠ Payment required</span>
-    if (team.status === 'pending_diver2') return <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">⏳ Awaiting partner</span>
-    return <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">{team.status}</span>
+    if (team.status === 'active') return <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700 whitespace-nowrap">✓ Active</span>
+    if (team.status === 'pending_payment') return <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700 whitespace-nowrap">⚠ Payment required</span>
+    if (team.status === 'pending_diver2') return <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 whitespace-nowrap">⏳ Awaiting partner</span>
+    return <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 whitespace-nowrap">{team.status}</span>
   }
 
   if (loading) return <div className="bg-white border border-gray-200 rounded-2xl p-5 text-center text-gray-400 text-sm">Loading competitions…</div>
@@ -1064,31 +1067,31 @@ function MyCompetitions({ session, memberId, member, showToast }) {
               <div key={team.id} className="px-5 py-4">
                 {/* Comp header */}
                 <div className="flex items-start justify-between gap-3 mb-2">
-                  <div>
-                    <p className="font-bold text-gray-900 text-sm">{comp?.name}</p>
+                  <div className="min-w-0">
+                    <p className="font-bold text-gray-900 text-sm break-words">{comp?.name}</p>
                     <p className="text-xs text-gray-400">
                       {comp?.club_name}
                       {comp?.date_start && ` · ${new Date(comp.date_start).toLocaleDateString('en-NZ', { day: 'numeric', month: 'short', year: 'numeric' })}`}
                     </p>
                   </div>
-                  <div className="flex flex-col items-end gap-1">
+                  <div className="flex flex-col items-end gap-1 flex-shrink-0">
                     {statusBadge(team)}
                     {team.payment_status === 'paid'
-                      ? <span className="text-xs text-green-600 font-semibold">✓ Paid</span>
+                      ? <span className="text-xs text-green-600 font-semibold whitespace-nowrap">✓ Paid</span>
                       : comp?.entry_fee_cents > 0
-                        ? <span className="text-xs text-amber-600 font-semibold">⚠ Payment due</span>
+                        ? <span className="text-xs text-amber-600 font-semibold whitespace-nowrap">⚠ Payment due</span>
                         : null
                     }
                   </div>
                 </div>
 
                 {/* Partner info */}
-                <div className="bg-gray-50 rounded-xl px-3 py-2 mb-3 text-xs">
+                <div className="bg-gray-50 rounded-xl px-3 py-2 mb-3 text-xs break-words">
                   <span className="text-gray-500">Partner: </span>
                   {team._partner
                     ? <><span className="font-semibold text-gray-800">{team._partner.name}</span>
                        <span className="text-gray-400"> · {team._partner.email}</span>
-                       {team.status === 'pending_diver2' && <span className="ml-2 text-amber-600 font-semibold">Invite pending</span>}</>
+                       {team.status === 'pending_diver2' && <span className="ml-2 text-amber-600 font-semibold whitespace-nowrap">Invite pending</span>}</>
                     : <span className="text-gray-400 italic">No partner</span>
                   }
                 </div>
@@ -1215,7 +1218,7 @@ function MyCompetitions({ session, memberId, member, showToast }) {
                 {/* Complete Payment banner */}
                 {team.status === 'pending_payment' && team.payment_status !== 'paid' && (
                   <div className="bg-red-50 border border-red-200 rounded-xl px-3 py-2.5 mb-3 flex items-center justify-between gap-3">
-                    <div>
+                    <div className="min-w-0">
                       <p className="text-xs font-black text-red-800">Entry fee outstanding</p>
                       <p className="text-xs text-red-600">
                         Payment required to confirm your entry
@@ -1594,7 +1597,7 @@ function BuddyFinderCard({ memberId, navigate }) {
   return (
     <div className="bg-white border border-gray-200 rounded-2xl p-5">
       <div className="flex items-center justify-between gap-3 mb-3">
-        <h3 className="font-black text-gray-900">🤿 Nationals Buddy Finder</h3>
+        <h3 className="font-black text-gray-900 min-w-0 truncate">🤿 Nationals Buddy Finder</h3>
         <button onClick={() => navigate('/nationals/buddy-finder')}
           className="text-xs font-bold px-3 py-1.5 rounded-lg text-white flex-shrink-0"
           style={{ background: '#2B6CB0' }}>
@@ -1699,23 +1702,23 @@ function MemberDashboard({ session, navigate, onSignOut }) {
         {/* Membership card */}
         <div className="rounded-2xl text-white p-6 relative overflow-hidden" style={{ background: `linear-gradient(135deg, ${SNZ_BLUE}, #1a4a80)` }}>
           {SNZ_LOGO && <img src={SNZ_LOGO} alt="SNZ" className="h-12 object-contain mb-4" style={{ filter: 'brightness(0) invert(1)' }} />}
-          <div className="flex items-start justify-between">
-            <div>
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
               <p className="text-blue-200 text-xs font-bold tracking-widest uppercase mb-1">SNZ Member</p>
-              <h2 className="text-2xl font-black">{member?.name || 'Member'}</h2>
-              <p className="text-blue-200 text-sm mt-0.5">{member?.club || 'No club set'}</p>
+              <h2 className="text-2xl font-black break-words">{member?.name || 'Member'}</h2>
+              <p className="text-blue-200 text-sm mt-0.5 truncate">{member?.club || 'No club set'}</p>
             </div>
-            <div className="text-right">
+            <div className="text-right flex-shrink-0">
               <p className="text-blue-200 text-xs font-bold tracking-widest uppercase mb-1">Number</p>
-              <p className="text-xl font-black">{member?.member_number || '—'}</p>
+              <p className="text-xl font-black whitespace-nowrap">{member?.member_number || '—'}</p>
             </div>
           </div>
-          <div className="flex items-center justify-between mt-4 pt-4 border-t border-white/20">
-            <div>
+          <div className="flex items-center justify-between gap-3 mt-4 pt-4 border-t border-white/20">
+            <div className="min-w-0">
               <p className="text-blue-200 text-xs">Expires</p>
-              <p className="font-bold">{MEMBERSHIP_EXPIRES}</p>
+              <p className="font-bold whitespace-nowrap">{MEMBERSHIP_EXPIRES}</p>
             </div>
-            <div className={`px-3 py-1 rounded-full text-xs font-black ${
+            <div className={`px-3 py-1 rounded-full text-xs font-black whitespace-nowrap flex-shrink-0 ${
               isExpired ? 'bg-red-500'
               : member?.payment_status === 'pending' && member?.membership_fee_cents > 0 ? 'bg-amber-500'
               : 'bg-green-500'
