@@ -1,24 +1,13 @@
 // Netlify Function: send nationals partner invite / membership invite email
 const { createClient } = require('@supabase/supabase-js')
-const nodemailer = require('nodemailer')
 
 const supabase = createClient(
   process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
 )
 
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || 'mailx.freeparking.co.nz',
-  port: parseInt(process.env.SMTP_PORT || '465'),
-  secure: parseInt(process.env.SMTP_PORT || '465') === 465,
-  auth: {
-    user: process.env.SMTP_USER || 'president@spearfishingnz.co.nz',
-    pass: process.env.SMTP_PASSWORD,
-  },
-  connectionTimeout: 8000,
-  greetingTimeout: 8000,
-  socketTimeout: 8000,
-})
+const RESEND_API_KEY = process.env.VITE_RESEND_API_KEY || process.env.RESEND_API_KEY
+const FROM = '"Spearfishing NZ" <president@spearfishingnz.co.nz>'
 
 exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') {
@@ -176,19 +165,32 @@ exports.handler = async (event) => {
 </html>
     `.trim()
 
-    console.log(`Sending email to ${email} via ${process.env.SMTP_HOST || 'mailx.freeparking.co.nz'}:${process.env.SMTP_PORT || '465'}`)
-    console.log(`SMTP user: ${process.env.SMTP_USER || 'president@spearfishingnz.co.nz'}`)
-    console.log(`SMTP password set: ${!!process.env.SMTP_PASSWORD}`)
+    if (!RESEND_API_KEY) throw new Error('Resend API key not configured (VITE_RESEND_API_KEY)')
 
-    const info = await transporter.sendMail({
-      from: `"Spearfishing NZ" <${process.env.SMTP_USER || 'president@spearfishingnz.co.nz'}>`,
-      to: email.trim().toLowerCase(),
-      subject,
-      html: htmlBody,
+    console.log(`Sending email to ${email} via Resend`)
+
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${RESEND_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: FROM,
+        to: email.trim().toLowerCase(),
+        subject,
+        html: htmlBody,
+      }),
     })
 
-    console.log('Email sent:', info.messageId, info.response)
-    return { statusCode: 200, body: JSON.stringify({ sent: true, messageId: info.messageId }) }
+    if (!res.ok) {
+      const detail = await res.text()
+      throw new Error(`Resend ${res.status}: ${detail}`)
+    }
+    const info = await res.json()
+
+    console.log('Email sent:', info.id)
+    return { statusCode: 200, body: JSON.stringify({ sent: true, messageId: info.id }) }
 
   } catch (err) {
     console.error('Invite error:', err)

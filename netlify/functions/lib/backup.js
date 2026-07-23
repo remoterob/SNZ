@@ -3,22 +3,41 @@
 // Lives in lib/ so Netlify doesn't deploy it as a function of its own.
 
 const { createClient } = require('@supabase/supabase-js')
-const nodemailer = require('nodemailer')
 
 const supabase = createClient(
   process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
 )
 
-const transporter = nodemailer.createTransport({
-  host: 'mailx.freeparking.co.nz',
-  port: 465,
-  secure: true,
-  auth: {
-    user: process.env.SMTP_USER,     // president@spearfishingnz.co.nz
-    pass: process.env.SMTP_PASSWORD, // Freeparking email password
+const RESEND_API_KEY = process.env.VITE_RESEND_API_KEY || process.env.RESEND_API_KEY
+const FROM = '"Spearfishing NZ" <president@spearfishingnz.co.nz>'
+
+// Sends via the Resend HTTP API — replaces the old Freeparking SMTP relay,
+// which was failing deliveries (an ip_confirmation fault on Freeparking's own
+// mail platform, not something fixable from here). Requires the
+// spearfishingnz.co.nz sending domain to be verified in Resend.
+async function sendEmail({ to, subject, text, attachments }) {
+  if (!RESEND_API_KEY) throw new Error('Resend API key not configured (VITE_RESEND_API_KEY)')
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${RESEND_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from: FROM,
+      to: Array.isArray(to) ? to : [to],
+      subject,
+      text,
+      attachments,
+    }),
+  })
+  if (!res.ok) {
+    const detail = await res.text()
+    throw new Error(`Resend ${res.status}: ${detail}`)
   }
-})
+  return res.json()
+}
 
 function toCSV(rows, headers) {
   const esc = v => {
@@ -87,8 +106,7 @@ async function notifyNewSubmissions(now) {
   if (recs.length) parts.push(`${recs.length} record application${recs.length !== 1 ? 's' : ''}`)
   if (bf.length) parts.push(`${bf.length} Big Fish ${bf.length !== 1 ? 'entries' : 'entry'}`)
 
-  await transporter.sendMail({
-    from: '"Spearfishing NZ" <president@spearfishingnz.co.nz>',
+  await sendEmail({
     to: RECIPIENT,
     subject: `SNZ — new submissions: ${parts.join(' & ')} (${dateStr})`,
     text: lines.join('\n'),
@@ -158,8 +176,7 @@ async function runBackup() {
   const teamCount = teamRows.length
   const paidCount = members?.filter(m => m.payment_status === 'paid').length || 0
 
-  await transporter.sendMail({
-    from: '"Spearfishing NZ" <president@spearfishingnz.co.nz>',
+  await sendEmail({
     to: 'secretary@spearfishingnz.co.nz',
     subject: `SNZ Daily Backup — ${dateStr}`,
     text: [
@@ -180,13 +197,11 @@ async function runBackup() {
     attachments: [
       {
         filename: `snz-members-${now.toISOString().slice(0,10)}.csv`,
-        content: memberCSV,
-        contentType: 'text/csv',
+        content: Buffer.from(memberCSV, 'utf8').toString('base64'),
       },
       {
         filename: `snz-registrations-${now.toISOString().slice(0,10)}.csv`,
-        content: teamsCSV,
-        contentType: 'text/csv',
+        content: Buffer.from(teamsCSV, 'utf8').toString('base64'),
       },
     ],
   })
