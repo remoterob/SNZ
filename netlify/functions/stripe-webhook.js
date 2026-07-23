@@ -54,12 +54,27 @@ exports.handler = async (event) => {
 
   if (stripeEvent.type === 'checkout.session.completed') {
     const session = stripeEvent.data.object
-    const { type, member_id, team_id } = session.metadata || {}
+    const { type, member_id, team_id, diver_slot, extra_meal_qty, extra_jacket, extra_shirt } = session.metadata || {}
     const paymentIntent = session.payment_intent
     const paidAt = new Date().toISOString()
 
     try {
-      if (type === 'membership' && member_id) {
+      if (type === 'nationals_extra' && team_id) {
+        const merchCol = diver_slot === '2' ? 'merch_d2' : 'merch_d1'
+        const { data: team, error: fetchErr } = await supabase
+          .from('comp_teams').select(merchCol).eq('id', team_id).maybeSingle()
+        if (fetchErr) throw new Error(`comp_teams lookup failed: ${fetchErr.message}`)
+        const current = team?.[merchCol] || {}
+        const updated = {
+          ...current,
+          meal_qty: (current.meal_qty || 0) + (extra_meal_qty ? parseInt(extra_meal_qty, 10) : 0),
+          jacket: extra_jacket ? JSON.parse(extra_jacket) : current.jacket || null,
+          shirt: extra_shirt ? JSON.parse(extra_shirt) : current.shirt || null,
+        }
+        await safeUpdate('comp_teams', { [merchCol]: updated }, 'id', team_id)
+        console.log(`Nationals extras applied to team ${team_id} (${merchCol}), session ${session.id}`)
+
+      } else if (type === 'membership' && member_id) {
         await safeUpdate('members', {
           payment_status: 'paid',
           stripe_session_id: session.id,

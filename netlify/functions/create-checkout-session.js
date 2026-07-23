@@ -16,7 +16,7 @@ exports.handler = async (event) => {
 
   try {
     const body = JSON.parse(event.body)
-    const { type, memberId, teamId, competitionId, competitionName, memberEmail, memberName, lineItems } = body
+    const { type, memberId, teamId, competitionId, competitionName, memberEmail, memberName, lineItems, diverSlot, extraMealQty, extraJacket, extraShirt } = body
     let { amountCents } = body
 
     if (!type || !amountCents || amountCents <= 0) {
@@ -24,6 +24,8 @@ exports.handler = async (event) => {
     }
 
     const isMembership = type === 'membership'
+    const isNationals = type === 'nationals_entry'
+    const isExtras = type === 'nationals_extra'
 
     // Membership price is NEVER taken from the client — look it up from the
     // member's own record so a tampered request can't underpay.
@@ -57,24 +59,30 @@ exports.handler = async (event) => {
     // Top-level payment description — shows in Stripe payments list
     const paymentDescription = isMembership
       ? `SNZ Membership 2026 — ${memberName || memberEmail || 'Member'}`
-      : `SNZ Comp Entry — ${competitionName || 'Competition'} — ${memberName || memberEmail || 'Team'}`
+      : isExtras
+        ? `SNZ Extras — ${competitionName || 'Competition'} — ${memberName || memberEmail || 'Member'}`
+        : `SNZ Comp Entry — ${competitionName || 'Competition'} — ${memberName || memberEmail || 'Team'}`
 
     // Line item name — shows on Stripe Checkout page and receipt
     const lineItemName = isMembership
       ? 'SNZ Annual Membership 2026'
-      : `Competition Entry: ${competitionName || 'SNZ Event'}`
+      : isExtras
+        ? `Extras: ${competitionName || 'SNZ Event'}`
+        : `Competition Entry: ${competitionName || 'SNZ Event'}`
 
     const lineItemDesc = isMembership
       ? `Membership for ${memberName || memberEmail} · Valid to 31 Dec 2026`
-      : `Team entry for ${memberName || 'competitor'} · ${competitionName || 'SNZ Competition'}`
+      : isExtras
+        ? `Additional merch/meal for ${memberName || 'member'} · ${competitionName || 'SNZ Competition'}`
+        : `Team entry for ${memberName || 'competitor'} · ${competitionName || 'SNZ Competition'}`
 
     // Statement descriptor — appears on bank statements (max 22 chars)
-    const statementDescriptor = isMembership ? 'SNZ MEMBERSHIP 2026' : 'SNZ COMP ENTRY'
+    const statementDescriptor = isMembership ? 'SNZ MEMBERSHIP 2026' : isExtras ? 'SNZ EXTRAS' : 'SNZ COMP ENTRY'
 
     // Rich metadata for webhook + Stripe Dashboard filtering
     const metadata = {
       type,
-      category: isMembership ? 'Membership' : 'Competition Entry',
+      category: isMembership ? 'Membership' : isExtras ? 'Nationals Extras' : 'Competition Entry',
       member_name: memberName || '',
       member_email: memberEmail || '',
     }
@@ -82,21 +90,30 @@ exports.handler = async (event) => {
     if (teamId) metadata.team_id = String(teamId)
     if (competitionId) metadata.competition_id = String(competitionId)
     if (competitionName) metadata.competition_name = competitionName
+    if (isExtras) {
+      if (diverSlot) metadata.diver_slot = String(diverSlot)
+      if (extraMealQty) metadata.extra_meal_qty = String(extraMealQty)
+      if (extraJacket) metadata.extra_jacket = JSON.stringify(extraJacket)
+      if (extraShirt) metadata.extra_shirt = JSON.stringify(extraShirt)
+    }
 
     // Success URLs carry the checkout session id so the app can verify the
     // payment server-side (verify-checkout-session) instead of trusting the URL.
     // Stripe substitutes the literal {CHECKOUT_SESSION_ID} placeholder.
-    const isNationals = type === 'nationals_entry'
     const successUrl = isMembership
       ? `${origin}/membership/dashboard?payment=success&session_id={CHECKOUT_SESSION_ID}`
-      : isNationals
-        ? `${origin}/nationals/register?payment=success&team=${teamId}&session_id={CHECKOUT_SESSION_ID}`
-        : `${origin}/competitions/${competitionId}/register?payment=success&session_id={CHECKOUT_SESSION_ID}`
+      : isExtras
+        ? `${origin}/membership/dashboard?extras=success&team=${teamId}&session_id={CHECKOUT_SESSION_ID}`
+        : isNationals
+          ? `${origin}/nationals/register?payment=success&team=${teamId}&session_id={CHECKOUT_SESSION_ID}`
+          : `${origin}/competitions/${competitionId}/register?payment=success&session_id={CHECKOUT_SESSION_ID}`
     const cancelUrl = isMembership
       ? `${origin}/membership/dashboard?payment=cancelled`
-      : isNationals
-        ? `${origin}/nationals/register?cancelled=1`
-        : `${origin}/competitions/${competitionId}/register?payment=cancelled`
+      : isExtras
+        ? `${origin}/membership/dashboard?extras=cancelled`
+        : isNationals
+          ? `${origin}/nationals/register?cancelled=1`
+          : `${origin}/competitions/${competitionId}/register?payment=cancelled`
 
     // Build line items — use provided array (entry + merch) or fall back to single item
     const stripeLineItems = lineItems && lineItems.length > 1

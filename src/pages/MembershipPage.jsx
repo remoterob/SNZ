@@ -809,6 +809,153 @@ function CompletePaymentButton({ team, comp, member, showToast }) {
   )
 }
 
+// ── Team Extras (merch / meal add-ons) ───────────────────────────────────────
+// Shown only for this member's own entry, and only when the competition's
+// category_fees actually offers merch/meal — other comps don't have these fields.
+function TeamExtras({ team, comp, member, showToast }) {
+  const [open, setOpen] = useState(false)
+  const [jacket, setJacket] = useState({ gender: '', size: '' })
+  const [shirt, setShirt] = useState({ gender: '', size: '' })
+  const [mealQty, setMealQty] = useState(0)
+  const [loading, setLoading] = useState(false)
+
+  const merchFees = comp?.category_fees?.merch
+  const mealFee = comp?.category_fees?.meal?.price
+  const offersJacket = !!merchFees?.jacket
+  const offersShirt = !!merchFees?.shirt
+  const offersMeal = mealFee > 0
+  if (!offersJacket && !offersShirt && !offersMeal) return null
+
+  const myMerch = (team._isDiver1 ? team.merch_d1 : team.merch_d2) || {}
+
+  const wantJacket = offersJacket && !myMerch.jacket && jacket.gender && jacket.size
+  const wantShirt = offersShirt && !myMerch.shirt && shirt.gender && shirt.size
+  const totalCents = (wantJacket ? merchFees.jacket.price * 100 : 0)
+    + (wantShirt ? merchFees.shirt.price * 100 : 0)
+    + (offersMeal ? mealQty * mealFee * 100 : 0)
+
+  const handleBuy = async () => {
+    if (totalCents <= 0) return
+    setLoading(true)
+    try {
+      const lineItems = []
+      if (wantJacket) lineItems.push({ name: `Event Jacket (${jacket.gender} ${jacket.size})`, amountCents: merchFees.jacket.price * 100 })
+      if (wantShirt) lineItems.push({ name: `Event T-Shirt (${shirt.gender} ${shirt.size})`, amountCents: merchFees.shirt.price * 100 })
+      if (offersMeal && mealQty > 0) lineItems.push({ name: `Prize Giving Dinner ×${mealQty}`, amountCents: mealQty * mealFee * 100 })
+
+      const res = await fetch('/.netlify/functions/create-checkout-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'nationals_extra',
+          amountCents: totalCents,
+          lineItems,
+          memberId: member?.id,
+          memberEmail: member?.email,
+          memberName: member?.name,
+          teamId: team.id,
+          competitionId: comp?.id,
+          competitionName: comp?.name,
+          diverSlot: team._isDiver1 ? 1 : 2,
+          extraMealQty: offersMeal && mealQty > 0 ? mealQty : undefined,
+          extraJacket: wantJacket ? jacket : undefined,
+          extraShirt: wantShirt ? shirt : undefined,
+        }),
+      })
+      const { url, error } = await res.json()
+      if (error) throw new Error(error)
+      window.location.href = url
+    } catch (err) {
+      showToast('Payment error: ' + err.message, 'error')
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="bg-gray-50 rounded-xl px-3 py-2 mb-3 text-xs">
+      <div className="flex items-center justify-between">
+        <span className="text-gray-500">Merch &amp; meal: </span>
+        {(myMerch.jacket || myMerch.shirt || myMerch.meal_qty > 0) ? (
+          <span className="font-semibold text-gray-800 text-right">
+            {[
+              myMerch.jacket ? `🧥 ${myMerch.jacket.gender} ${myMerch.jacket.size}` : null,
+              myMerch.shirt ? `👕 ${myMerch.shirt.gender} ${myMerch.shirt.size}` : null,
+              myMerch.meal_qty > 0 ? `🍽️ ×${myMerch.meal_qty}` : null,
+            ].filter(Boolean).join(' · ')}
+          </span>
+        ) : (
+          <span className="text-gray-400 italic">None ordered</span>
+        )}
+      </div>
+
+      {!open ? (
+        <button onClick={() => setOpen(true)} className="mt-2 text-xs font-bold" style={{ color: SNZ_BLUE }}>
+          + Add extras
+        </button>
+      ) : (
+        <div className="mt-2 space-y-2 bg-white border border-gray-200 rounded-lg p-3">
+          {offersJacket && !myMerch.jacket && (
+            <div className="flex items-center gap-2">
+              <span className="w-24 flex-shrink-0 text-gray-500">🧥 Jacket (${merchFees.jacket.price})</span>
+              <select value={jacket.gender} onChange={e => setJacket(j => ({ ...j, gender: e.target.value }))}
+                className="border border-gray-300 rounded px-2 py-1 text-xs">
+                <option value="">Skip</option>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+              </select>
+              {jacket.gender && (
+                <select value={jacket.size} onChange={e => setJacket(j => ({ ...j, size: e.target.value }))}
+                  className="border border-gray-300 rounded px-2 py-1 text-xs">
+                  <option value="">Size</option>
+                  {['XS','S','M','L','XL','2XL','3XL','4XL'].map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              )}
+            </div>
+          )}
+          {offersShirt && !myMerch.shirt && (
+            <div className="flex items-center gap-2">
+              <span className="w-24 flex-shrink-0 text-gray-500">👕 Shirt (${merchFees.shirt.price})</span>
+              <select value={shirt.gender} onChange={e => setShirt(s => ({ ...s, gender: e.target.value }))}
+                className="border border-gray-300 rounded px-2 py-1 text-xs">
+                <option value="">Skip</option>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+              </select>
+              {shirt.gender && (
+                <select value={shirt.size} onChange={e => setShirt(s => ({ ...s, size: e.target.value }))}
+                  className="border border-gray-300 rounded px-2 py-1 text-xs">
+                  <option value="">Size</option>
+                  {['XS','S','M','L','XL','2XL','3XL','4XL'].map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              )}
+            </div>
+          )}
+          {offersMeal && (
+            <div className="flex items-center gap-2">
+              <span className="w-24 flex-shrink-0 text-gray-500">🍽️ Meal tickets (${mealFee} ea)</span>
+              <button type="button" onClick={() => setMealQty(q => Math.max(0, q - 1))} disabled={mealQty === 0}
+                className="w-6 h-6 rounded border border-gray-300 text-gray-600 font-bold flex items-center justify-center disabled:opacity-30">−</button>
+              <span className="w-6 text-center font-bold">{mealQty}</span>
+              <button type="button" onClick={() => setMealQty(q => q + 1)}
+                className="w-6 h-6 rounded border border-gray-300 text-gray-600 font-bold flex items-center justify-center">+</button>
+            </div>
+          )}
+          <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+            <span className="font-bold text-gray-500">Total: ${(totalCents / 100).toFixed(2)}</span>
+            <div className="flex gap-2">
+              <button onClick={() => setOpen(false)} className="px-3 py-1.5 rounded-lg text-xs font-bold border border-gray-300 text-gray-600">Cancel</button>
+              <button onClick={handleBuy} disabled={loading || totalCents <= 0}
+                className="px-3 py-1.5 rounded-lg text-xs font-black text-white disabled:opacity-40" style={{ background: SNZ_BLUE }}>
+                {loading ? 'Redirecting…' : 'Pay & add'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Photo Carousel ────────────────────────────────────────────────────────────
 function PhotoCarousel({ photos }) {
   const [idx, setIdx] = useState(0)
@@ -918,6 +1065,18 @@ function MyCompetitions({ session, memberId, member, showToast }) {
   }
 
   useEffect(() => { fetchEntries() }, [memberId])
+
+  // Returning from a Stripe extras (merch/meal) checkout
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('extras') === 'success') {
+      window.history.replaceState({}, '', '/membership/dashboard')
+      showToast('Extras added — thanks!')
+      fetchEntries()
+    } else if (params.get('extras') === 'cancelled') {
+      window.history.replaceState({}, '', '/membership/dashboard')
+    }
+  }, [])
 
   const isCutoffPassed = (comp) => {
     if (!comp?.registration_cutoff) return false
@@ -1119,6 +1278,9 @@ function MyCompetitions({ session, memberId, member, showToast }) {
                     ? <img src={team.team_photo_url} alt="Team" className="w-10 h-10 rounded-lg object-cover border border-gray-200 flex-shrink-0" />
                     : <span className="italic text-gray-400">Not uploaded</span>}
                 </div>
+
+                {/* Merch / meal extras (only if this event offers them) */}
+                <TeamExtras team={team} comp={comp} member={member} showToast={showToast} />
 
                 {/* Team name edit form */}
                 {isEditingName ? (
