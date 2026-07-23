@@ -10,12 +10,14 @@ const supabase = createClient(
 )
 
 const RESEND_API_KEY = process.env.VITE_RESEND_API_KEY || process.env.RESEND_API_KEY
-const FROM = '"Spearfishing NZ" <president@spearfishingnz.co.nz>'
+const FROM = '"Spearfishing NZ" <noreply@snzmail.teamaotea.com>'
+const REPLY_TO = 'president@spearfishingnz.co.nz'
 
 // Sends via the Resend HTTP API — replaces the old Freeparking SMTP relay,
 // which was failing deliveries (an ip_confirmation fault on Freeparking's own
-// mail platform, not something fixable from here). Requires the
-// spearfishingnz.co.nz sending domain to be verified in Resend.
+// mail platform, not something fixable from here). Sends from
+// snzmail.teamaotea.com since spearfishingnz.co.nz's DNS (on Wix) can't
+// support the subdomain MX record Resend requires.
 async function sendEmail({ to, subject, text, attachments }) {
   if (!RESEND_API_KEY) throw new Error('Resend API key not configured (VITE_RESEND_API_KEY)')
   const res = await fetch('https://api.resend.com/emails', {
@@ -26,6 +28,7 @@ async function sendEmail({ to, subject, text, attachments }) {
     },
     body: JSON.stringify({
       from: FROM,
+      reply_to: REPLY_TO,
       to: Array.isArray(to) ? to : [to],
       subject,
       text,

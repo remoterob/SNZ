@@ -7,7 +7,8 @@ const supabase = createClient(
 )
 
 const RESEND_API_KEY = process.env.VITE_RESEND_API_KEY || process.env.RESEND_API_KEY
-const FROM = '"Spearfishing NZ" <president@spearfishingnz.co.nz>'
+const FROM = '"Spearfishing NZ" <noreply@snzmail.teamaotea.com>'
+const REPLY_TO = 'president@spearfishingnz.co.nz'
 
 exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') {
@@ -177,6 +178,7 @@ exports.handler = async (event) => {
       },
       body: JSON.stringify({
         from: FROM,
+        reply_to: REPLY_TO,
         to: email.trim().toLowerCase(),
         subject,
         html: htmlBody,
