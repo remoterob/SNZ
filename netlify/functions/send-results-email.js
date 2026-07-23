@@ -56,8 +56,10 @@ Motuoapa Fishing & Boating Club
 Lake Taupō
     `.trim()
 
+    const RESEND_API_KEY = process.env.VITE_RESEND_API_KEY || process.env.RESEND_API_KEY
+
     // For development/testing without Resend API
-    if (!process.env.VITE_RESEND_API_KEY) {
+    if (!RESEND_API_KEY) {
       console.log('Email would be sent to:', emails)
       console.log('Content:', emailContent)
       return {
@@ -74,11 +76,11 @@ Lake Taupō
     const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${process.env.VITE_RESEND_API_KEY}`,
+        'Authorization': `Bearer ${RESEND_API_KEY}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        from: 'Catfish Cull <noreply@catfishcull.co.nz>',
+        from: 'Catfish Cull <noreply@snzmail.teamaotea.com>',
         to: emails,
         subject: `Your Catfish Cull Results - Team #${teamNumber} [PROVISIONAL]`,
         text: emailContent

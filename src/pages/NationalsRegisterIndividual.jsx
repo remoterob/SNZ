@@ -36,7 +36,9 @@ const INDIVIDUAL_EVENTS = [
   },
 ]
 
-function resolveFeeCents(eventId, categoryFees, isEarlyBird) {
+// category_fees values are stored in whole dollars (not cents) — see
+// NationalsPage.jsx / NationalsRegister.jsx, which use them the same way.
+function resolveFee(eventId, categoryFees, isEarlyBird) {
   if (!categoryFees) return null
   const ev = categoryFees[eventId]
   if (!ev) return 0
@@ -97,7 +99,7 @@ export default function NationalsRegisterIndividual() {
 
   const isEarlyBird = earlyBirdCutoff ? new Date() < new Date(earlyBirdCutoff) : false
 
-  const getFee = (eventId) => resolveFeeCents(eventId, categoryFees, isEarlyBird)
+  const getFee = (eventId) => resolveFee(eventId, categoryFees, isEarlyBird)
 
   const hasAnySelection = Object.values(selected).some(v => v)
   const hasTBCFees = categoryFees === null
@@ -105,7 +107,7 @@ export default function NationalsRegisterIndividual() {
   const getMerchFee = (type) => categoryFees?.merch?.[type]?.price ?? null
   const getMealFee = () => categoryFees?.meal?.price ?? null
 
-  const totalCents = INDIVIDUAL_EVENTS.reduce((sum, e) => {
+  const totalDollars = INDIVIDUAL_EVENTS.reduce((sum, e) => {
     if (!selected[e.id]) return sum
     const fee = getFee(e.id)
     return sum + (fee || 0)
@@ -114,7 +116,7 @@ export default function NationalsRegisterIndividual() {
     + (getMerchFee('shirt') && shirt.gender && shirt.size ? getMerchFee('shirt') : 0)
     + (getMealFee() && mealQty > 0 ? getMealFee() * mealQty : 0)
 
-  const fmtCents = (c) => c == null ? 'TBC' : `$${(c / 100).toFixed(2)}`
+  const fmtPrice = (d) => d == null ? 'TBC' : `$${d}`
 
   const handleSubmit = async () => {
     setError('')
@@ -159,7 +161,7 @@ export default function NationalsRegisterIndividual() {
           diver2_member_id: null,
           status: 'pending_payment',
           nationals_event: nationalsEvent,
-          entry_fee_cents: totalCents,
+          entry_fee_cents: totalDollars * 100,
           merch_d1: {
             jacket: jacket.gender && jacket.size ? jacket : null,
             shirt: shirt.gender && shirt.size ? shirt : null,
@@ -177,7 +179,7 @@ export default function NationalsRegisterIndividual() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           type: 'nationals_entry',
-          amountCents: totalCents,
+          amountCents: totalDollars * 100,
           memberId: session.user.id,
           memberEmail: session.user.email,
           memberName: member?.name || session.user.email,
@@ -287,7 +289,7 @@ export default function NationalsRegisterIndividual() {
                       <p className="text-xs text-gray-500 mt-0.5">{e.desc}</p>
                       {fee != null && fee > 0 && (
                         <p className="text-sm font-bold mt-1" style={{ color: e.color }}>
-                          {fmtCents(fee)} {isEarlyBird && e.earlyBird && <span className="text-xs text-amber-600 ml-1">🐦 Early bird</span>}
+                          {fmtPrice(fee)} {isEarlyBird && e.earlyBird && <span className="text-xs text-amber-600 ml-1">🐦 Early bird</span>}
                         </p>
                       )}
                       {fee === 0 && <p className="text-xs text-gray-500 mt-1">No additional fee</p>}
@@ -303,10 +305,10 @@ export default function NationalsRegisterIndividual() {
             })}
           </div>
 
-          {hasAnySelection && totalCents > 0 && (
+          {hasAnySelection && totalDollars > 0 && (
             <div className="border-t border-gray-100 pt-3 mt-4 flex items-center justify-between">
               <span className="text-sm font-bold text-gray-500 uppercase tracking-wider">Total</span>
-              <span className="text-2xl font-black" style={{ color: SNZ_BLUE }}>{fmtCents(totalCents)}</span>
+              <span className="text-2xl font-black" style={{ color: SNZ_BLUE }}>{fmtPrice(totalDollars)}</span>
             </div>
           )}
         </div>
@@ -348,7 +350,7 @@ export default function NationalsRegisterIndividual() {
                     <p className="font-bold text-gray-900 text-sm">🧥 Event Jacket</p>
                     <p className="text-xs text-gray-400">SNZ Nationals 2027 jacket</p>
                   </div>
-                  <p className="font-black text-gray-900 text-sm">${(categoryFees.merch.jacket.price / 100).toFixed(2)}</p>
+                  <p className="font-black text-gray-900 text-sm">${categoryFees.merch.jacket.price}</p>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
@@ -381,7 +383,7 @@ export default function NationalsRegisterIndividual() {
                     <p className="font-bold text-gray-900 text-sm">👕 Event T-Shirt</p>
                     <p className="text-xs text-gray-400">SNZ Nationals 2027 t-shirt</p>
                   </div>
-                  <p className="font-black text-gray-900 text-sm">${(categoryFees.merch.shirt.price / 100).toFixed(2)}</p>
+                  <p className="font-black text-gray-900 text-sm">${categoryFees.merch.shirt.price}</p>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
@@ -412,7 +414,7 @@ export default function NationalsRegisterIndividual() {
                 <div className="flex justify-between items-center mb-3">
                   <div>
                     <p className="font-bold text-gray-900 text-sm">🍽️ Prize Giving Dinner</p>
-                    <p className="text-xs text-gray-400">${(categoryFees.meal.price / 100).toFixed(2)} per person — order for family &amp; friends too</p>
+                    <p className="text-xs text-gray-400">${categoryFees.meal.price} per person — order for family &amp; friends too</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
@@ -425,7 +427,7 @@ export default function NationalsRegisterIndividual() {
                       className="w-8 h-8 rounded-lg border border-gray-300 text-gray-600 font-bold text-lg flex items-center justify-center hover:bg-gray-50">+</button>
                   </div>
                   {mealQty > 0 && (
-                    <span className="text-sm font-bold text-gray-700 ml-2">${(categoryFees.meal.price * mealQty / 100).toFixed(2)}</span>
+                    <span className="text-sm font-bold text-gray-700 ml-2">${categoryFees.meal.price * mealQty}</span>
                   )}
                 </div>
               </div>
@@ -491,10 +493,10 @@ export default function NationalsRegisterIndividual() {
           </div>
         )}
 
-        <button onClick={handleSubmit} disabled={submitting || !hasAnySelection || totalCents === 0}
+        <button onClick={handleSubmit} disabled={submitting || !hasAnySelection || totalDollars === 0}
           className="w-full py-3.5 rounded-xl font-black text-white text-base disabled:opacity-40"
           style={{ background: SNZ_BLUE }}>
-          {submitting ? 'Processing…' : totalCents > 0 ? `Pay ${fmtCents(totalCents)} & Register` : 'Register'}
+          {submitting ? 'Processing…' : totalDollars > 0 ? `Pay ${fmtPrice(totalDollars)} & Register` : 'Register'}
         </button>
 
         <p className="text-xs text-gray-400 text-center">
