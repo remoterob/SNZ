@@ -156,8 +156,6 @@ export default function NationalsRegisterIndividual() {
           competition_id: comp.id,
           team_name: teamName,
           diver1_member_id: session.user.id,
-          diver1_email: session.user.email,
-          diver1_accepted_at: new Date().toISOString(),
           diver2_member_id: null,
           status: 'pending_payment',
           nationals_event: nationalsEvent,
