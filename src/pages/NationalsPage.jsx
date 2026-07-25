@@ -110,6 +110,16 @@ const SUB_EVENTS = [
   },
 ]
 
+// Divisions scored against a fish list (catch-based) — Women's and Silver
+// Oldie share the Open's list rather than having their own, so they're left
+// out of this selector (mirrors STANDARD_DIVS in NationalsAdmin.jsx).
+const FISH_DIVS = [
+  { id: 'open', label: '🏆 Open' },
+  { id: 'juniors', label: '🌟 Juniors' },
+  { id: 'goldenoldie', label: '🎖️ Golden Oldie' },
+  { id: 'under23', label: '🎯 Under 23' },
+]
+
 function fmtEventDateRange(d) {
   if (!d?.start) return null
   const fmt = s => new Date(s + 'T12:00:00').toLocaleDateString('en-NZ', { day: 'numeric', month: 'short', year: 'numeric' })
@@ -144,6 +154,8 @@ export default function NationalsPage() {
   const [nationals, setNationals] = useState(null)
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('overview')
+  const [fishLists, setFishLists] = useState({})
+  const [fishDiv, setFishDiv] = useState('open')
 
   useEffect(() => {
     supabase
@@ -156,6 +168,22 @@ export default function NationalsPage() {
         setLoading(false)
       })
   }, [])
+
+  useEffect(() => {
+    if (!nationals?.id) return
+    supabase
+      .from('comp_fish')
+      .select('*')
+      .eq('competition_id', nationals.id)
+      .not('division', 'is', null)
+      .order('sort_order')
+      .then(({ data }) => {
+        const lists = {}
+        for (const d of FISH_DIVS) lists[d.id] = []
+        for (const f of (data || [])) { if (lists[f.division]) lists[f.division].push(f) }
+        setFishLists(lists)
+      })
+  }, [nationals?.id])
 
   return (
     <div className="min-h-screen" style={{ background: '#f8fafc' }}>
@@ -220,7 +248,7 @@ export default function NationalsPage() {
       {/* Tab bar */}
       <div className="sticky top-0 z-10 bg-white border-b border-gray-200 px-4 overflow-x-auto">
         <div className="flex gap-1 max-w-3xl mx-auto">
-          {[['overview','Overview'],['events','Events'],['register','Register'],['results','Results']].map(([tab, label]) => (
+          {[['overview','Overview'],['events','Events'],['fishlist','🐟 Fish List'],['register','Register'],['results','Results']].map(([tab, label]) => (
             <button key={tab} onClick={() => setActiveTab(tab)}
               className={`px-4 py-3 text-sm font-bold whitespace-nowrap border-b-2 transition ${activeTab===tab ? 'border-blue-600 text-blue-700' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
               {label}
@@ -453,6 +481,53 @@ export default function NationalsPage() {
         )}
 
         {/* Results tab */}
+        {/* Fish List tab (read-only — species/points are managed in Admin) */}
+        {activeTab === 'fishlist' && (
+          <div className="space-y-4">
+            <div className="flex gap-1.5 flex-wrap">
+              {FISH_DIVS.map(d => (
+                <button key={d.id} onClick={() => setFishDiv(d.id)}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-bold transition border ${fishDiv === d.id ? 'text-white border-transparent' : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300'}`}
+                  style={fishDiv === d.id ? { background: SNZ_BLUE } : {}}>
+                  {d.label}
+                  <span className={`ml-1.5 text-xs ${fishDiv === d.id ? 'text-white/70' : 'text-gray-400'}`}>
+                    {(fishLists[d.id] || []).length}
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+              <div className="px-4 py-3 border-b border-gray-100 bg-gray-50">
+                <h3 className="font-bold text-gray-900">{FISH_DIVS.find(d => d.id === fishDiv)?.label} Fish List</h3>
+                <p className="text-xs text-gray-400 mt-0.5">{(fishLists[fishDiv] || []).length} species · Base pts + 10pts/kg up to max weight</p>
+              </div>
+
+              {(fishLists[fishDiv] || []).length === 0 ? (
+                <div className="px-4 py-12 text-center text-gray-400 text-sm">Fish list not published yet — check back soon.</div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 p-4">
+                  {fishLists[fishDiv].map(f => (
+                    <div key={f.id} className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+                      <div className="w-full h-24 bg-gray-50 flex items-center justify-center text-3xl overflow-hidden">
+                        {f.photo_url
+                          ? <img src={f.photo_url} alt={f.species_name} className="w-full h-full object-cover" onError={e => e.target.remove()} />
+                          : '🐟'}
+                      </div>
+                      <div className="p-2">
+                        <p className="font-bold text-gray-900 text-xs leading-tight">{f.species_name}</p>
+                        <p className="text-xs text-gray-400 mt-0.5">{f.points} pts + up to {f.max_weight_kg}kg</p>
+                        {f.weigh_separately && <span className="text-xs font-bold text-amber-600 block">⚖ Weigh sep.</span>}
+                        {f.allow_multiples && f.max_count > 1 && <span className="text-xs font-bold text-blue-600 block">×{f.max_count} allowed</span>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {activeTab === 'results' && (
           <div className="bg-white border border-gray-200 rounded-2xl p-6 text-center">
             <p className="text-4xl mb-3">🏆</p>
