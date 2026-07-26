@@ -50,7 +50,7 @@ exports.handler = async () => {
 
     const { data: weighins, error: wErr } = await supabase
       .from('comp_weighins')
-      .select('team_id, division, fish_name, weight_kg, points_awarded, instance, is_bulk')
+      .select('team_id, division, fish_name, weight_kg, points_awarded, instance, is_bulk, day')
       .eq('competition_id', comp.id)
       .not('division', 'is', null)
     if (wErr) throw wErr

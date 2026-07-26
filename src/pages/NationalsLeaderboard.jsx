@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  teamLeaderboard, photographyLeaderboard, finSwimLeaderboard, superDiverLeaderboard, medalFor,
+  teamLeaderboard, openTeamLeaderboard, photographyLeaderboard, finSwimLeaderboard, superDiverLeaderboard, medalFor,
 } from '../lib/nationalsScoring'
 
 const SNZ_BLUE = '#2B6CB0'
@@ -10,6 +10,7 @@ const SNZ_DARK = '#1e3a5f'
 const BOARDS = [
   { id: 'open',        label: '🏆 Open',        type: 'team' },
   { id: 'womens',      label: "🔱 Women's",     type: 'team', scoreFrom: 'open' },
+  { id: 'silveroldie', label: '🥈 Silver Oldie', type: 'team', scoreFrom: 'open' },
   { id: 'juniors',     label: '🌟 Juniors',     type: 'team' },
   { id: 'under23',     label: '🎯 Under 23',    type: 'team' },
   { id: 'photography', label: '📸 Photography', type: 'photo' },
@@ -18,16 +19,29 @@ const BOARDS = [
   { id: 'superdiver',  label: '⭐ Super Diver',  type: 'superdiver' },
 ]
 
+// Open, and anything scored from Open (Women's, Silver Oldie), use the 2-day
+// percentage-of-top-score method instead of raw points — see openTeamLeaderboard.
+const isOpenScored = (board) => board.id === 'open' || board.scoreFrom === 'open'
+const teamRows = (board, teams, weighins) => isOpenScored(board)
+  ? openTeamLeaderboard(teams, weighins, board.id)
+  : teamLeaderboard(teams, weighins, board.id, board.scoreFrom)
+
 const diverLine = (t) => `${t._d1?.name || 'Diver 1'}${t._d2?.name ? ` & ${t._d2.name}` : ''}`
 
 // Per-team fish breakdown — the weigh-ins that make up a team's score.
 function FishBreakdown({ teamId, weighins, scoreDiv }) {
   const entries = weighins.filter(w => w.team_id === teamId && w.division === scoreDiv)
-  const fish = entries.filter(w => !w.is_bulk)
-  const bulk = entries.find(w => w.is_bulk)
-  return (
-    <div className="px-4 py-3 bg-blue-50/60 border-t border-blue-100">
-      <div className="space-y-1.5 max-w-sm mx-auto sm:mx-0">
+  const isOpen = scoreDiv === 'open'
+  const dayGroups = isOpen ? [1, 2] : [null]
+
+  const renderGroup = (day) => {
+    const dayEntries = day == null ? entries : entries.filter(w => (w.day || 1) === day)
+    const fish = dayEntries.filter(w => !w.is_bulk)
+    const bulk = dayEntries.find(w => w.is_bulk)
+    if (isOpen && fish.length === 0 && !bulk) return null
+    return (
+      <div key={day ?? 'all'}>
+        {isOpen && <p className="text-xs font-black text-gray-500 uppercase tracking-wide mb-1">Day {day}</p>}
         {fish.map((w, i) => (
           <div key={i} className="flex items-center justify-between text-xs">
             <span className="font-semibold text-gray-700">🐟 {w.fish_name}{w.instance > 1 ? ` #${w.instance}` : ''}</span>
@@ -43,7 +57,17 @@ function FishBreakdown({ teamId, weighins, scoreDiv }) {
             <span className="font-black w-14 text-right" style={{ color: SNZ_BLUE }}>+{bulk.points_awarded} pts</span>
           </div>
         )}
-        {fish.length === 0 && !bulk && <p className="text-xs text-gray-400">No individual fish recorded.</p>}
+        {!isOpen && fish.length === 0 && !bulk && <p className="text-xs text-gray-400">No individual fish recorded.</p>}
+      </div>
+    )
+  }
+
+  const rendered = dayGroups.map(renderGroup).filter(Boolean)
+
+  return (
+    <div className="px-4 py-3 bg-blue-50/60 border-t border-blue-100">
+      <div className="space-y-2 max-w-sm mx-auto sm:mx-0">
+        {rendered.length > 0 ? rendered : <p className="text-xs text-gray-400">No individual fish recorded.</p>}
       </div>
     </div>
   )
@@ -76,8 +100,9 @@ function Row({ rank, title, sub, right, rightSub, top, photoUrl }) {
 
 function TeamBoardRows({ board, teams, weighins }) {
   const [expandedId, setExpandedId] = useState(null)
-  const rows = teamLeaderboard(teams, weighins, board.id, board.scoreFrom)
+  const rows = teamRows(board, teams, weighins)
   const scoreDiv = board.scoreFrom || board.id
+  const openScored = isOpenScored(board)
   if (rows.length === 0) {
     return <div className="p-8 text-center text-gray-400 text-sm">No teams registered for this event yet.</div>
   }
@@ -102,7 +127,9 @@ function TeamBoardRows({ board, teams, weighins }) {
               </div>
               <div className="text-right flex-shrink-0">
                 {t.hasEntry
-                  ? <><p className="text-base font-black" style={{ color: SNZ_BLUE }}>{t.total} pts</p><p className="text-xs text-gray-400">{t.fishCount} fish</p></>
+                  ? openScored
+                    ? <><p className="text-base font-black" style={{ color: SNZ_BLUE }}>{t.total.toFixed(1)}%</p><p className="text-xs text-gray-400">D1 {t.day1Pct.toFixed(0)}% · D2 {t.day2Pct.toFixed(0)}%</p></>
+                    : <><p className="text-base font-black" style={{ color: SNZ_BLUE }}>{t.total} pts</p><p className="text-xs text-gray-400">{t.fishCount} fish</p></>
                   : <p className="text-xs text-gray-300">Not weighed in</p>}
               </div>
             </button>
@@ -118,7 +145,7 @@ function Board({ board, teams, weighins }) {
   let rows, render, empty
 
   if (board.type === 'team') {
-    const count = teamLeaderboard(teams, weighins, board.id, board.scoreFrom).filter(r => r.hasEntry).length
+    const count = teamRows(board, teams, weighins).filter(r => r.hasEntry).length
     return (
       <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
         <div className="px-4 py-3 border-b border-gray-100 bg-gray-50">

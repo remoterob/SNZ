@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import CompCopilotFAB from './CompCopilotFAB'
-import { teamLeaderboard, photographyLeaderboard, finSwimLeaderboard, superDiverLeaderboard, medalFor } from '../lib/nationalsScoring'
+import { teamLeaderboard, openTeamLeaderboard, photographyLeaderboard, finSwimLeaderboard, superDiverLeaderboard, medalFor } from '../lib/nationalsScoring'
 import { toCSV, downloadCSV } from '../lib/csvExport'
 
 const SNZ_BLUE = '#2B6CB0'
@@ -961,11 +961,17 @@ function SetupTab({ comp, onRefresh }) {
 // ── Per-team fish breakdown (the weigh-ins making up a score) ─────────────────
 function NatFishBreakdown({ teamId, allWeighins, scoreDiv }) {
   const entries = allWeighins.filter(w => w.team_id === teamId && w.division === scoreDiv)
-  const fish = entries.filter(w => !w.is_bulk)
-  const bulk = entries.find(w => w.is_bulk)
-  return (
-    <div className="px-4 py-3 bg-blue-50/60 border-t border-blue-100">
-      <div className="space-y-1.5 max-w-sm">
+  const isOpen = scoreDiv === 'open'
+  const dayGroups = isOpen ? [1, 2] : [null]
+
+  const renderGroup = (day) => {
+    const dayEntries = day == null ? entries : entries.filter(w => (w.day || 1) === day)
+    const fish = dayEntries.filter(w => !w.is_bulk)
+    const bulk = dayEntries.find(w => w.is_bulk)
+    if (isOpen && fish.length === 0 && !bulk) return null
+    return (
+      <div key={day ?? 'all'}>
+        {isOpen && <p className="text-xs font-black text-gray-500 uppercase tracking-wide mb-1">Day {day}</p>}
         {fish.map((w, i) => (
           <div key={w.id ?? i} className="flex items-center justify-between text-xs">
             <span className="font-semibold text-gray-700">🐟 {w.fish_name}{w.instance > 1 ? ` #${w.instance}` : ''}</span>
@@ -981,22 +987,28 @@ function NatFishBreakdown({ teamId, allWeighins, scoreDiv }) {
             <span className="font-black w-14 text-right" style={{ color: SNZ_BLUE }}>+{bulk.points_awarded} pts</span>
           </div>
         )}
-        {fish.length === 0 && !bulk && <p className="text-xs text-gray-400">No individual fish recorded.</p>}
+        {!isOpen && fish.length === 0 && !bulk && <p className="text-xs text-gray-400">No individual fish recorded.</p>}
+      </div>
+    )
+  }
+
+  const rendered = dayGroups.map(renderGroup).filter(Boolean)
+
+  return (
+    <div className="px-4 py-3 bg-blue-50/60 border-t border-blue-100">
+      <div className="space-y-2 max-w-sm">
+        {rendered.length > 0 ? rendered : <p className="text-xs text-gray-400">No individual fish recorded.</p>}
       </div>
     </div>
   )
 }
 
-// ── Derived Division Leaderboard (Silver/Golden Oldie ranked by Open score) ───
+// ── Derived Division Leaderboard (Women's/Silver Oldie — entered as part of
+// Open, ranked with the same day1%+day2% score, just a filtered team list) ───
 function DerivedDivLeaderboard({ divId, label, teams, allWeighins }) {
   const [expandedId, setExpandedId] = useState(null)
-  const divTeams = teams.filter(t => t.nationals_event?.[divId])
-  const withPoints = divTeams.map(t => {
-    const tw = allWeighins.filter(w => w.team_id === t.id && w.division === 'open')
-    const total = tw.reduce((s, w) => s + (w.points_awarded || 0), 0)
-    const fishCount = tw.filter(w => !w.is_bulk).length
-    return { ...t, total, fishCount, hasEntry: tw.length > 0 }
-  }).sort((a, b) => b.total - a.total)
+  const withPoints = openTeamLeaderboard(teams, allWeighins, divId)
+  const divTeams = withPoints
   const medals = ['🥇', '🥈', '🥉']
   return (
     <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
@@ -1029,7 +1041,7 @@ function DerivedDivLeaderboard({ divId, label, teams, allWeighins }) {
                   </div>
                   <div className="text-right flex-shrink-0">
                     {t.hasEntry
-                      ? <><p className="text-base font-black" style={{ color: SNZ_BLUE }}>{t.total} pts</p><p className="text-xs text-gray-400">{t.fishCount} fish</p></>
+                      ? <><p className="text-base font-black" style={{ color: SNZ_BLUE }}>{t.total.toFixed(1)}%</p><p className="text-xs text-gray-400">D1 {t.day1Pct.toFixed(0)}% · D2 {t.day2Pct.toFixed(0)}%</p></>
                       : <p className="text-xs text-gray-300">No Open entry</p>}
                   </div>
                 </button>
@@ -1291,8 +1303,10 @@ function FishListTab({ comp, fishLists, onRefresh }) {
 }
 
 // ── Weigh-In Panel ────────────────────────────────────────────────────────────
-function WeighInPanel({ team, divId, fishList, allWeighins, compId, onSaved, onClose }) {
-  const existing = allWeighins.filter(w => w.team_id === team.id && w.division === divId)
+function WeighInPanel({ team, divId, day, fishList, allWeighins, compId, onSaved, onClose }) {
+  const isOpen = divId === 'open'
+  const existing = allWeighins.filter(w => w.team_id === team.id && w.division === divId
+    && (!isOpen || (w.day || 1) === day))
 
   const instancesFor = f => (f.allow_multiples ? (f.max_count || 1) : 1)
 
@@ -1324,16 +1338,19 @@ function WeighInPanel({ team, divId, fishList, allWeighins, compId, onSaved, onC
 
   const save = async () => {
     setSaving(true)
-    await supabase.from('comp_weighins')
+    let del = supabase.from('comp_weighins')
       .delete().eq('competition_id', compId).eq('team_id', team.id).eq('division', divId)
+    if (isOpen) del = del.eq('day', day)
+    await del
 
+    const dayField = isOpen ? { day } : {}
     const rows = []
     for (const f of fishList) {
       for (let inst = 1; inst <= instancesFor(f); inst++) {
         const key = `${f.id}-${inst}`
         if (!caught[key]) continue
         rows.push({
-          competition_id: compId, team_id: team.id, division: divId,
+          competition_id: compId, team_id: team.id, division: divId, ...dayField,
           fish_id: f.id, fish_name: f.species_name,
           weight_kg: f.weigh_separately ? (parseFloat(weights[key]) || null) : null,
           points_awarded: calcNatPts(f, f.weigh_separately ? (weights[key] || 0) : 0),
@@ -1343,7 +1360,7 @@ function WeighInPanel({ team, divId, fishList, allWeighins, compId, onSaved, onC
     }
     if (parseFloat(bulkKg) > 0) {
       rows.push({
-        competition_id: compId, team_id: team.id, division: divId,
+        competition_id: compId, team_id: team.id, division: divId, ...dayField,
         fish_id: null, fish_name: '__bulk__',
         weight_kg: parseFloat(bulkKg), points_awarded: calcBulkBonus(bulkKg),
         instance: 1, is_bulk: true, weighed_at: new Date().toISOString(),
@@ -1358,7 +1375,7 @@ function WeighInPanel({ team, divId, fishList, allWeighins, compId, onSaved, onC
     <div className="bg-white border-2 border-blue-300 rounded-2xl overflow-hidden">
       <div className="px-4 py-3 border-b border-gray-100 bg-blue-50 flex items-center justify-between">
         <div>
-          <p className="font-black text-gray-900">{team.team_name}</p>
+          <p className="font-black text-gray-900">{team.team_name}{isOpen ? ` — Day ${day}` : ''}</p>
           <p className="text-xs text-gray-500">
             {team._d1?.name || 'Diver 1'}
             {!team.nationals_event?.is_individual && (team._d2?.name || team.diver2_email) ? ` & ${team._d2?.name || team.diver2_email}` : ''}
@@ -1438,13 +1455,16 @@ function WeighInPanel({ team, divId, fishList, allWeighins, compId, onSaved, onC
 function DivisionLeaderboard({ divId, teams, allWeighins }) {
   const [expandedId, setExpandedId] = useState(null)
   const divTeams = teamsInDiv(teams, divId)
+  const isOpen = divId === 'open'
 
-  const withPoints = divTeams.map(t => {
-    const tw = allWeighins.filter(w => w.team_id === t.id && w.division === divId)
-    const total = tw.reduce((s, w) => s + (w.points_awarded || 0), 0)
-    const fishCount = tw.filter(w => !w.is_bulk).length
-    return { ...t, total, fishCount, hasEntry: tw.length > 0 }
-  }).sort((a, b) => b.total - a.total)
+  const withPoints = isOpen
+    ? openTeamLeaderboard(teams, allWeighins, 'open')
+    : divTeams.map(t => {
+        const tw = allWeighins.filter(w => w.team_id === t.id && w.division === divId)
+        const total = tw.reduce((s, w) => s + (w.points_awarded || 0), 0)
+        const fishCount = tw.filter(w => !w.is_bulk).length
+        return { ...t, total, fishCount, hasEntry: tw.length > 0 }
+      }).sort((a, b) => b.total - a.total)
 
   // For Open, compute each team's rank within other divisions
   const getDivBadges = (team) => {
@@ -1466,21 +1486,30 @@ function DivisionLeaderboard({ divId, teams, allWeighins }) {
         if (rank > 0) badges.push({ label: d.label, rank })
       })
 
-    // Age divisions (Silver/Golden Oldie) ranked by Open score
-    ;[{ id: 'womens', label: "🔱 Women's" }, { id: 'silveroldie', label: '🥈 Silver Oldie' }, { id: 'goldenoldie', label: '🎖️ Golden Oldie' }]
+    // Women's/Silver Oldie are entered as part of Open — rank them with the
+    // same day1%+day2% score as the main Open board (just a filtered list).
+    ;[{ id: 'womens', label: "🔱 Women's" }, { id: 'silveroldie', label: '🥈 Silver Oldie' }]
       .filter(ag => team.nationals_event?.[ag.id])
       .forEach(ag => {
-        const ranked = teams
-          .filter(t => t.nationals_event?.[ag.id])
-          .map(t => {
-            const tw = allWeighins.filter(w => w.team_id === t.id && w.division === 'open')
-            return { id: t.id, total: tw.reduce((s, w) => s + (w.points_awarded || 0), 0), hasEntry: tw.length > 0 }
-          })
-          .filter(t => t.hasEntry)
-          .sort((a, b) => b.total - a.total)
+        const ranked = openTeamLeaderboard(teams, allWeighins, ag.id).filter(t => t.hasEntry)
         const rank = ranked.findIndex(t => t.id === team.id) + 1
         if (rank > 0) badges.push({ label: ag.label, rank })
       })
+
+    // Golden Oldie (60+ Boat Comp) is its own separate competition with its
+    // own fish list/weigh-ins — this badge is a rank purely off Open scores.
+    if (team.nationals_event?.goldenoldie) {
+      const ranked = teams
+        .filter(t => t.nationals_event?.goldenoldie)
+        .map(t => {
+          const tw = allWeighins.filter(w => w.team_id === t.id && w.division === 'open')
+          return { id: t.id, total: tw.reduce((s, w) => s + (w.points_awarded || 0), 0), hasEntry: tw.length > 0 }
+        })
+        .filter(t => t.hasEntry)
+        .sort((a, b) => b.total - a.total)
+      const rank = ranked.findIndex(t => t.id === team.id) + 1
+      if (rank > 0) badges.push({ label: '🎖️ Golden Oldie', rank })
+    }
 
     return badges
   }
@@ -1536,10 +1565,17 @@ function DivisionLeaderboard({ divId, teams, allWeighins }) {
                 </div>
                 <div className="text-right flex-shrink-0">
                   {t.hasEntry ? (
-                    <>
-                      <p className="text-base font-black" style={{ color: SNZ_BLUE }}>{t.total} pts</p>
-                      <p className="text-xs text-gray-400">{t.fishCount} fish</p>
-                    </>
+                    isOpen ? (
+                      <>
+                        <p className="text-base font-black" style={{ color: SNZ_BLUE }}>{t.total.toFixed(1)}%</p>
+                        <p className="text-xs text-gray-400">D1 {t.day1Pct.toFixed(0)}% · D2 {t.day2Pct.toFixed(0)}%</p>
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-base font-black" style={{ color: SNZ_BLUE }}>{t.total} pts</p>
+                        <p className="text-xs text-gray-400">{t.fishCount} fish</p>
+                      </>
+                    )
                   ) : (
                     <p className="text-xs text-gray-300">Not entered</p>
                   )}
@@ -1557,8 +1593,12 @@ function DivisionLeaderboard({ divId, teams, allWeighins }) {
 // ── Standard Division Results ─────────────────────────────────────────────────
 function StandardDivisionResults({ divId, comp, teams, fishLists, allWeighins, onRefresh }) {
   const [selectedTeam, setSelectedTeam] = useState(null)
+  const [selectedDay, setSelectedDay] = useState(1)
+  const isOpen = divId === 'open'
   const divTeams = teamsInDiv(teams, divId)
   const fishList = fishLists[divId] || []
+
+  const openWeighIn = (team, day) => { setSelectedTeam(team); setSelectedDay(day) }
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -1567,7 +1607,8 @@ function StandardDivisionResults({ divId, comp, teams, fishLists, allWeighins, o
           <div className="px-4 py-3 border-b border-gray-100 bg-gray-50">
             <h3 className="font-bold text-gray-900">Competitors</h3>
             <p className="text-xs text-gray-400 mt-0.5">
-              {divTeams.length} teams · {fishList.length} species in list · Click to weigh in
+              {divTeams.length} teams · {fishList.length} species in list
+              {isOpen ? ' · 2-day event — weigh in each day separately' : ' · Click to weigh in'}
             </p>
           </div>
           {divTeams.length === 0 ? (
@@ -1576,6 +1617,34 @@ function StandardDivisionResults({ divId, comp, teams, fishLists, allWeighins, o
             <div className="divide-y divide-gray-100">
               {divTeams.map(t => {
                 const tw = allWeighins.filter(w => w.team_id === t.id && w.division === divId)
+
+                if (isOpen) {
+                  const day1 = tw.filter(w => (w.day || 1) === 1).reduce((s, w) => s + (w.points_awarded || 0), 0)
+                  const day2 = tw.filter(w => w.day === 2).reduce((s, w) => s + (w.points_awarded || 0), 0)
+                  const has1 = tw.some(w => (w.day || 1) === 1)
+                  const has2 = tw.some(w => w.day === 2)
+                  return (
+                    <div key={t.id} className="px-4 py-3 flex items-center gap-3">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-gray-900 text-sm truncate">{t.team_name}</p>
+                        <p className="text-xs text-gray-400 truncate">
+                          {t._d1?.name || '?'}{!t.nationals_event?.is_individual && (t._d2?.name || t.diver2_email) ? ` & ${t._d2?.name || t.diver2_email}` : ''}
+                        </p>
+                      </div>
+                      <button onClick={() => openWeighIn(t, 1)}
+                        className={`px-2.5 py-1.5 rounded-lg text-xs font-black flex-shrink-0 border ${selectedTeam?.id === t.id && selectedDay === 1 ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'}`}
+                        style={{ color: SNZ_BLUE }}>
+                        D1{has1 ? ` · ${day1}pt` : ''}
+                      </button>
+                      <button onClick={() => openWeighIn(t, 2)}
+                        className={`px-2.5 py-1.5 rounded-lg text-xs font-black flex-shrink-0 border ${selectedTeam?.id === t.id && selectedDay === 2 ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'}`}
+                        style={{ color: SNZ_BLUE }}>
+                        D2{has2 ? ` · ${day2}pt` : ''}
+                      </button>
+                    </div>
+                  )
+                }
+
                 const total = tw.reduce((s, w) => s + (w.points_awarded || 0), 0)
                 const isSelected = selectedTeam?.id === t.id
                 return (
@@ -1604,9 +1673,10 @@ function StandardDivisionResults({ divId, comp, teams, fishLists, allWeighins, o
 
         {selectedTeam && (
           <WeighInPanel
-            key={selectedTeam.id}
+            key={`${selectedTeam.id}-${isOpen ? selectedDay : ''}`}
             team={selectedTeam}
             divId={divId}
+            day={isOpen ? selectedDay : undefined}
             fishList={fishList}
             allWeighins={allWeighins}
             compId={comp.id}
@@ -1855,6 +1925,9 @@ function ResultsTab({ comp, teams, fishLists, allWeighins, onRefresh }) {
     if (EVENT_TYPE[id] === 'superdiver')
       return superDiverLeaderboard(teams, allWeighins).filter(r => r.complete)
         .map(r => ({ event: lbl, rank: r.rank, competitor: r.name, team: r.team.team_name, score: r.aggregate, detail: `Open ${r.openPlacing} / Photo ${r.photoPlacing} / Swim ${r.swimPlacing}` }))
+    if (id === 'open' || SCORE_FROM[id] === 'open')
+      return openTeamLeaderboard(teams, allWeighins, id).filter(r => r.hasEntry)
+        .map(r => ({ event: lbl, rank: r.rank, competitor: r.team_name, team: partnerLine(r), score: r.total.toFixed(1), detail: `D1 ${r.day1Pct.toFixed(1)}% / D2 ${r.day2Pct.toFixed(1)}% · ${r.fishCount} fish` }))
     return teamLeaderboard(teams, allWeighins, id, SCORE_FROM[id] || null).filter(r => r.hasEntry)
       .map(r => ({ event: lbl, rank: r.rank, competitor: r.team_name, team: partnerLine(r), score: r.total, detail: `${r.fishCount} fish` }))
   }

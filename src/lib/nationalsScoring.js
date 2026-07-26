@@ -46,6 +46,45 @@ export function teamLeaderboard(teams, weighins, divId, scoreFromDiv = null) {
   return rows
 }
 
+// Open — a 2-day event. Each team's score for a day is their points as a
+// percentage of that day's top score across the whole Open field, and their
+// overall score is the sum of both days' percentages (max 200%). Women's and
+// Silver Oldie are entered as part of Open (not a separate weigh-in) — they
+// re-rank the exact same day1%+day2% score against a filtered eligible team
+// list, benchmarked against the same whole-field top score, so a team's
+// number is identical whether viewed on the Open board or their sub-board.
+export function openTeamLeaderboard(teams, weighins, filterDivId = 'open') {
+  const openWeighins = weighins.filter(w => w.division === 'open')
+  const allOpenTeams = teamsInDiv(teams, 'open')
+
+  const dayTotal = (teamId, day) => openWeighins
+    .filter(w => w.team_id === teamId && (w.day === day || (day === 1 && w.day == null)))
+    .reduce((s, w) => s + (w.points_awarded || 0), 0)
+
+  const top1 = Math.max(0, ...allOpenTeams.map(t => dayTotal(t.id, 1)))
+  const top2 = Math.max(0, ...allOpenTeams.map(t => dayTotal(t.id, 2)))
+
+  const eligible = filterDivId === 'open'
+    ? allOpenTeams
+    : teams.filter(t => t.nationals_event?.[filterDivId])
+
+  const rows = eligible.map(t => {
+    const day1Total = dayTotal(t.id, 1)
+    const day2Total = dayTotal(t.id, 2)
+    const day1Pct = top1 > 0 ? (day1Total / top1) * 100 : 0
+    const day2Pct = top2 > 0 ? (day2Total / top2) * 100 : 0
+    const fishCount = openWeighins.filter(w => w.team_id === t.id && !w.is_bulk).length
+    return {
+      ...t, day1Total, day2Total, day1Pct, day2Pct,
+      total: day1Pct + day2Pct, fishCount, hasEntry: (day1Total + day2Total) > 0,
+    }
+  }).sort((a, b) => (b.hasEntry - a.hasEntry) || (b.total - a.total))
+
+  let r = 0
+  for (const row of rows) row.rank = row.hasEntry ? ++r : null
+  return rows
+}
+
 // Photography — ranked by species count (most first).
 export function photographyLeaderboard(teams, weighins) {
   const rows = individualCompetitors(teams, 'photography').map(c => {
@@ -75,7 +114,7 @@ export function finSwimLeaderboard(teams, weighins) {
 // only divers with a result in all three are ranked.
 export function superDiverLeaderboard(teams, weighins) {
   const openRankByTeam = new Map(
-    teamLeaderboard(teams, weighins, 'open').filter(t => t.rank).map(t => [t.id, t.rank])
+    openTeamLeaderboard(teams, weighins, 'open').filter(t => t.rank).map(t => [t.id, t.rank])
   )
   const photoRankByKey = new Map(
     photographyLeaderboard(teams, weighins).filter(p => p.rank).map(p => [p.key, p.rank])
