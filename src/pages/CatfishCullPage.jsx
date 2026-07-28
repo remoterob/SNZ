@@ -198,7 +198,7 @@ export default function CatfishCullPage() {
             ← SNZ Hub
           </button>
         </div>
-        <button onClick={() => navigate('/catfish/admin')}
+        <button onClick={() => navigate('/admin/results')}
           className="text-xs font-bold text-white bg-white/15 hover:bg-white/25 px-3 py-1.5 rounded-lg transition">
           ⚙ Admin
         </button>
