@@ -126,6 +126,9 @@ function MembershipLanding({ session, navigate }) {
 
 // ── Sign Up ───────────────────────────────────────────────────────────────────
 function MemberSignup({ navigate }) {
+  const location = useLocation()
+  const redirectParam = new URLSearchParams(location.search).get('redirect')
+  const loginPath = redirectParam ? `/membership/login?redirect=${encodeURIComponent(redirectParam)}` : '/membership/login'
   const [step, setStep] = useState(1) // 1=account, 2=profile
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -276,7 +279,7 @@ function MemberSignup({ navigate }) {
         ) : (
           <p className="text-gray-400 text-sm mb-4">Sign in now to pay your $10 membership fee and activate your membership card.</p>
         )}
-        <button onClick={() => navigate('/membership/login')}
+        <button onClick={() => navigate(loginPath)}
           className="w-full py-3 rounded-xl font-bold text-white text-sm"
           style={{ background: SNZ_BLUE }}>{wasWhitelisted ? 'Sign In →' : 'Sign In & Pay →'}</button>
       </div>
@@ -302,7 +305,7 @@ function MemberSignup({ navigate }) {
             <p className="font-black text-amber-900 text-sm mb-1">Account already exists</p>
             <p className="text-amber-800 text-sm mb-3">An SNZ membership account is already registered to <strong>{email}</strong>.</p>
             <div className="flex flex-col gap-2">
-              <button onClick={() => navigate('/membership/login')}
+              <button onClick={() => navigate(loginPath)}
                 className="w-full py-2.5 rounded-xl font-bold text-white text-sm"
                 style={{ background: SNZ_BLUE }}>
                 Sign In →
@@ -332,7 +335,7 @@ function MemberSignup({ navigate }) {
                 <div className="mt-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5">
                   <p className="text-xs font-bold text-amber-800 mb-2">An account already exists for this email.</p>
                   <div className="flex gap-2">
-                    <button type="button" onClick={() => navigate('/membership/login')}
+                    <button type="button" onClick={() => navigate(loginPath)}
                       className="flex-1 py-1.5 rounded-lg text-xs font-bold text-white"
                       style={{ background: SNZ_BLUE }}>Sign In</button>
                     <button type="button" onClick={() => navigate('/membership/reset')}
@@ -359,7 +362,7 @@ function MemberSignup({ navigate }) {
               Continue →
             </button>
             <p className="text-center text-xs text-gray-400">
-              Already a member? <button type="button" onClick={() => navigate('/membership/login')} className="underline" style={{ color: SNZ_BLUE }}>Sign in</button>
+              Already a member? <button type="button" onClick={() => navigate(loginPath)} className="underline" style={{ color: SNZ_BLUE }}>Sign in</button>
             </p>
           </form>
         )}
@@ -455,6 +458,8 @@ function MemberSignup({ navigate }) {
 
 // ── Login ─────────────────────────────────────────────────────────────────────
 function MemberLogin({ navigate }) {
+  const location = useLocation()
+  const redirectParam = new URLSearchParams(location.search).get('redirect')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
@@ -488,7 +493,7 @@ function MemberLogin({ navigate }) {
       // Never overwrite an existing profile from stale localStorage — it could
       // downgrade a paid member back to pending
       localStorage.removeItem('snz_pending_profile')
-      navigate('/membership/dashboard')
+      navigate(redirectParam ? decodeURIComponent(redirectParam) : '/membership/dashboard')
     } catch (err) {
       setError(err.message === 'Invalid login credentials' ? 'Incorrect email or password.' : err.message)
     } finally {
@@ -545,7 +550,7 @@ function MemberLogin({ navigate }) {
           </button>
         </form>
         <p className="text-center text-sm text-gray-400 mt-4">
-          Not a member? <button onClick={() => navigate('/membership/signup')} className="underline font-semibold" style={{ color: SNZ_BLUE }}>Join for $10</button>
+          Not a member? <button onClick={() => navigate(redirectParam ? `/membership/signup?redirect=${encodeURIComponent(redirectParam)}` : '/membership/signup')} className="underline font-semibold" style={{ color: SNZ_BLUE }}>Join for $10</button>
         </p>
       </div>
     </div>

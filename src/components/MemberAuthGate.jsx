@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 
 const SNZ_BLUE = '#2B6CB0'
 
@@ -39,6 +39,8 @@ export function MemberAuthGate({ message }) {
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const navigate = useNavigate()
+  const location = useLocation()
+  const returnTo = location.pathname + location.search
 
   const handleLogin = async (e) => {
     e.preventDefault()
@@ -82,7 +84,7 @@ export function MemberAuthGate({ message }) {
             style={mode==='login' ? { background: SNZ_BLUE } : {}}>
             Sign In
           </button>
-          <button type="button" onClick={() => navigate('/membership')}
+          <button type="button" onClick={() => navigate(`/membership/signup?redirect=${encodeURIComponent(returnTo)}`)}
             className="flex-1 py-2 rounded-lg text-sm font-bold border-2 border-gray-200 text-gray-500 hover:border-gray-300 transition">
             Sign Up Now
           </button>
