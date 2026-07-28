@@ -253,6 +253,24 @@ export default function NationalsRegister() {
     return total
   }
 
+  // Itemised line items for Person 1's Stripe receipt
+  const buildLineItemsD1 = () => {
+    const items = []
+    SUB_EVENTS.forEach(e => {
+      const fee = getFee(e.id)
+      if (!fee) return
+      const selected = e.perDiver ? diverEvents[e.id]?.d1 : teamEvents[e.id]
+      if (selected) items.push({ name: `${e.emoji} ${e.name}`, amountCents: fee * 100 })
+    })
+    const jFee = getMerchFee('jacket')
+    if (jFee && jacket.gender && jacket.size) items.push({ name: `🧥 Event Jacket (${jacket.gender} ${jacket.size})`, amountCents: jFee * 100 })
+    const sFee = getMerchFee('shirt')
+    if (sFee && shirt.gender && shirt.size) items.push({ name: `👕 Event T-Shirt (${shirt.gender} ${shirt.size})`, amountCents: sFee * 100 })
+    const mFee = getMealFee()
+    if (mFee && mealQty > 0) items.push({ name: `🍽️ Prize Giving Dinner × ${mealQty}`, amountCents: mFee * mealQty * 100 })
+    return items
+  }
+
   // Person 2 pays for all events they are entered in
   const calcP2Total = () => {
     let total = 0
@@ -387,6 +405,7 @@ export default function NationalsRegister() {
           body: JSON.stringify({
             type: 'nationals_entry',
             amountCents: totalCents * 100,
+            lineItems: buildLineItemsD1(),
             memberId: session.user.id,
             memberEmail: session.user.email,
             memberName: member?.name || '',

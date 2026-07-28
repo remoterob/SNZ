@@ -125,8 +125,10 @@ exports.handler = async (event) => {
           ? `${origin}${nationalsPath}?cancelled=1${teamId ? `&team=${teamId}` : ''}`
           : `${origin}/competitions/${competitionId}/register?payment=cancelled`
 
-    // Build line items — use provided array (entry + merch) or fall back to single item
-    const stripeLineItems = lineItems && lineItems.length > 1
+    // Build line items — use provided array (entry + merch, itemised on the
+    // Checkout page and the Stripe receipt email) or fall back to a single
+    // lumped item for callers that don't build one.
+    const stripeLineItems = lineItems && lineItems.length > 0
       ? lineItems.map(item => ({
           price_data: {
             currency: 'nzd',
@@ -149,6 +151,9 @@ exports.handler = async (event) => {
       payment_intent_data: {
         description: paymentDescription,
         statement_descriptor: statementDescriptor,
+        // Guarantees Stripe sends an itemised receipt on successful payment,
+        // regardless of the account's dashboard email settings.
+        receipt_email: memberEmail || undefined,
         metadata,
       },
       line_items: stripeLineItems,

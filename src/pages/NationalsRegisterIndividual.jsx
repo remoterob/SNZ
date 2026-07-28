@@ -118,6 +118,23 @@ export default function NationalsRegisterIndividual() {
 
   const fmtPrice = (d) => d == null ? 'TBC' : `$${d}`
 
+  // Itemised line items for the Stripe receipt
+  const buildLineItems = () => {
+    const items = []
+    INDIVIDUAL_EVENTS.forEach(e => {
+      if (!selected[e.id]) return
+      const fee = getFee(e.id)
+      if (fee) items.push({ name: `${e.emoji} ${e.name}`, amountCents: fee * 100 })
+    })
+    const jFee = getMerchFee('jacket')
+    if (jFee && jacket.gender && jacket.size) items.push({ name: `🧥 Event Jacket (${jacket.gender} ${jacket.size})`, amountCents: jFee * 100 })
+    const sFee = getMerchFee('shirt')
+    if (sFee && shirt.gender && shirt.size) items.push({ name: `👕 Event T-Shirt (${shirt.gender} ${shirt.size})`, amountCents: sFee * 100 })
+    const mFee = getMealFee()
+    if (mFee && mealQty > 0) items.push({ name: `🍽️ Prize Giving Dinner × ${mealQty}`, amountCents: mFee * mealQty * 100 })
+    return items
+  }
+
   const handleSubmit = async () => {
     setError('')
 
@@ -179,6 +196,7 @@ export default function NationalsRegisterIndividual() {
           type: 'nationals_entry',
           successPath: '/nationals/register/individual',
           amountCents: totalDollars * 100,
+          lineItems: buildLineItems(),
           memberId: session.user.id,
           memberEmail: session.user.email,
           memberName: member?.name || session.user.email,

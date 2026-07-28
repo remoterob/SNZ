@@ -259,6 +259,27 @@ export default function NationalsConfirm() {
     return total
   }
 
+  // Itemised line items for D2's Stripe receipt
+  const buildLineItems = () => {
+    const items = []
+    teamEventEntries.forEach(([key, ev]) => {
+      const f = getFee(key)
+      if (f) items.push({ name: ev.label, amountCents: f * 100 })
+    })
+    individualEventKeys.forEach(key => {
+      if (!myEvents[key]) return
+      const f = getFee(key)
+      if (f) items.push({ name: EVENT_LABELS[key]?.label || key, amountCents: f * 100 })
+    })
+    const jFee = getMerchFee('jacket')
+    if (jFee && jacket.gender && jacket.size) items.push({ name: `🧥 Event Jacket (${jacket.gender} ${jacket.size})`, amountCents: jFee * 100 })
+    const sFee = getMerchFee('shirt')
+    if (sFee && shirt.gender && shirt.size) items.push({ name: `👕 Event T-Shirt (${shirt.gender} ${shirt.size})`, amountCents: sFee * 100 })
+    const mFee = getMealFee()
+    if (mFee && mealQty > 0) items.push({ name: `🍽️ Prize Giving Dinner × ${mealQty}`, amountCents: mFee * mealQty * 100 })
+    return items
+  }
+
   const handleConfirm = async () => {
     setSafetyError('')
     // Validate safety fields
@@ -323,6 +344,7 @@ export default function NationalsConfirm() {
             diverSlot: '2',
             successPath: '/nationals/confirm',
             amountCents: totalCents * 100,
+            lineItems: buildLineItems(),
             memberId: session.user.id,
             memberEmail: session.user.email,
             memberName: member?.name || '',
