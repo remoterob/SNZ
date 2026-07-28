@@ -85,14 +85,25 @@ exports.handler = async (event) => {
         console.log(`Membership paid for member ${member_id} (session ${session.id})`)
 
       } else if ((type === 'competition_entry' || type === 'nationals_entry') && team_id) {
-        await safeUpdate('comp_teams', {
-          payment_status: 'paid',
-          status: 'active',
-          stripe_session_id: session.id,
-          stripe_payment_intent_id: paymentIntent,
-          paid_at: paidAt,
-        }, 'id', team_id)
-        console.log(`${type} paid for team ${team_id} (session ${session.id})`)
+        if (diver_slot === '2') {
+          // Diver 2 pays their own share on /nationals/confirm — track it
+          // separately so it doesn't clobber diver 1's stripe_session_id /
+          // paid_at / payment_intent (a shared team-level record).
+          await safeUpdate('comp_teams', {
+            diver2_payment_status: 'paid',
+            status: 'active',
+          }, 'id', team_id)
+          console.log(`${type} diver2 paid for team ${team_id} (session ${session.id})`)
+        } else {
+          await safeUpdate('comp_teams', {
+            payment_status: 'paid',
+            status: 'active',
+            stripe_session_id: session.id,
+            stripe_payment_intent_id: paymentIntent,
+            paid_at: paidAt,
+          }, 'id', team_id)
+          console.log(`${type} paid for team ${team_id} (session ${session.id})`)
+        }
 
       } else {
         // Unrecognised metadata — log loudly so it shows in function logs,

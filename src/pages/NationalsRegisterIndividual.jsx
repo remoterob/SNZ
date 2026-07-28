@@ -177,6 +177,7 @@ export default function NationalsRegisterIndividual() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           type: 'nationals_entry',
+          successPath: '/nationals/register/individual',
           amountCents: totalDollars * 100,
           memberId: session.user.id,
           memberEmail: session.user.email,
@@ -507,14 +508,16 @@ export default function NationalsRegisterIndividual() {
 
 // ── Success screen after Stripe return ──────────────────────────────────────
 function SuccessScreen({ teamId, navigate }) {
+  // Verify server-side (belt-and-braces — stripe-webhook.js is the primary
+  // path and stays authoritative even if this call never runs).
   useEffect(() => {
-    // Mark team as paid + active
-    (async () => {
-      await supabase.from('comp_teams').update({
-        status: 'active',
-        diver2_payment_status: 'paid', // individual entries don't have a diver 2, but mark as paid to close loop
-      }).eq('id', teamId)
-    })()
+    const stripeSessionId = new URLSearchParams(window.location.search).get('session_id')
+    if (!stripeSessionId) return
+    fetch('/.netlify/functions/verify-checkout-session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sessionId: stripeSessionId }),
+    }).catch(e => console.error('Payment verification failed:', e))
   }, [teamId])
 
   return (

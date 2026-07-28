@@ -67,21 +67,28 @@ export default function NationalsConfirm() {
   const params = new URLSearchParams(location.search)
   const teamId = params.get('team')
 
-  // Handle Stripe return
+  // Handle Stripe return. diver2_member_id / diver2_accepted_at are already
+  // saved by handleConfirm() before the redirect to Stripe, so we only need
+  // to confirm the payment here. Verify server-side (belt-and-braces —
+  // stripe-webhook.js is the primary path and stays authoritative even if
+  // this call never runs, e.g. the tab is closed mid-redirect).
   useEffect(() => {
     const p = new URLSearchParams(window.location.search)
     if (p.get('payment') === 'success' && teamId) {
-      supabase.from('comp_teams').update({
-        diver2_payment_status: 'paid',
-        status: 'active',
-        diver2_member_id: session?.user?.id || null,
-        diver2_accepted_at: new Date().toISOString(),
-      }).eq('id', teamId).then(() => {
+      const stripeSessionId = p.get('session_id')
+      const verify = stripeSessionId
+        ? fetch('/.netlify/functions/verify-checkout-session', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sessionId: stripeSessionId }),
+          }).catch(e => console.error('Payment verification failed:', e))
+        : Promise.resolve()
+      verify.then(() => {
         window.history.replaceState({}, '', `/nationals/confirm?team=${teamId}`)
         setSubmitted(true)
       })
     }
-  }, [session])
+  }, [teamId])
 
   // Fetch team and comp
   useEffect(() => {
@@ -313,6 +320,8 @@ export default function NationalsConfirm() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             type: 'nationals_entry',
+            diverSlot: '2',
+            successPath: '/nationals/confirm',
             amountCents: totalCents * 100,
             memberId: session.user.id,
             memberEmail: session.user.email,
@@ -382,6 +391,9 @@ export default function NationalsConfirm() {
             Registered by <strong>{d1Member?.name || 'your partner'}</strong>
           </p>
           <p className="text-xs text-gray-400 mt-1">You are Diver 2 on this team.</p>
+          <p className="text-xs text-blue-600 mt-2">
+            This is your own entry fee, paid separately from {d1Member?.name?.split(' ')[0] || 'your partner'}'s. It covers your share of the team events below, plus anything you add for yourself.
+          </p>
         </div>
 
         {/* Team events — read only */}

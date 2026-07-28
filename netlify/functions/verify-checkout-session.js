@@ -56,7 +56,7 @@ exports.handler = async (event) => {
       }
     }
 
-    const { type, member_id, team_id } = session.metadata || {}
+    const { type, member_id, team_id, diver_slot } = session.metadata || {}
     const paymentIntent = session.payment_intent
     const paidAt = new Date().toISOString()
 
@@ -71,14 +71,22 @@ exports.handler = async (event) => {
       console.log(`Membership verified+activated for member ${member_id} (session ${session.id})`)
 
     } else if ((type === 'competition_entry' || type === 'nationals_entry') && team_id) {
-      await safeUpdate('comp_teams', {
-        payment_status: 'paid',
-        status: 'active',
-        stripe_session_id: session.id,
-        stripe_payment_intent_id: paymentIntent,
-        paid_at: paidAt,
-      }, 'id', team_id)
-      console.log(`${type} verified+activated for team ${team_id} (session ${session.id})`)
+      if (diver_slot === '2') {
+        await safeUpdate('comp_teams', {
+          diver2_payment_status: 'paid',
+          status: 'active',
+        }, 'id', team_id)
+        console.log(`${type} diver2 verified+activated for team ${team_id} (session ${session.id})`)
+      } else {
+        await safeUpdate('comp_teams', {
+          payment_status: 'paid',
+          status: 'active',
+          stripe_session_id: session.id,
+          stripe_payment_intent_id: paymentIntent,
+          paid_at: paidAt,
+        }, 'id', team_id)
+        console.log(`${type} verified+activated for team ${team_id} (session ${session.id})`)
+      }
 
     } else {
       console.error(`verify-checkout-session: unrecognised metadata on ${session.id}: type=${type}`)

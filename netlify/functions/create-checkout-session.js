@@ -16,7 +16,7 @@ exports.handler = async (event) => {
 
   try {
     const body = JSON.parse(event.body)
-    const { type, memberId, teamId, competitionId, competitionName, memberEmail, memberName, lineItems, diverSlot, extraMealQty, extraJacket, extraShirt } = body
+    const { type, memberId, teamId, competitionId, competitionName, memberEmail, memberName, lineItems, diverSlot, extraMealQty, extraJacket, extraShirt, successPath } = body
     let { amountCents } = body
 
     if (!type || !amountCents || amountCents <= 0) {
@@ -90,12 +90,22 @@ exports.handler = async (event) => {
     if (teamId) metadata.team_id = String(teamId)
     if (competitionId) metadata.competition_id = String(competitionId)
     if (competitionName) metadata.competition_name = competitionName
+    // diver_slot tells the webhook whether this is diver 1's or diver 2's own
+    // payment, so it updates the right payment-status column on comp_teams.
+    if (diverSlot) metadata.diver_slot = String(diverSlot)
     if (isExtras) {
-      if (diverSlot) metadata.diver_slot = String(diverSlot)
       if (extraMealQty) metadata.extra_meal_qty = String(extraMealQty)
       if (extraJacket) metadata.extra_jacket = JSON.stringify(extraJacket)
       if (extraShirt) metadata.extra_shirt = JSON.stringify(extraShirt)
     }
+
+    // Nationals has three separate entry pages (diver 1 pairs, solo, diver 2
+    // confirm) that all use type=nationals_entry. The caller tells us which
+    // one to return to via successPath — without this every nationals payer
+    // was bounced back to /nationals/register regardless of where they paid
+    // from, so e.g. diver 2's post-payment confirmation code on
+    // /nationals/confirm never ran.
+    const nationalsPath = successPath || '/nationals/register'
 
     // Success URLs carry the checkout session id so the app can verify the
     // payment server-side (verify-checkout-session) instead of trusting the URL.
@@ -105,14 +115,14 @@ exports.handler = async (event) => {
       : isExtras
         ? `${origin}/membership/dashboard?extras=success&team=${teamId}&session_id={CHECKOUT_SESSION_ID}`
         : isNationals
-          ? `${origin}/nationals/register?payment=success&team=${teamId}&session_id={CHECKOUT_SESSION_ID}`
+          ? `${origin}${nationalsPath}?payment=success&team=${teamId}&session_id={CHECKOUT_SESSION_ID}`
           : `${origin}/competitions/${competitionId}/register?payment=success&session_id={CHECKOUT_SESSION_ID}`
     const cancelUrl = isMembership
       ? `${origin}/membership/dashboard?payment=cancelled`
       : isExtras
         ? `${origin}/membership/dashboard?extras=cancelled`
         : isNationals
-          ? `${origin}/nationals/register?cancelled=1`
+          ? `${origin}${nationalsPath}?cancelled=1${teamId ? `&team=${teamId}` : ''}`
           : `${origin}/competitions/${competitionId}/register?payment=cancelled`
 
     // Build line items — use provided array (entry + merch) or fall back to single item
