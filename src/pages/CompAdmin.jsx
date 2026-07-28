@@ -611,7 +611,16 @@ export default function CompAdmin() {
 
       <div className="bg-white border-b border-gray-200 px-6">
         <div className="max-w-5xl mx-auto flex gap-0.5 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {[['setup','Setup'],['fish',`Fish (${fish.length})`],['teams',`Teams (${teams.length})`],['boats',`⛵ Boats (${boats.length})`],['checkin','✅ Check-in'],['weighin','Weigh-in'],['leaderboard','Leaderboard'],['socials','📸 Socials']].map(([tid,tlabel]) => (
+          {[
+            ['setup','Setup'],
+            ...(comp.scoring_mode === 'catfish_count' ? [] : [['fish',`Fish (${fish.length})`]]),
+            ['teams',`Teams (${teams.length})`],
+            ['boats',`⛵ Boats (${boats.length})`],
+            ['checkin','✅ Check-in'],
+            ['weighin','Weigh-in'],
+            ['leaderboard','Leaderboard'],
+            ['socials','📸 Socials'],
+          ].map(([tid,tlabel]) => (
             <button key={tid} onClick={() => setTab(tid)}
               className={`py-3 px-4 text-sm font-bold border-b-2 transition whitespace-nowrap ${tab===tid?'border-blue-600 text-blue-700':'border-transparent text-gray-400 hover:text-gray-600'}`}>
               {tlabel}
@@ -622,12 +631,16 @@ export default function CompAdmin() {
 
       <div className="max-w-5xl mx-auto p-4 sm:p-6">
         {tab === 'setup' && <SetupTab comp={comp} setComp={setComp} onSave={fetchAll} showToast={showToast} />}
-        {tab === 'fish' && <FishTab fish={fish} comp={comp} onOpenPicker={() => setShowFishPicker(true)} onFishUpdated={fetchAll} />}
+        {tab === 'fish' && comp.scoring_mode !== 'catfish_count' && <FishTab fish={fish} comp={comp} onOpenPicker={() => setShowFishPicker(true)} onFishUpdated={fetchAll} />}
         {tab === 'teams' && <TeamsTab teams={teams} members={members} weighins={weighins} comp={comp} onRefresh={fetchAll} showToast={showToast} />}
         {tab === 'boats' && <BoatsTab comp={comp} teams={activeTeams} members={members} boats={boats} onRefresh={fetchAll} showToast={showToast} />}
         {tab === 'checkin' && <CheckInTab comp={comp} teams={teams} members={members} boats={boats} onRefresh={fetchAll} showToast={showToast} />}
-        {tab === 'weighin' && <WeighInTab comp={comp} teams={activeTeams} members={members} fish={fish} weighins={weighins} onRefresh={fetchAll} showToast={showToast} />}
-        {tab === 'leaderboard' && <AdminLeaderboard comp={comp} teams={activeTeams} weighins={weighins} fish={fish} />}
+        {tab === 'weighin' && (comp.scoring_mode === 'catfish_count'
+          ? <CatfishWeighInTab teams={activeTeams} members={members} onRefresh={fetchAll} showToast={showToast} />
+          : <WeighInTab comp={comp} teams={activeTeams} members={members} fish={fish} weighins={weighins} onRefresh={fetchAll} showToast={showToast} />)}
+        {tab === 'leaderboard' && (comp.scoring_mode === 'catfish_count'
+          ? <CatfishLeaderboardTab teams={activeTeams} members={members} />
+          : <AdminLeaderboard comp={comp} teams={activeTeams} weighins={weighins} fish={fish} />)}
         {tab === 'socials' && <SocialsTab comp={comp} teams={activeTeams} members={members} weighins={weighins} />}
       </div>
       <SponsorBar comp={comp} />
@@ -778,6 +791,11 @@ function SetupTab({ comp, setComp, onSave, showToast }) {
             className={`flex-1 p-4 rounded-xl border-2 text-left text-sm font-semibold transition ${form.scoring_mode==='fish_bingo_individual'?'border-blue-500 bg-blue-50 text-blue-700':'border-gray-200 text-gray-600 hover:border-gray-300'}`}>
             <span className="block font-bold mb-0.5">🎯 Fish Bingo – Individual</span>
             <span className="text-xs font-normal">Fixed points per species, solo entry. Competitors self-submit catches via the competition page.</span>
+          </button>
+          <button type="button" onClick={() => set('scoring_mode')('catfish_count')}
+            className={`flex-1 p-4 rounded-xl border-2 text-left text-sm font-semibold transition ${form.scoring_mode==='catfish_count'?'border-blue-500 bg-blue-50 text-blue-700':'border-gray-200 text-gray-600 hover:border-gray-300'}`}>
+            <span className="block font-bold mb-0.5">🐱 Catfish Count</span>
+            <span className="text-xs font-normal">Total catfish per team + heaviest/lightest single fish. Simple count-based scoring — for pest culls.</span>
           </button>
         </div>
       </div>
@@ -2072,6 +2090,149 @@ function WeighInTab({ comp, teams, members, fish, weighins: initialWeighins, onR
   )
 }
 
+
+// ── Catfish Count Weigh-in Tab (scoring_mode='catfish_count') ────────────────
+// Simple count-based scoring — total catfish per team + one heaviest/lightest
+// single fish, unlike the fish-species points engine WeighInTab uses above.
+function CatfishWeighInTab({ teams, members, onRefresh, showToast }) {
+  const [drafts, setDrafts] = useState({})
+  const [savingId, setSavingId] = useState(null)
+
+  const getField = (team, field) => {
+    const draft = drafts[team.id]
+    if (draft && field in draft) return draft[field]
+    return team[field] ?? ''
+  }
+  const setField = (teamId, field, value) => {
+    setDrafts(d => ({ ...d, [teamId]: { ...d[teamId], [field]: value } }))
+  }
+
+  const save = async (team) => {
+    setSavingId(team.id)
+    try {
+      const draft = drafts[team.id] || {}
+      const toNum = v => v === '' || v == null ? null : parseInt(v, 10)
+      const values = {
+        catfish_count: 'catfish_count' in draft ? toNum(draft.catfish_count) : team.catfish_count,
+        heaviest_fish_grams: 'heaviest_fish_grams' in draft ? toNum(draft.heaviest_fish_grams) : team.heaviest_fish_grams,
+        lightest_fish_grams: 'lightest_fish_grams' in draft ? toNum(draft.lightest_fish_grams) : team.lightest_fish_grams,
+        result_status: draft.result_status || team.result_status || 'provisional',
+      }
+      const { error } = await supabase.from('comp_teams').update(values).eq('id', team.id)
+      if (error) throw error
+      showToast('Weigh-in saved')
+      onRefresh()
+    } catch (err) { showToast(err.message, 'error') }
+    finally { setSavingId(null) }
+  }
+
+  if (teams.length === 0) return <div className="text-center py-12 text-gray-400">No paid/active teams yet.</div>
+
+  return (
+    <div className="space-y-3">
+      {teams.map(team => {
+        const roster = members.filter(m => m.team_id === team.id).map(m => m.name).filter(Boolean).join(' & ')
+        return (
+          <div key={team.id} className="bg-white border border-gray-200 rounded-xl p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <p className="font-black text-gray-900">{team.team_name}</p>
+                <p className="text-xs text-gray-400">{roster}</p>
+              </div>
+              <select value={getField(team, 'result_status')} onChange={e => setField(team.id, 'result_status', e.target.value)}
+                className="px-2 py-1 border rounded-lg text-xs font-semibold">
+                <option value="provisional">Provisional</option>
+                <option value="under_protest">Under Protest</option>
+                <option value="confirmed">Confirmed</option>
+                <option value="disqualified">Disqualified</option>
+              </select>
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 mb-1">Catfish count</label>
+                <input type="number" min="0" value={getField(team, 'catfish_count')}
+                  onChange={e => setField(team.id, 'catfish_count', e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 mb-1">Heaviest fish (g)</label>
+                <input type="number" min="0" value={getField(team, 'heaviest_fish_grams')}
+                  onChange={e => setField(team.id, 'heaviest_fish_grams', e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 mb-1">Lightest fish (g)</label>
+                <input type="number" min="0" value={getField(team, 'lightest_fish_grams')}
+                  onChange={e => setField(team.id, 'lightest_fish_grams', e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+              </div>
+            </div>
+            <button onClick={() => save(team)} disabled={savingId === team.id}
+              className="mt-3 px-4 py-2 rounded-lg text-sm font-bold text-white disabled:opacity-40"
+              style={{ background: SNZ_BLUE }}>
+              {savingId === team.id ? 'Saving…' : 'Save'}
+            </button>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+// ── Catfish Count Leaderboard (scoring_mode='catfish_count') ─────────────────
+function CatfishLeaderboardTab({ teams, members }) {
+  const ranked = [...teams]
+    .filter(t => t.result_status !== 'disqualified')
+    .sort((a, b) => (b.catfish_count || 0) - (a.catfish_count || 0))
+  const heaviest = teams.filter(t => t.heaviest_fish_grams).sort((a, b) => b.heaviest_fish_grams - a.heaviest_fish_grams)[0]
+  const lightest = teams.filter(t => t.lightest_fish_grams).sort((a, b) => a.lightest_fish_grams - b.lightest_fish_grams)[0]
+
+  if (teams.length === 0) return <div className="text-center py-12 text-gray-400">No paid/active teams yet.</div>
+
+  return (
+    <div className="space-y-4">
+      {(heaviest || lightest) && (
+        <div className="grid grid-cols-2 gap-3">
+          {heaviest && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+              <p className="text-xs font-black text-amber-700 uppercase tracking-wide mb-1">⚖ Heaviest</p>
+              <p className="text-xl font-black text-gray-900">{heaviest.heaviest_fish_grams}g</p>
+              <p className="text-xs text-gray-500">{heaviest.team_name}</p>
+            </div>
+          )}
+          {lightest && (
+            <div className="bg-green-50 border border-green-200 rounded-xl p-4">
+              <p className="text-xs font-black text-green-700 uppercase tracking-wide mb-1">🪶 Lightest</p>
+              <p className="text-xl font-black text-gray-900">{lightest.lightest_fish_grams}g</p>
+              <p className="text-xs text-gray-500">{lightest.team_name}</p>
+            </div>
+          )}
+        </div>
+      )}
+      <div className="space-y-2">
+        {ranked.map((team, i) => {
+          const roster = members.filter(m => m.team_id === team.id).map(m => m.name).filter(Boolean).join(' & ')
+          return (
+            <div key={team.id} className="bg-white border border-gray-200 rounded-xl px-4 py-3 flex items-center gap-3">
+              <div className="text-lg font-black w-8 text-center flex-shrink-0" style={{ color: SNZ_DARK }}>
+                {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i + 1}`}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-black text-gray-900 text-sm">{team.team_name}</p>
+                <p className="text-xs text-gray-500 truncate">{roster}</p>
+                {team.result_status === 'under_protest' && <p className="text-xs text-orange-600">Under Protest</p>}
+              </div>
+              <div className="text-right flex-shrink-0">
+                <p className="text-2xl font-black" style={{ color: SNZ_DARK }}>{team.catfish_count || 0}</p>
+                <p className="text-xs text-gray-400">catfish</p>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
 
 // ── Admin Leaderboard ────────────────────────────────────────────────────────
 function AdminLeaderboard({ comp, teams, weighins, fish }) {

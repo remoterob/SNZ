@@ -186,6 +186,12 @@ function Leaderboard2026() {
 export default function CatfishCullPage() {
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState('2027')
+  const [comp2027, setComp2027] = useState(null)
+
+  useEffect(() => {
+    supabase.from('competitions').select('id, status').ilike('name', '%catfish%2027%').maybeSingle()
+      .then(({ data }) => setComp2027(data))
+  }, [])
 
   return (
     <div className="min-h-screen" style={{ background: '#f8fafc' }}>
@@ -198,8 +204,9 @@ export default function CatfishCullPage() {
             ← SNZ Hub
           </button>
         </div>
-        <button onClick={() => navigate('/admin/results')}
-          className="text-xs font-bold text-white bg-white/15 hover:bg-white/25 px-3 py-1.5 rounded-lg transition">
+        <button onClick={() => comp2027 && navigate(`/competitions/${comp2027.id}/admin`)}
+          disabled={!comp2027}
+          className="text-xs font-bold text-white bg-white/15 hover:bg-white/25 px-3 py-1.5 rounded-lg transition disabled:opacity-40">
           ⚙ Admin
         </button>
       </div>
@@ -243,7 +250,7 @@ export default function CatfishCullPage() {
                 {[
                   { icon: '📍', label: 'Location', value: 'Motuoapa, Lake Taupō' },
                   { icon: '📅', label: 'Date',     value: '13 February 2027' },
-                  { icon: '🎯', label: 'Entry',    value: 'Registration opening soon' },
+                  { icon: '🎯', label: 'Entry',    value: comp2027?.status === 'active' ? '$50 per competitor' : 'Registration opening soon' },
                 ].map(item => (
                   <div key={item.label} className="bg-gray-50 rounded-xl p-4 text-center">
                     <p className="text-2xl mb-1">{item.icon}</p>
@@ -272,10 +279,24 @@ export default function CatfishCullPage() {
                 <p className="text-xs text-amber-700 mt-1">It is illegal to shoot trout. Any injured trout found by fishermen could result in the event being cancelled permanently. The kōura and eels in Lake Taupō belong to Ngāti Tūwharetoa and may not be taken. Keep 200m away from fly fishers at all times.</p>
               </div>
 
-              <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
-                <p className="text-sm font-black text-gray-800">🗓 Registration opening soon</p>
-                <p className="text-xs text-gray-600 mt-1">Make sure your SNZ membership is active so you're ready to enter the moment registrations open.</p>
-              </div>
+              {comp2027?.status === 'active' ? (
+                <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-black text-green-900">🐟 Entries are open</p>
+                    <p className="text-xs text-green-700 mt-1">$50 per competitor — pairs $100, trios $150.</p>
+                  </div>
+                  <button onClick={() => navigate('/catfish/register')}
+                    className="px-5 py-2.5 rounded-xl font-black text-white text-sm flex-shrink-0"
+                    style={{ background: SNZ_BLUE }}>
+                    Enter Now →
+                  </button>
+                </div>
+              ) : (
+                <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+                  <p className="text-sm font-black text-gray-800">🗓 Registration opening soon</p>
+                  <p className="text-xs text-gray-600 mt-1">Make sure your SNZ membership is active so you're ready to enter the moment registrations open.</p>
+                </div>
+              )}
             </div>
 
             {/* SNZ membership CTA */}

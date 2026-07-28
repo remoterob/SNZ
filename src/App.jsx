@@ -27,6 +27,7 @@ import NationalsConfirm from './pages/NationalsConfirm'
 import NationalsBuddyFinder from './pages/NationalsBuddyFinder'
 import NationalsLeaderboard from './pages/NationalsLeaderboard'
 import CatfishCullPage from './pages/CatfishCullPage'
+import CatfishCullRegister from './pages/CatfishCullRegister'
 import CompSuperAdmin from './pages/CompSuperAdmin'
 import CompDeepLink from './pages/CompDeepLink'
 import ApplicationArchive from './pages/ApplicationArchive'
@@ -1085,6 +1086,7 @@ export default function App() {
       <Route path="/news"          element={<NewsPage />} />
       <Route path="/leaderboard"   element={<PublicLeaderboard />} />
       <Route path="/catfish"        element={<CatfishCullPage />} />
+      <Route path="/catfish/register" element={<CatfishCullRegister />} />
       <Route path="/membership/admin"       element={<MembershipAdmin />} />
       <Route path="/membership/*"           element={<MembershipRouter />} />
       <Route path="/membership/invited"       element={<MembershipRouter />} />

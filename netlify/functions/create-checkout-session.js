@@ -110,20 +110,26 @@ exports.handler = async (event) => {
     // Success URLs carry the checkout session id so the app can verify the
     // payment server-side (verify-checkout-session) instead of trusting the URL.
     // Stripe substitutes the literal {CHECKOUT_SESSION_ID} placeholder.
+    // Generic competition_entry callers (e.g. CatfishCullRegister.jsx) can
+    // also override the return path — same reasoning as nationalsPath above,
+    // since /competitions/:id/register is a different page (CompRegister.jsx)
+    // than a competition's own dedicated entry flow.
+    const compPath = successPath || `/competitions/${competitionId}/register`
+
     const successUrl = isMembership
       ? `${origin}/membership/dashboard?payment=success&session_id={CHECKOUT_SESSION_ID}`
       : isExtras
         ? `${origin}/membership/dashboard?extras=success&team=${teamId}&session_id={CHECKOUT_SESSION_ID}`
         : isNationals
           ? `${origin}${nationalsPath}?payment=success&team=${teamId}&session_id={CHECKOUT_SESSION_ID}`
-          : `${origin}/competitions/${competitionId}/register?payment=success&session_id={CHECKOUT_SESSION_ID}`
+          : `${origin}${compPath}?payment=success&session_id={CHECKOUT_SESSION_ID}`
     const cancelUrl = isMembership
       ? `${origin}/membership/dashboard?payment=cancelled`
       : isExtras
         ? `${origin}/membership/dashboard?extras=cancelled`
         : isNationals
           ? `${origin}${nationalsPath}?cancelled=1${teamId ? `&team=${teamId}` : ''}`
-          : `${origin}/competitions/${competitionId}/register?payment=cancelled`
+          : `${origin}${compPath}?payment=cancelled`
 
     // Build line items — use provided array (entry + merch, itemised on the
     // Checkout page and the Stripe receipt email) or fall back to a single
