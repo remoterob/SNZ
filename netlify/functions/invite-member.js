@@ -1,5 +1,6 @@
 // Netlify Function: send nationals partner invite / membership invite email
 const { createClient } = require('@supabase/supabase-js')
+const { getAuthenticatedUserId } = require('./lib/auth')
 
 const supabase = createClient(
   process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL,
@@ -30,6 +31,29 @@ exports.handler = async (event) => {
 
     if (!email) {
       return { statusCode: 400, body: JSON.stringify({ error: 'Email required' }) }
+    }
+
+    // This endpoint sends a real email from SNZ's own domain — previously
+    // callable by anyone with no auth at all, letting an arbitrary caller
+    // fire an official-looking "you've been registered" email at any
+    // address they chose. Require a signed-in caller, and if a teamId is
+    // given (the Nationals partner-invite path), require they actually be
+    // that team's Diver 1 — only the registrant can invite their own
+    // partner. The membership-dashboard "change buddy" path doesn't send a
+    // teamId today, so it's only gated on being signed in.
+    const callerUserId = await getAuthenticatedUserId(event)
+    if (!callerUserId) {
+      return { statusCode: 401, body: JSON.stringify({ error: 'Sign in required' }) }
+    }
+    if (teamId) {
+      const { data: team, error: teamErr } = await supabase
+        .from('comp_teams').select('diver1_member_id').eq('id', teamId).maybeSingle()
+      if (teamErr || !team) {
+        return { statusCode: 400, body: JSON.stringify({ error: 'Team not found' }) }
+      }
+      if (callerUserId !== team.diver1_member_id) {
+        return { statusCode: 403, body: JSON.stringify({ error: 'You can only invite a partner to your own team' }) }
+      }
     }
 
     const origin = process.env.URL || 'https://spearfishingnz.netlify.app'

@@ -1,11 +1,17 @@
 // Netlify Function: create a Stripe Checkout session
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY)
 const { createClient } = require('@supabase/supabase-js')
+const { getAuthenticatedUserId } = require('./lib/auth')
+const { isEarlyBirdNow, buildNationalsEntryLineItems, buildNationalsExtraLineItems } = require('./lib/nationalsFees')
 
 const supabase = createClient(
   process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
 )
+
+function sumCents(items) {
+  return items.reduce((total, item) => total + item.amountCents, 0)
+}
 
 exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') {
@@ -16,22 +22,36 @@ exports.handler = async (event) => {
 
   try {
     const body = JSON.parse(event.body)
-    const { type, memberId, teamId, competitionId, competitionName, memberEmail, memberName, lineItems, diverSlot, extraMealQty, extraJacket, extraShirt, successPath } = body
-    let { amountCents } = body
+    const { type, memberId, teamId, competitionId, competitionName, memberEmail, memberName, diverSlot, extraMealQty, extraJacket, extraShirt, successPath } = body
+    let { amountCents, lineItems } = body
 
-    if (!type || !amountCents || amountCents <= 0) {
+    if (!type) {
       return { statusCode: 400, body: JSON.stringify({ error: 'Invalid payment parameters' }) }
+    }
+
+    // Every payment type below charges a specific member or team — verify the
+    // caller actually IS that member (or one of that team's two divers)
+    // before creating any Stripe session. Previously nothing checked this at
+    // all: any memberId/teamId in the request body was trusted at face value.
+    const callerUserId = await getAuthenticatedUserId(event)
+    if (!callerUserId) {
+      return { statusCode: 401, body: JSON.stringify({ error: 'Sign in required' }) }
     }
 
     const isMembership = type === 'membership'
     const isNationals = type === 'nationals_entry'
     const isExtras = type === 'nationals_extra'
+    const isCompetitionEntry = type === 'competition_entry'
+    const slot = diverSlot === '2' || diverSlot === 2 ? '2' : '1'
 
     // Membership price is NEVER taken from the client — look it up from the
     // member's own record so a tampered request can't underpay.
     if (isMembership) {
       if (!memberId) {
         return { statusCode: 400, body: JSON.stringify({ error: 'memberId is required for membership payments' }) }
+      }
+      if (callerUserId !== memberId) {
+        return { statusCode: 403, body: JSON.stringify({ error: 'You can only pay your own membership' }) }
       }
       const { data: member, error: memberErr } = await supabase
         .from('members')
@@ -52,6 +72,80 @@ exports.handler = async (event) => {
         return { statusCode: 400, body: JSON.stringify({ error: 'No membership fee is due' }) }
       }
       amountCents = member.membership_fee_cents
+    }
+
+    // Nationals entries and Nationals extras (buying merch/meal after already
+    // registering) previously trusted the client's own amountCents/lineItems
+    // completely — a tampered request (or just a rolled-back system clock
+    // fooling the early-bird check) could get a real entry marked paid for a
+    // fraction of the real fee. Recompute both from DB-stored team data +
+    // the server's own clock instead; the client's lineItems are ignored.
+    if (isNationals || isExtras) {
+      if (!teamId) {
+        return { statusCode: 400, body: JSON.stringify({ error: 'teamId is required' }) }
+      }
+      const { data: team, error: teamErr } = await supabase
+        .from('comp_teams')
+        .select('diver1_member_id, diver2_member_id, nationals_event, merch_d1, merch_d2, competition_id')
+        .eq('id', teamId)
+        .maybeSingle()
+      if (teamErr || !team) {
+        return { statusCode: 400, body: JSON.stringify({ error: 'Team not found' }) }
+      }
+      const expectedMemberId = slot === '2' ? team.diver2_member_id : team.diver1_member_id
+      if (callerUserId !== expectedMemberId) {
+        return { statusCode: 403, body: JSON.stringify({ error: 'You can only pay your own entry' }) }
+      }
+
+      const { data: competition, error: compErr } = await supabase
+        .from('competitions')
+        .select('category_fees, early_bird_cutoff')
+        .eq('id', team.competition_id)
+        .maybeSingle()
+      if (compErr || !competition) {
+        return { statusCode: 400, body: JSON.stringify({ error: 'Competition not found' }) }
+      }
+
+      const computed = isExtras
+        ? buildNationalsExtraLineItems({ categoryFees: competition.category_fees, extraMealQty, extraJacket, extraShirt })
+        : buildNationalsEntryLineItems({
+            diverSlot: slot,
+            nationalsEvent: team.nationals_event,
+            merch: slot === '2' ? team.merch_d2 : team.merch_d1,
+            categoryFees: competition.category_fees,
+            isEarlyBird: isEarlyBirdNow(competition),
+          })
+
+      if (computed === null) {
+        return { statusCode: 400, body: JSON.stringify({ error: 'Fees are not yet published for this competition' }) }
+      }
+      if (computed.length === 0 || sumCents(computed) <= 0) {
+        return { statusCode: 400, body: JSON.stringify({ error: 'Nothing to charge for the selected events/items' }) }
+      }
+      lineItems = computed
+      amountCents = sumCents(computed)
+    }
+
+    // competition_entry (CompRegister.jsx / CatfishCullRegister.jsx) still
+    // trusts the client's amountCents/lineItems — same class of gap as
+    // nationals_entry/nationals_extra above, not yet closed. At minimum,
+    // verify the caller is actually one of this team's two divers.
+    if (isCompetitionEntry && teamId) {
+      const { data: team, error: teamErr } = await supabase
+        .from('comp_teams')
+        .select('diver1_member_id, diver2_member_id')
+        .eq('id', teamId)
+        .maybeSingle()
+      if (teamErr || !team) {
+        return { statusCode: 400, body: JSON.stringify({ error: 'Team not found' }) }
+      }
+      if (callerUserId !== team.diver1_member_id && callerUserId !== team.diver2_member_id) {
+        return { statusCode: 403, body: JSON.stringify({ error: 'You can only pay for your own team' }) }
+      }
+    }
+
+    if (!amountCents || amountCents <= 0) {
+      return { statusCode: 400, body: JSON.stringify({ error: 'Invalid payment parameters' }) }
     }
 
     // ── Clear labels for Stripe Dashboard reconciliation ──────────────────────
@@ -133,7 +227,9 @@ exports.handler = async (event) => {
 
     // Build line items — use provided array (entry + merch, itemised on the
     // Checkout page and the Stripe receipt email) or fall back to a single
-    // lumped item for callers that don't build one.
+    // lumped item for callers that don't build one. For nationals_entry and
+    // nationals_extra, `lineItems` was already overwritten above with the
+    // server-computed items — the client's original array is never used.
     const stripeLineItems = lineItems && lineItems.length > 0
       ? lineItems.map(item => ({
           price_data: {

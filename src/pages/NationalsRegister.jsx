@@ -217,6 +217,11 @@ export default function NationalsRegister() {
   // p2 is "confirmed" for form purposes if active, inactive, or not_found with an email entered
   const p2Ready = p2Status === 'active' || p2Status === 'inactive' || p2Status === 'not_found'
 
+  // registration_cutoff was fetched but never checked — new teams could be
+  // created indefinitely after entries closed, unlike NationalsConfirm.jsx
+  // (Diver 2) which already enforces this same field.
+  const entriesClosed = comp?.registration_cutoff ? new Date() > new Date(comp.registration_cutoff) : false
+
   // Calculate total fee (Person 1 only — per-team + d1 per-diver)
   // All events are per-person. Person 1 pays for their own selected events.
   const getFee = (eventId) => resolveFeeCents(eventId, categoryFees, isEarlyBird)
@@ -291,6 +296,7 @@ export default function NationalsRegister() {
 
   const validate = () => {
     const e = []
+    if (entriesClosed) e.push('Entries for SNZ Nationals 2027 have closed')
     if (!teamName.trim()) e.push('Team name is required')
     if (!p2Email.trim()) e.push('Diver 2 email is required')
     if (!p2Ready) e.push('Click Look up to confirm your partner\'s email')
@@ -401,7 +407,7 @@ export default function NationalsRegister() {
       // Always send invite email to partner regardless of status
       await fetch('/.netlify/functions/invite-member', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
         body: JSON.stringify({
           email: p2Email.trim().toLowerCase(),
           invitedBy: member?.name || session.user.email,
@@ -418,7 +424,7 @@ export default function NationalsRegister() {
       if (totalCents > 0) {
         const res = await fetch('/.netlify/functions/create-checkout-session', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
           body: JSON.stringify({
             type: 'nationals_entry',
             amountCents: totalCents * 100,
@@ -440,7 +446,15 @@ export default function NationalsRegister() {
       // No fee (fees TBC) — just show success
       setSubmitted(true)
     } catch (err) {
-      setErrors([err.message])
+      // 23505 = Postgres unique_violation — the app-level existingTeam check
+      // above already covers the common case, but a DB-level constraint
+      // (comp_teams_one_per_diver1_per_comp) is the real backstop against a
+      // race between two near-simultaneous submissions, so this can still
+      // fire even when the pre-check passed. Show the same friendly message
+      // either way, not a raw Postgres error.
+      setErrors([err.code === '23505'
+        ? "You've already registered a team for Nationals 2027. Check your email for payment/confirmation details, or contact SNZ if this looks wrong."
+        : err.message])
       window.scrollTo({ top: 0, behavior: 'smooth' })
       setSubmitting(false)
     }
@@ -516,6 +530,13 @@ export default function NationalsRegister() {
           <h1 className="text-2xl font-black text-gray-900">Nationals Registration</h1>
           <p className="text-gray-500 text-sm mt-1">Tairua, Coromandel · 19–24 January 2027</p>
         </div>
+
+        {entriesClosed && (
+          <div className="bg-red-50 border border-red-200 rounded-2xl p-4">
+            <p className="font-black text-red-800 text-sm">Entries are closed</p>
+            <p className="text-xs text-red-600 mt-0.5">The registration deadline has passed. Contact SNZ if you have questions.</p>
+          </div>
+        )}
 
         {errors.length > 0 && (
           <div className="bg-red-50 border border-red-200 rounded-xl p-4">
@@ -982,12 +1003,14 @@ export default function NationalsRegister() {
         </div>
 
         {/* Submit */}
-        <button onClick={handleSubmit}
-          disabled={submitting || !teamName.trim() || !p2Ready}
-          className="w-full py-3 rounded-xl font-black text-white text-sm disabled:opacity-40"
-          style={{ background: SNZ_BLUE }}>
-          {submitting ? 'Processing…' : !hasTBCFees && totalCents > 0 ? `Register & Pay $${totalCents} NZD →` : 'Complete Registration →'}
-        </button>
+        {!entriesClosed && (
+          <button onClick={handleSubmit}
+            disabled={submitting || !teamName.trim() || !p2Ready}
+            className="w-full py-3 rounded-xl font-black text-white text-sm disabled:opacity-40"
+            style={{ background: SNZ_BLUE }}>
+            {submitting ? 'Processing…' : !hasTBCFees && totalCents > 0 ? `Register & Pay $${totalCents} NZD →` : 'Complete Registration →'}
+          </button>
+        )}
         {!hasTBCFees && totalCents > 0 && (
           <p className="text-xs text-gray-400 text-center">You will be redirected to Stripe to complete payment. Your partner will receive an invite to pay their own entry separately.</p>
         )}

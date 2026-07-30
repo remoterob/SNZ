@@ -65,14 +65,24 @@ exports.handler = async (event) => {
           .from('comp_teams').select(merchCol).eq('id', team_id).maybeSingle()
         if (fetchErr) throw new Error(`comp_teams lookup failed: ${fetchErr.message}`)
         const current = team?.[merchCol] || {}
-        const updated = {
-          ...current,
-          meal_qty: (current.meal_qty || 0) + (extra_meal_qty ? parseInt(extra_meal_qty, 10) : 0),
-          jacket: extra_jacket ? JSON.parse(extra_jacket) : current.jacket || null,
-          shirt: extra_shirt ? JSON.parse(extra_shirt) : current.shirt || null,
+        // Stripe explicitly documents at-least-once webhook delivery — a
+        // redelivered event must not double-add meal_qty. Track which
+        // session ids have already been applied inside the same jsonb blob
+        // (no schema migration needed) and skip if this one already ran.
+        const appliedSessions = current._applied_extra_sessions || []
+        if (appliedSessions.includes(session.id)) {
+          console.log(`nationals_extra session ${session.id} already applied to team ${team_id} (${merchCol}) — skipping duplicate delivery`)
+        } else {
+          const updated = {
+            ...current,
+            meal_qty: (current.meal_qty || 0) + (extra_meal_qty ? parseInt(extra_meal_qty, 10) : 0),
+            jacket: extra_jacket ? JSON.parse(extra_jacket) : current.jacket || null,
+            shirt: extra_shirt ? JSON.parse(extra_shirt) : current.shirt || null,
+            _applied_extra_sessions: [...appliedSessions, session.id],
+          }
+          await safeUpdate('comp_teams', { [merchCol]: updated }, 'id', team_id)
+          console.log(`Nationals extras applied to team ${team_id} (${merchCol}), session ${session.id}`)
         }
-        await safeUpdate('comp_teams', { [merchCol]: updated }, 'id', team_id)
-        console.log(`Nationals extras applied to team ${team_id} (${merchCol}), session ${session.id}`)
 
       } else if (type === 'membership' && member_id) {
         await safeUpdate('members', {
@@ -128,7 +138,7 @@ exports.handler = async (event) => {
 
     if (isFullRefund && intentId) {
       try {
-        const { type, member_id, team_id } = charge.metadata || {}
+        const { type, member_id, team_id, diver_slot } = charge.metadata || {}
 
         // Prefer the intent id stored on our rows; fall back to charge metadata
         const { data: memberRows } = await supabase.from('members')
@@ -143,17 +153,32 @@ exports.handler = async (event) => {
           }, 'id', memberId)
           console.log(`Refund synced: member ${memberId} back to pending (${intentId})`)
         } else {
+          // stripe_payment_intent_id on comp_teams only ever holds Diver 1's
+          // intent (the diver2 checkout.session.completed branch above never
+          // sets it), so a Diver 2 refund always falls through to charge
+          // metadata's team_id — which is fine, that's always present.
           const { data: teamRows } = await supabase.from('comp_teams')
             .select('id').eq('stripe_payment_intent_id', intentId)
           const teamId = teamRows?.[0]?.id ||
             ((type === 'competition_entry' || type === 'nationals_entry' || type === 'comp_entry') ? team_id : null)
           if (teamId) {
-            await safeUpdate('comp_teams', {
-              payment_status: 'refunded',
-              status: 'withdrawn',
-              withdrawn_at: new Date().toISOString(),
-            }, 'id', teamId)
-            console.log(`Refund synced: team ${teamId} withdrawn (${intentId})`)
+            // A Diver 2 refund must only clear Diver 2's own payment status —
+            // it must NOT withdraw the whole team, since Diver 1 may still be
+            // competing. Only a Diver 1 refund (the team's primary payment)
+            // withdraws the team.
+            if (diver_slot === '2') {
+              await safeUpdate('comp_teams', {
+                diver2_payment_status: 'refunded',
+              }, 'id', teamId)
+              console.log(`Refund synced: team ${teamId} diver2 payment refunded (${intentId})`)
+            } else {
+              await safeUpdate('comp_teams', {
+                payment_status: 'refunded',
+                status: 'withdrawn',
+                withdrawn_at: new Date().toISOString(),
+              }, 'id', teamId)
+              console.log(`Refund synced: team ${teamId} withdrawn (${intentId})`)
+            }
           } else {
             console.warn(`charge.refunded ${intentId}: no matching member or team — nothing to sync`)
           }

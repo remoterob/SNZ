@@ -790,9 +790,13 @@ function CompletePaymentButton({ team, comp, member, showToast }) {
         ? `${window.location.origin}/nationals/register?cancelled=1`
         : `${window.location.origin}/membership/dashboard`
 
+      const { data: { session: authSession } } = await supabase.auth.getSession()
       const res = await fetch('/.netlify/functions/create-checkout-session', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(authSession?.access_token ? { Authorization: `Bearer ${authSession.access_token}` } : {}),
+        },
         body: JSON.stringify({
           type,
           amountCents: cents,
@@ -856,9 +860,13 @@ function TeamExtras({ team, comp, member, showToast }) {
       if (wantShirt) lineItems.push({ name: `Event T-Shirt (${shirt.gender} ${shirt.size})`, amountCents: merchFees.shirt.price * 100 })
       if (offersMeal && mealQty > 0) lineItems.push({ name: `Prize Giving Dinner ×${mealQty}`, amountCents: mealQty * mealFee * 100 })
 
+      const { data: { session: authSession } } = await supabase.auth.getSession()
       const res = await fetch('/.netlify/functions/create-checkout-session', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(authSession?.access_token ? { Authorization: `Bearer ${authSession.access_token}` } : {}),
+        },
         body: JSON.stringify({
           type: 'nationals_extra',
           amountCents: totalCents,
@@ -1125,7 +1133,10 @@ function MyCompetitions({ session, memberId, member, showToast }) {
       if (!buddyLookup) {
         await fetch('/.netlify/functions/invite-member', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+          },
           body: JSON.stringify({
             email: d2Email,
             invitedBy: session?.user?.email,

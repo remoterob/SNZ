@@ -98,6 +98,9 @@ export default function NationalsRegisterIndividual() {
   }, [member])
 
   const isEarlyBird = earlyBirdCutoff ? new Date() < new Date(earlyBirdCutoff) : false
+  // comp.registration_cutoff was fetched (via select('*')) but never checked
+  // — same gap as NationalsRegister.jsx had.
+  const entriesClosed = comp?.registration_cutoff ? new Date() > new Date(comp.registration_cutoff) : false
 
   const getFee = (eventId) => resolveFee(eventId, categoryFees, isEarlyBird)
 
@@ -140,6 +143,7 @@ export default function NationalsRegisterIndividual() {
 
     // Validate
     const errs = []
+    if (entriesClosed) errs.push('Entries for SNZ Nationals 2027 have closed')
     if (!hasAnySelection) errs.push('Select at least one event')
     if (!emergencyContact.trim()) errs.push('Emergency contact name is required')
     if (!emergencyPhone.trim()) errs.push('Emergency contact phone is required')
@@ -191,7 +195,7 @@ export default function NationalsRegisterIndividual() {
       // Redirect to Stripe checkout
       const res = await fetch('/.netlify/functions/create-checkout-session', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
         body: JSON.stringify({
           type: 'nationals_entry',
           successPath: '/nationals/register/individual',
@@ -209,7 +213,11 @@ export default function NationalsRegisterIndividual() {
       if (!url) throw new Error('Failed to create checkout session')
       window.location.href = url
     } catch (e) {
-      setError(e.message)
+      // 23505 = Postgres unique_violation (comp_teams_one_per_diver1_per_comp)
+      // — one entry per member per competition, pairs or individual.
+      setError(e.code === '23505'
+        ? "You've already registered for Nationals 2027 (as a pairs team or individually). Check your email for payment/confirmation details, or contact SNZ if this looks wrong."
+        : e.message)
       setSubmitting(false)
     }
   }
@@ -504,17 +512,26 @@ export default function NationalsRegisterIndividual() {
           </div>
         </div>
 
+        {entriesClosed && (
+          <div className="bg-red-50 border border-red-200 rounded-2xl p-4">
+            <p className="font-black text-red-800 text-sm">Entries are closed</p>
+            <p className="text-xs text-red-600 mt-0.5">The registration deadline has passed. Contact SNZ if you have questions.</p>
+          </div>
+        )}
+
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-700">
             {error}
           </div>
         )}
 
-        <button onClick={handleSubmit} disabled={submitting || !hasAnySelection || totalDollars === 0}
-          className="w-full py-3.5 rounded-xl font-black text-white text-base disabled:opacity-40"
-          style={{ background: SNZ_BLUE }}>
-          {submitting ? 'Processing…' : totalDollars > 0 ? `Pay ${fmtPrice(totalDollars)} & Register` : 'Register'}
-        </button>
+        {!entriesClosed && (
+          <button onClick={handleSubmit} disabled={submitting || !hasAnySelection || totalDollars === 0}
+            className="w-full py-3.5 rounded-xl font-black text-white text-base disabled:opacity-40"
+            style={{ background: SNZ_BLUE }}>
+            {submitting ? 'Processing…' : totalDollars > 0 ? `Pay ${fmtPrice(totalDollars)} & Register` : 'Register'}
+          </button>
+        )}
 
         <p className="text-xs text-gray-400 text-center">
           You'll be redirected to Stripe to complete your entry fee payment.

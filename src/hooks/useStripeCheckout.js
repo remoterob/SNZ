@@ -3,6 +3,7 @@
 // Then: checkout({ type: 'membership', memberId, amountCents: 1000, ... })
 
 import { useState } from 'react'
+import { supabase } from '../lib/supabase'
 
 export function useStripeCheckout() {
   const [loading, setLoading] = useState(false)
@@ -12,9 +13,13 @@ export function useStripeCheckout() {
     setLoading(true)
     setError(null)
     try {
+      const { data: { session } } = await supabase.auth.getSession()
       const res = await fetch('/.netlify/functions/create-checkout-session', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+        },
         body: JSON.stringify(params),
       })
       const data = await res.json()
