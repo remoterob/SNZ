@@ -6,6 +6,8 @@ package-lock.json
 .env
 .env.local
 .env.production
+.env.migrate
+.env.test
 
 # Build output
 dist/
@@ -29,6 +31,11 @@ Thumbs.db
 # Misc
 .cache/
 coverage/
+
+# Playwright
+playwright-report/
+test-results/
+tests/e2e/fixtures/seeded.json
 
 # Local Netlify folder
 .netlify

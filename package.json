@@ -5,19 +5,23 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:seed": "node tests/e2e/fixtures/seed.js",
+    "test:e2e:sync-schema": "supabase db dump --schema public -f tests/e2e/fixtures/schema-snapshot.sql --linked"
   },
   "dependencies": {
     "@netlify/functions": "^2.8.2",
     "@supabase/supabase-js": "^2.39.0",
     "lucide-react": "^0.294.0",
-    "nodemailer": "^8.0.5",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.20.0",
     "stripe": "^22.0.2"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.0",
     "@types/react": "^18.2.43",
     "@types/react-dom": "^18.2.17",
     "@vitejs/plugin-react": "^4.2.1",
