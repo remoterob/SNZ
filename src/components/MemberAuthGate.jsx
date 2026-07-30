@@ -80,11 +80,13 @@ export function MemberAuthGate({ message }) {
         {/* Tab switcher */}
         <div className="flex gap-2 mb-4">
           <button type="button" onClick={() => { setMode('login'); setError('') }}
+            data-testid="authgate-signin-tab"
             className={`flex-1 py-2 rounded-lg text-sm font-bold border-2 transition ${mode==='login' ? 'text-white border-transparent' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}
             style={mode==='login' ? { background: SNZ_BLUE } : {}}>
             Sign In
           </button>
           <button type="button" onClick={() => navigate(`/membership/signup?redirect=${encodeURIComponent(returnTo)}`)}
+            data-testid="authgate-signup-now"
             className="flex-1 py-2 rounded-lg text-sm font-bold border-2 border-gray-200 text-gray-500 hover:border-gray-300 transition">
             Sign Up Now
           </button>

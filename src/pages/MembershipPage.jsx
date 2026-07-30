@@ -328,6 +328,7 @@ function MemberSignup({ navigate }) {
                 onChange={e => { setEmail(e.target.value); setEmailExists(false) }}
                 onBlur={e => checkEmail(e.target.value)}
                 required
+                data-testid="signup-email"
                 className={`w-full border rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 ${emailExists ? 'border-amber-400 focus:ring-amber-300' : 'border-gray-300 focus:ring-blue-300'}`}
                 placeholder="you@example.com" />
               {checkingEmail && <p className="text-xs text-gray-400 mt-1">Checking…</p>}
@@ -347,16 +348,19 @@ function MemberSignup({ navigate }) {
             <div>
               <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Password <span className="text-red-400">*</span></label>
               <input type="password" value={password} onChange={e => setPassword(e.target.value)} required
+                data-testid="signup-password"
                 className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
                 placeholder="At least 8 characters" />
             </div>
             <div>
               <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Confirm Password <span className="text-red-400">*</span></label>
               <input type="password" value={confirm} onChange={e => setConfirm(e.target.value)} required
+                data-testid="signup-confirm-password"
                 className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
                 placeholder="Repeat your password" />
             </div>
             <button type="submit" disabled={emailExists || checkingEmail}
+              data-testid="signup-continue"
               className="w-full py-3 rounded-xl font-black text-white text-sm disabled:opacity-40"
               style={{ background: SNZ_BLUE }}>
               Continue →
@@ -373,6 +377,7 @@ function MemberSignup({ navigate }) {
               <div className="col-span-2">
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Full Name <span className="text-red-400">*</span></label>
                 <input value={profile.name} onChange={e => set('name')(e.target.value)} required
+                  data-testid="signup-name"
                   className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
                   placeholder="Your full name" />
               </div>
@@ -433,7 +438,9 @@ function MemberSignup({ navigate }) {
 
             <div className="bg-red-50 border border-red-200 rounded-xl p-4">
               <label className="flex items-start gap-3 cursor-pointer">
-                <input type="checkbox" checked={profile.fit_to_dive} onChange={e => set('fit_to_dive')(e.target.checked)} className="mt-0.5 w-5 h-5 flex-shrink-0" />
+                <input type="checkbox" checked={profile.fit_to_dive} onChange={e => set('fit_to_dive')(e.target.checked)}
+                  data-testid="signup-fit-to-dive"
+                  className="mt-0.5 w-5 h-5 flex-shrink-0" />
                 <span className="text-sm text-red-900 font-semibold">
                   I confirm I am medically fit and able to participate safely in spearfishing activities. I have no conditions that would prevent safe participation and take full responsibility for my own safety. <span className="text-red-600">*</span>
                 </span>
@@ -444,6 +451,7 @@ function MemberSignup({ navigate }) {
               <button type="button" onClick={() => setStep(1)}
                 className="flex-1 py-3 rounded-xl border border-gray-300 font-bold text-gray-600 text-sm">← Back</button>
               <button type="submit" disabled={loading}
+                data-testid="signup-complete"
                 className="flex-1 py-3 rounded-xl font-black text-white text-sm disabled:opacity-50"
                 style={{ background: '#16a34a' }}>
                 {loading ? 'Creating account…' : 'Complete Registration'}
