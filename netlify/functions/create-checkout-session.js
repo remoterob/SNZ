@@ -138,7 +138,13 @@ exports.handler = async (event) => {
       ? lineItems.map(item => ({
           price_data: {
             currency: 'nzd',
-            product_data: { name: item.name, description: item.description || '' },
+            // Stripe rejects an explicit empty string for description (it
+            // must be omitted, not blank) — callers like
+            // NationalsRegister.jsx's buildLineItemsD1() never set one, so
+            // `|| ''` broke every multi-item nationals_entry checkout.
+            product_data: item.description
+              ? { name: item.name, description: item.description }
+              : { name: item.name },
             unit_amount: item.amountCents,
           },
           quantity: 1,
