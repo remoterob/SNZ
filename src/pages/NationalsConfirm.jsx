@@ -367,9 +367,12 @@ export default function NationalsConfirm() {
       setSubmitted(true)
     } catch (e) {
       setError(e.message)
-    } finally {
       setSubmitting(false)
     }
+    // No `finally` here deliberately — see the identical fix (and full
+    // explanation) in src/pages/NationalsRegister.jsx's handleSubmit.
+    // window.location.href only schedules navigation; resetting
+    // `submitting` here re-enabled the button during that gap.
   }
 
   const totalCents = calcTotal()

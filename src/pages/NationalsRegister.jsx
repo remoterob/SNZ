@@ -326,6 +326,23 @@ export default function NationalsRegister() {
 
       if (!compCheck) throw new Error('Nationals 2027 registration is not yet open. Check back soon.')
 
+      // Guard against duplicate team creation (double-click, two tabs, or a
+      // slow Stripe redirect that re-enables this button before the browser
+      // actually navigates away) — one team per member per competition.
+      const { data: existingTeam } = await supabase
+        .from('comp_teams')
+        .select('id, team_name, status')
+        .eq('competition_id', compCheck.id)
+        .eq('diver1_member_id', session.user.id)
+        .is('withdrawn_at', null)
+        .maybeSingle()
+      if (existingTeam) {
+        setErrors([`You've already registered "${existingTeam.team_name}" for Nationals 2027. Check your email for payment/confirmation details, or contact SNZ if this looks wrong.`])
+        window.scrollTo({ top: 0, behavior: 'smooth' })
+        setSubmitting(false)
+        return
+      }
+
       const nationalsEvents = {
         ...Object.fromEntries(Object.entries(teamEvents).filter(([, v]) => v)),
         womens: bothWomen,
@@ -425,9 +442,15 @@ export default function NationalsRegister() {
     } catch (err) {
       setErrors([err.message])
       window.scrollTo({ top: 0, behavior: 'smooth' })
-    } finally {
       setSubmitting(false)
     }
+    // No `finally` here deliberately — on the Stripe-redirect path above,
+    // `window.location.href = url` only *schedules* navigation; JS keeps
+    // running until the browser actually unloads. Resetting `submitting`
+    // there re-enabled the Register button during that gap, letting a slow
+    // redirect (or an impatient click) create a second team + a second
+    // invite email + a second Stripe session. Leave the button disabled
+    // until the page actually navigates away.
   }
 
   const totalCents = calcTotal()
