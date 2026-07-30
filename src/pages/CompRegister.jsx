@@ -547,7 +547,14 @@ export default function CompRegister() {
   }
 
   // Category-specific entry fee — handles both old (raw cents) and new ({standard, early_bird}) formats
-  const isEarlyBird = comp?.early_bird_cutoff ? new Date() <= new Date(comp.early_bird_cutoff + 'T23:59:59') : false
+  // early_bird_cutoff is a timestamptz column, so the value PostgREST returns
+  // is always a full ISO timestamp (e.g. "2026-11-30T00:00:00+00:00") even
+  // though CompAdmin's date picker only ever sets a bare calendar date —
+  // appending 'T23:59:59' onto that already-full string produced an
+  // unparseable Date (silently disabling early-bird pricing entirely, always
+  // charging standard price). Take just the YYYY-MM-DD prefix before
+  // appending the end-of-day time, so the cutoff date is inclusive as intended.
+  const isEarlyBird = comp?.early_bird_cutoff ? new Date() <= new Date(comp.early_bird_cutoff.slice(0, 10) + 'T23:59:59') : false
   const entryFeeCents = (() => {
     if (!comp) return 0
     const catFees = comp.category_fees || {}
