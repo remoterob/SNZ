@@ -49,6 +49,10 @@ import BingoDiverPage from './pages/bingo/BingoDiverPage'
 import WFSCApp from './wfsc/WFSCApp'
 import AGMPage from './pages/AGMPage'
 import AGMAdmin from './pages/AGMAdmin'
+import NearMissReport from './pages/NearMissReport'
+import NearMissThanks from './pages/NearMissThanks'
+import NearMissResults from './pages/NearMissResults'
+import NearMissAdmin from './pages/NearMissAdmin'
 
 function ProtectedRoute({ children }) {
   const location = useLocation()
@@ -1087,6 +1091,10 @@ export default function App() {
       <Route path="/leaderboard"   element={<PublicLeaderboard />} />
       <Route path="/catfish"        element={<CatfishCullPage />} />
       <Route path="/catfish/register" element={<CatfishCullRegister />} />
+      <Route path="/near-miss"         element={<NearMissReport />} />
+      <Route path="/near-miss/thanks"  element={<NearMissThanks />} />
+      <Route path="/near-miss/results" element={<NearMissResults />} />
+      <Route path="/admin/near-miss"   element={<ProtectedRoute><NearMissAdmin /></ProtectedRoute>} />
       <Route path="/membership/admin"       element={<MembershipAdmin />} />
       <Route path="/membership/*"           element={<MembershipRouter />} />
       <Route path="/membership/invited"       element={<MembershipRouter />} />
