@@ -872,6 +872,14 @@ function SNZHub() {
         : null,
     },
     {
+      title: 'Vessel Near-Miss Survey',
+      desc: 'Help build the national picture of vessel near-misses and incidents in the water. Anonymous, about 3 minutes, no membership required — every report helps make the case for safer boating around divers.',
+      onClick: () => navigate('/near-miss'),
+      icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={SNZ_BLUE} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>,
+      status: 'live',
+      summary: 'Report an incident — takes about 3 minutes',
+    },
+    {
       title: 'Catfish Cull',
       desc: 'Rosemergy Catfish Cull · Motuoapa, Lake Taupō · 13 Feb 2027. Registration, 2026 results, event info and admin.',
       onClick: () => navigate('/catfish'),
