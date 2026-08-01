@@ -12,18 +12,11 @@ import { readFileSync, existsSync } from 'fs'
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import { execSync } from 'child_process'
+import { loadTestEnv, ROOT_DIR } from './loadTestEnv.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
-const ROOT = join(__dirname, '..', '..', '..')
-
-const envFile = join(ROOT, '.env.test')
-if (existsSync(envFile)) {
-  readFileSync(envFile, 'utf8').split('\n').forEach(line => {
-    if (!line.trim() || line.trim().startsWith('#')) return
-    const [key, ...rest] = line.split('=')
-    if (key?.trim() && rest.length) process.env[key.trim()] = rest.join('=').trim()
-  })
-}
+const ROOT = ROOT_DIR
+loadTestEnv()
 
 const URL = process.env.SUPABASE_URL
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -93,7 +86,7 @@ async function seed() {
   // Idempotent reset of just the tables these tests touch — safe, this is
   // always a disposable local DB, never production. `.not('id', 'is', null)`
   // works as an always-true filter regardless of whether id is uuid or int.
-  for (const table of ['comp_team_members', 'comp_teams', 'competitions', 'member_whitelist', 'members']) {
+  for (const table of ['comp_team_members', 'comp_teams', 'competitions', 'member_whitelist', 'members', 'near_miss_reports', 'near_miss_rate_limit']) {
     const { error } = await sb.from(table).delete().not('id', 'is', null)
     if (error) throw new Error(`Failed to clear ${table}: ${error.message}`)
   }

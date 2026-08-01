@@ -876,6 +876,70 @@ CREATE TABLE IF NOT EXISTS "public"."members" (
 ALTER TABLE "public"."members" OWNER TO "postgres";
 
 
+CREATE TABLE IF NOT EXISTS "public"."near_miss_rate_limit" (
+    "id" bigint NOT NULL,
+    "ip" "text" NOT NULL,
+    "submitted_at" timestamp with time zone DEFAULT "now"() NOT NULL
+);
+
+
+ALTER TABLE "public"."near_miss_rate_limit" OWNER TO "postgres";
+
+
+CREATE SEQUENCE IF NOT EXISTS "public"."near_miss_rate_limit_id_seq"
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE "public"."near_miss_rate_limit_id_seq" OWNER TO "postgres";
+
+
+ALTER SEQUENCE "public"."near_miss_rate_limit_id_seq" OWNED BY "public"."near_miss_rate_limit"."id";
+
+
+
+CREATE TABLE IF NOT EXISTS "public"."near_miss_reports" (
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "user_id" "uuid",
+    "submitted_as_member" boolean DEFAULT false NOT NULL,
+    "time_band" "text" NOT NULL,
+    "approx_month_year" "text",
+    "region" "text" NOT NULL,
+    "location_name" "text" NOT NULL,
+    "distance_from_shore" "text" NOT NULL,
+    "latitude" numeric(9,6),
+    "longitude" numeric(9,6),
+    "outcome" "text" NOT NULL,
+    "closest_distance" "text" NOT NULL,
+    "vessel_speed" "text" NOT NULL,
+    "diver_position" "text" NOT NULL,
+    "visibility_gear" "text"[] DEFAULT '{}'::"text"[] NOT NULL,
+    "vessel_saw_you" "text" NOT NULL,
+    "vessel_type" "text" NOT NULL,
+    "reported_to" "text"[] DEFAULT '{}'::"text"[] NOT NULL,
+    "not_reported_reasons" "text"[] DEFAULT '{}'::"text"[] NOT NULL,
+    "report_outcome" "text",
+    "injury_level" "text" NOT NULL,
+    "years_experience" "text",
+    "days_per_year" "text",
+    "club_member" "text",
+    "free_text" "text",
+    "contact_consent" "text" NOT NULL,
+    "contact_email" "text",
+    "data_use_consent" boolean DEFAULT false NOT NULL,
+    "status" "text" DEFAULT 'pending'::"text" NOT NULL,
+    "moderation_note" "text",
+    "submission_source" "text" DEFAULT 'web'::"text"
+);
+
+
+ALTER TABLE "public"."near_miss_reports" OWNER TO "postgres";
+
+
 CREATE TABLE IF NOT EXISTS "public"."nz_records" (
     "id" bigint NOT NULL,
     "species" "text" NOT NULL,
@@ -1124,6 +1188,10 @@ ALTER TABLE ONLY "public"."member_whitelist" ALTER COLUMN "id" SET DEFAULT "next
 
 
 
+ALTER TABLE ONLY "public"."near_miss_rate_limit" ALTER COLUMN "id" SET DEFAULT "nextval"('"public"."near_miss_rate_limit_id_seq"'::"regclass");
+
+
+
 ALTER TABLE ONLY "public"."page_views" ALTER COLUMN "id" SET DEFAULT "nextval"('"public"."page_views_id_seq"'::"regclass");
 
 
@@ -1343,6 +1411,16 @@ ALTER TABLE ONLY "public"."members"
 
 
 
+ALTER TABLE ONLY "public"."near_miss_rate_limit"
+    ADD CONSTRAINT "near_miss_rate_limit_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."near_miss_reports"
+    ADD CONSTRAINT "near_miss_reports_pkey" PRIMARY KEY ("id");
+
+
+
 ALTER TABLE ONLY "public"."nz_records"
     ADD CONSTRAINT "nz_records_pkey" PRIMARY KEY ("id");
 
@@ -1478,6 +1556,26 @@ CREATE INDEX "idx_teams_division" ON "public"."teams" USING "btree" ("division")
 
 
 CREATE INDEX "idx_teams_team_number" ON "public"."teams" USING "btree" ("team_number");
+
+
+
+CREATE INDEX "near_miss_rate_limit_ip_time_idx" ON "public"."near_miss_rate_limit" USING "btree" ("ip", "submitted_at");
+
+
+
+CREATE INDEX "near_miss_reports_created_idx" ON "public"."near_miss_reports" USING "btree" ("created_at" DESC);
+
+
+
+CREATE INDEX "near_miss_reports_location_idx" ON "public"."near_miss_reports" USING "btree" ("lower"("location_name"));
+
+
+
+CREATE INDEX "near_miss_reports_region_idx" ON "public"."near_miss_reports" USING "btree" ("region");
+
+
+
+CREATE INDEX "near_miss_reports_status_idx" ON "public"."near_miss_reports" USING "btree" ("status");
 
 
 
@@ -1724,6 +1822,11 @@ ALTER TABLE ONLY "public"."members"
 
 
 
+ALTER TABLE ONLY "public"."near_miss_reports"
+    ADD CONSTRAINT "near_miss_reports_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "auth"."users"("id") ON DELETE SET NULL;
+
+
+
 ALTER TABLE ONLY "public"."page_views"
     ADD CONSTRAINT "page_views_member_id_fkey" FOREIGN KEY ("member_id") REFERENCES "public"."members"("id") ON DELETE SET NULL;
 
@@ -1793,6 +1896,10 @@ CREATE POLICY "Anyone can register a team" ON "public"."comp_teams" FOR INSERT W
 
 
 CREATE POLICY "Anyone can register members" ON "public"."comp_team_members" FOR INSERT WITH CHECK (true);
+
+
+
+CREATE POLICY "Anyone can submit a near-miss report" ON "public"."near_miss_reports" FOR INSERT TO "authenticated", "anon" WITH CHECK (true);
 
 
 
@@ -1905,6 +2012,10 @@ CREATE POLICY "Public read fish species" ON "public"."fish_species" FOR SELECT U
 
 
 CREATE POLICY "Public read fish species photos" ON "public"."fish_species_photos" FOR SELECT USING (true);
+
+
+
+CREATE POLICY "Submitters can read their own reports" ON "public"."near_miss_reports" FOR SELECT USING (("auth"."uid"() = "user_id"));
 
 
 
@@ -2141,6 +2252,12 @@ ALTER TABLE "public"."member_whitelist" ENABLE ROW LEVEL SECURITY;
 
 
 ALTER TABLE "public"."members" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."near_miss_rate_limit" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."near_miss_reports" ENABLE ROW LEVEL SECURITY;
 
 
 ALTER TABLE "public"."nz_records" ENABLE ROW LEVEL SECURITY;
@@ -2511,6 +2628,24 @@ GRANT ALL ON SEQUENCE "public"."member_whitelist_id_seq" TO "service_role";
 GRANT ALL ON TABLE "public"."members" TO "anon";
 GRANT ALL ON TABLE "public"."members" TO "authenticated";
 GRANT ALL ON TABLE "public"."members" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."near_miss_rate_limit" TO "anon";
+GRANT ALL ON TABLE "public"."near_miss_rate_limit" TO "authenticated";
+GRANT ALL ON TABLE "public"."near_miss_rate_limit" TO "service_role";
+
+
+
+GRANT ALL ON SEQUENCE "public"."near_miss_rate_limit_id_seq" TO "anon";
+GRANT ALL ON SEQUENCE "public"."near_miss_rate_limit_id_seq" TO "authenticated";
+GRANT ALL ON SEQUENCE "public"."near_miss_rate_limit_id_seq" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."near_miss_reports" TO "anon";
+GRANT ALL ON TABLE "public"."near_miss_reports" TO "authenticated";
+GRANT ALL ON TABLE "public"."near_miss_reports" TO "service_role";
 
 
 
