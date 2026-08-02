@@ -369,13 +369,19 @@ export default function NearMissReport() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div style={{ background: SNZ_DARK }} className="px-6 py-3 flex items-center border-b border-blue-900">
-        <button onClick={() => navigate('/')}
+      <div style={{ background: SNZ_DARK }} className="px-6 py-3 flex items-center justify-between border-b border-blue-900">
+        <div className="flex items-center gap-3">
+          <button onClick={() => navigate('/')}
+            className="flex items-center gap-1.5 text-white font-bold text-sm bg-white/15 hover:bg-white/25 px-3 py-1.5 rounded-lg transition">
+            ← SNZ Hub
+          </button>
+          <span className="text-white/50 mx-2">/</span>
+          <span className="text-white font-bold text-sm">Vessel Near-Miss Survey</span>
+        </div>
+        <button onClick={() => navigate('/admin/near-miss')}
           className="flex items-center gap-1.5 text-white font-bold text-sm bg-white/15 hover:bg-white/25 px-3 py-1.5 rounded-lg transition">
-          ← SNZ Hub
+          ⚙ Admin
         </button>
-        <span className="text-white/50 mx-2">/</span>
-        <span className="text-white font-bold text-sm">Vessel Near-Miss Survey</span>
       </div>
 
       <div className="max-w-2xl mx-auto px-4 py-8">
