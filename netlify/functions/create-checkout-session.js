@@ -22,7 +22,7 @@ exports.handler = async (event) => {
 
   try {
     const body = JSON.parse(event.body)
-    const { type, memberId, teamId, competitionId, competitionName, memberEmail, memberName, diverSlot, extraMealQty, extraJacket, extraShirt, successPath } = body
+    const { type, memberId, teamId, competitionId, competitionName, memberEmail, memberName, diverSlot, extraMealQty, extraJacket, extraShirt, extraShirtQty, successPath } = body
     let { amountCents, lineItems } = body
 
     if (!type) {
@@ -107,7 +107,7 @@ exports.handler = async (event) => {
       }
 
       const computed = isExtras
-        ? buildNationalsExtraLineItems({ categoryFees: competition.category_fees, extraMealQty, extraJacket, extraShirt })
+        ? buildNationalsExtraLineItems({ categoryFees: competition.category_fees, extraMealQty, extraJacket, extraShirt, extraShirtQty })
         : buildNationalsEntryLineItems({
             diverSlot: slot,
             nationalsEvent: team.nationals_event,
@@ -176,7 +176,7 @@ exports.handler = async (event) => {
     // Rich metadata for webhook + Stripe Dashboard filtering
     const metadata = {
       type,
-      category: isMembership ? 'Membership' : isExtras ? 'Nationals Extras' : 'Competition Entry',
+      category: isMembership ? 'Membership' : isExtras ? 'Event Extras' : 'Competition Entry',
       member_name: memberName || '',
       member_email: memberEmail || '',
     }
@@ -191,6 +191,7 @@ exports.handler = async (event) => {
       if (extraMealQty) metadata.extra_meal_qty = String(extraMealQty)
       if (extraJacket) metadata.extra_jacket = JSON.stringify(extraJacket)
       if (extraShirt) metadata.extra_shirt = JSON.stringify(extraShirt)
+      if (extraShirtQty) metadata.extra_shirt_qty = String(extraShirtQty)
     }
 
     // Nationals has three separate entry pages (diver 1 pairs, solo, diver 2

@@ -833,6 +833,7 @@ function TeamExtras({ team, comp, member, showToast }) {
   const [open, setOpen] = useState(false)
   const [jacket, setJacket] = useState({ gender: '', size: '' })
   const [shirt, setShirt] = useState({ gender: '', size: '' })
+  const [shirtQty, setShirtQty] = useState(1)
   const [mealQty, setMealQty] = useState(0)
   const [loading, setLoading] = useState(false)
 
@@ -840,15 +841,20 @@ function TeamExtras({ team, comp, member, showToast }) {
   const mealFee = comp?.category_fees?.meal?.price
   const offersJacket = !!merchFees?.jacket
   const offersShirt = !!merchFees?.shirt
+  const shirtAllowsMultiple = !!merchFees?.shirt?.allowMultiple
   const offersMeal = mealFee > 0
   if (!offersJacket && !offersShirt && !offersMeal) return null
 
   const myMerch = (team._isDiver1 ? team.merch_d1 : team.merch_d2) || {}
+  const existingShirtsQty = (myMerch.shirts || []).reduce((sum, s) => sum + (s.qty || 1), 0)
 
+  // Multi-mode (Catfish Cull): the option never hides, so more can be bought
+  // later. Single-mode (Nationals, unchanged): hidden once one shirt exists.
   const wantJacket = offersJacket && !myMerch.jacket && jacket.gender && jacket.size
-  const wantShirt = offersShirt && !myMerch.shirt && shirt.gender && shirt.size
+  const wantShirt = offersShirt && (shirtAllowsMultiple || !myMerch.shirt) && shirt.gender && shirt.size
+  const effectiveShirtQty = shirtAllowsMultiple ? shirtQty : 1
   const totalCents = (wantJacket ? merchFees.jacket.price * 100 : 0)
-    + (wantShirt ? merchFees.shirt.price * 100 : 0)
+    + (wantShirt ? merchFees.shirt.price * 100 * effectiveShirtQty : 0)
     + (offersMeal ? mealQty * mealFee * 100 : 0)
 
   const handleBuy = async () => {
@@ -857,7 +863,7 @@ function TeamExtras({ team, comp, member, showToast }) {
     try {
       const lineItems = []
       if (wantJacket) lineItems.push({ name: `Event Jacket (${jacket.gender} ${jacket.size})`, amountCents: merchFees.jacket.price * 100 })
-      if (wantShirt) lineItems.push({ name: `Event T-Shirt (${shirt.gender} ${shirt.size})`, amountCents: merchFees.shirt.price * 100 })
+      if (wantShirt) lineItems.push({ name: `Event T-Shirt (${shirt.gender} ${shirt.size})${effectiveShirtQty > 1 ? ` ×${effectiveShirtQty}` : ''}`, amountCents: merchFees.shirt.price * 100 * effectiveShirtQty })
       if (offersMeal && mealQty > 0) lineItems.push({ name: `Prize Giving Dinner ×${mealQty}`, amountCents: mealQty * mealFee * 100 })
 
       const { data: { session: authSession } } = await supabase.auth.getSession()
@@ -881,6 +887,7 @@ function TeamExtras({ team, comp, member, showToast }) {
           extraMealQty: offersMeal && mealQty > 0 ? mealQty : undefined,
           extraJacket: wantJacket ? jacket : undefined,
           extraShirt: wantShirt ? shirt : undefined,
+          extraShirtQty: wantShirt && shirtAllowsMultiple ? shirtQty : undefined,
         }),
       })
       const { url, error } = await res.json()
@@ -896,11 +903,12 @@ function TeamExtras({ team, comp, member, showToast }) {
     <div className="bg-gray-50 rounded-xl px-3 py-2 mb-3 text-xs">
       <div className="flex items-center justify-between">
         <span className="text-gray-500">Merch &amp; meal: </span>
-        {(myMerch.jacket || myMerch.shirt || myMerch.meal_qty > 0) ? (
+        {(myMerch.jacket || myMerch.shirt || existingShirtsQty > 0 || myMerch.meal_qty > 0) ? (
           <span className="font-semibold text-gray-800 text-right">
             {[
               myMerch.jacket ? `🧥 ${myMerch.jacket.gender} ${myMerch.jacket.size}` : null,
               myMerch.shirt ? `👕 ${myMerch.shirt.gender} ${myMerch.shirt.size}` : null,
+              existingShirtsQty > 0 ? `👕 ×${existingShirtsQty}` : null,
               myMerch.meal_qty > 0 ? `🍽️ ×${myMerch.meal_qty}` : null,
             ].filter(Boolean).join(' · ')}
           </span>
@@ -933,7 +941,7 @@ function TeamExtras({ team, comp, member, showToast }) {
               )}
             </div>
           )}
-          {offersShirt && !myMerch.shirt && (
+          {offersShirt && (shirtAllowsMultiple || !myMerch.shirt) && (
             <div className="flex items-center gap-2">
               <span className="w-24 flex-shrink-0 text-gray-500">👕 Shirt (${merchFees.shirt.price})</span>
               <select value={shirt.gender} onChange={e => setShirt(s => ({ ...s, gender: e.target.value }))}
@@ -948,6 +956,15 @@ function TeamExtras({ team, comp, member, showToast }) {
                   <option value="">Size</option>
                   {['XS','S','M','L','XL','2XL','3XL','4XL'].map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
+              )}
+              {shirtAllowsMultiple && shirt.gender && shirt.size && (
+                <>
+                  <button type="button" onClick={() => setShirtQty(q => Math.max(1, q - 1))} disabled={shirtQty <= 1}
+                    className="w-6 h-6 rounded border border-gray-300 text-gray-600 font-bold flex items-center justify-center disabled:opacity-30">−</button>
+                  <span className="w-6 text-center font-bold">{shirtQty}</span>
+                  <button type="button" onClick={() => setShirtQty(q => q + 1)}
+                    className="w-6 h-6 rounded border border-gray-300 text-gray-600 font-bold flex items-center justify-center">+</button>
+                </>
               )}
             </div>
           )}

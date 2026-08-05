@@ -54,7 +54,7 @@ exports.handler = async (event) => {
 
   if (stripeEvent.type === 'checkout.session.completed') {
     const session = stripeEvent.data.object
-    const { type, member_id, team_id, diver_slot, extra_meal_qty, extra_jacket, extra_shirt } = session.metadata || {}
+    const { type, member_id, team_id, diver_slot, extra_meal_qty, extra_jacket, extra_shirt, extra_shirt_qty } = session.metadata || {}
     const paymentIntent = session.payment_intent
     const paidAt = new Date().toISOString()
 
@@ -77,7 +77,15 @@ exports.handler = async (event) => {
             ...current,
             meal_qty: (current.meal_qty || 0) + (extra_meal_qty ? parseInt(extra_meal_qty, 10) : 0),
             jacket: extra_jacket ? JSON.parse(extra_jacket) : current.jacket || null,
-            shirt: extra_shirt ? JSON.parse(extra_shirt) : current.shirt || null,
+            // extra_shirt_qty only appears for competitions with
+            // merch.shirt.allowMultiple (Catfish Cull) — append to a running
+            // list instead of overwriting the single `shirt` slot Nationals
+            // uses, so different sizes bought across visits are all kept.
+            // Nationals never sends extra_shirt_qty, so its existing
+            // overwrite-`shirt` behaviour is completely unchanged.
+            ...(extra_shirt_qty
+              ? { shirts: [...(current.shirts || []), { ...JSON.parse(extra_shirt), qty: parseInt(extra_shirt_qty, 10) }] }
+              : { shirt: extra_shirt ? JSON.parse(extra_shirt) : current.shirt || null }),
             _applied_extra_sessions: [...appliedSessions, session.id],
           }
           await safeUpdate('comp_teams', { [merchCol]: updated }, 'id', team_id)

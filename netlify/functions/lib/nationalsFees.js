@@ -91,7 +91,7 @@ function buildNationalsEntryLineItems({ diverSlot, nationalsEvent, merch, catego
 // Builds server-computed line items for a nationals_extra purchase (buying
 // additional merch/meal after already being registered) from the requested
 // items only — prices always come from categoryFees, never from the client.
-function buildNationalsExtraLineItems({ categoryFees, extraMealQty, extraJacket, extraShirt }) {
+function buildNationalsExtraLineItems({ categoryFees, extraMealQty, extraJacket, extraShirt, extraShirtQty }) {
   if (categoryFees === null || categoryFees === undefined) return null
   const items = []
   const jFee = getMerchFeeDollars(categoryFees, 'jacket')
@@ -99,8 +99,13 @@ function buildNationalsExtraLineItems({ categoryFees, extraMealQty, extraJacket,
     items.push({ name: `🧥 Event Jacket (${extraJacket.gender} ${extraJacket.size})`, amountCents: jFee * 100 })
   }
   const sFee = getMerchFeeDollars(categoryFees, 'shirt')
-  if (sFee && extraShirt?.gender && extraShirt?.size) {
-    items.push({ name: `👕 Event T-Shirt (${extraShirt.gender} ${extraShirt.size})`, amountCents: sFee * 100 })
+  // extraShirtQty only appears for competitions with merch.shirt.allowMultiple
+  // (Catfish Cull) — Nationals' calls never send it, so shirtQty defaults to
+  // 1 and the label matches its existing unchanged wording exactly.
+  const shirtQty = parseInt(extraShirtQty, 10) || (extraShirt?.gender && extraShirt?.size ? 1 : 0)
+  if (sFee && extraShirt?.gender && extraShirt?.size && shirtQty > 0) {
+    const suffix = shirtQty > 1 ? ` × ${shirtQty}` : ''
+    items.push({ name: `👕 Event T-Shirt (${extraShirt.gender} ${extraShirt.size})${suffix}`, amountCents: sFee * 100 * shirtQty })
   }
   const mFee = getMealFeeDollars(categoryFees)
   const qty = parseInt(extraMealQty, 10) || 0
