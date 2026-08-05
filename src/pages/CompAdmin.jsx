@@ -931,6 +931,73 @@ function SetupTab({ comp, setComp, onSave, showToast }) {
         </div>
       </div>
 
+      {/* Dashboard Extras — post-entry purchases (meal tickets, event t-shirt)
+          made from the membership dashboard's "+ Add extras" panel, same
+          mechanism as Nationals. Separate from the Merchandise section below,
+          which is picked at registration time. */}
+      <div className="bg-white border border-gray-200 rounded-xl p-6">
+        <h3 className="text-sm font-black tracking-widest uppercase mb-1 pb-3 border-b border-gray-100" style={{ color: SNZ_BLUE }}>Dashboard Extras</h3>
+        <p className="text-xs text-gray-400 mb-4">Optional purchases competitors can add from their membership dashboard once they've already entered. Leave price at $0 to hide.</p>
+
+        <div className="space-y-4">
+          <div className="flex items-center gap-3 flex-wrap">
+            <span className="text-sm font-bold text-gray-700 w-36 flex-shrink-0">🍽️ Dinner ticket</span>
+            <div className="flex items-center gap-1">
+              <span className="text-gray-400 font-bold text-sm">$</span>
+              <input type="number" min="0" step="1"
+                value={form.category_fees?.meal?.price ?? ''}
+                placeholder="0"
+                onChange={e => {
+                  const price = Math.round(parseFloat(e.target.value) || 0)
+                  const fees = { ...(form.category_fees || {}) }
+                  if (price > 0) fees.meal = { price }
+                  else delete fees.meal
+                  set('category_fees')(fees)
+                }}
+                className="w-24 border border-gray-300 rounded-lg px-2 py-1.5 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-300"
+                style={{ MozAppearance: 'textfield', WebkitAppearance: 'none' }} />
+              <span className="text-xs text-gray-400">NZD each</span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 flex-wrap">
+            <span className="text-sm font-bold text-gray-700 w-36 flex-shrink-0">👕 Event T-shirt</span>
+            <div className="flex items-center gap-1">
+              <span className="text-gray-400 font-bold text-sm">$</span>
+              <input type="number" min="0" step="1"
+                value={form.category_fees?.merch?.shirt?.price ?? ''}
+                placeholder="0"
+                onChange={e => {
+                  const price = Math.round(parseFloat(e.target.value) || 0)
+                  const fees = { ...(form.category_fees || {}) }
+                  const merch = { ...(fees.merch || {}) }
+                  if (price > 0) merch.shirt = { price, allowMultiple: !!merch.shirt?.allowMultiple }
+                  else delete merch.shirt
+                  if (Object.keys(merch).length > 0) fees.merch = merch
+                  else delete fees.merch
+                  set('category_fees')(fees)
+                }}
+                className="w-24 border border-gray-300 rounded-lg px-2 py-1.5 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-300"
+                style={{ MozAppearance: 'textfield', WebkitAppearance: 'none' }} />
+              <span className="text-xs text-gray-400">NZD each</span>
+            </div>
+            <label className={`flex items-center gap-2 text-xs ${form.category_fees?.merch?.shirt?.price > 0 ? 'text-gray-600 cursor-pointer' : 'text-gray-300'}`}>
+              <input type="checkbox" checked={!!form.category_fees?.merch?.shirt?.allowMultiple}
+                disabled={!(form.category_fees?.merch?.shirt?.price > 0)}
+                onChange={e => {
+                  const fees = { ...(form.category_fees || {}) }
+                  const merch = { ...(fees.merch || {}) }
+                  merch.shirt = { ...(merch.shirt || {}), allowMultiple: e.target.checked }
+                  fees.merch = merch
+                  set('category_fees')(fees)
+                }}
+                className="w-4 h-4" />
+              Allow buying more than one
+            </label>
+          </div>
+        </div>
+      </div>
+
       <div className="bg-white border border-gray-200 rounded-xl p-6">
         <h3 className="text-sm font-black tracking-widest uppercase mb-4 pb-3 border-b border-gray-100" style={{ color: SNZ_BLUE }}>Sponsors</h3>
         <p className="text-xs text-gray-400 mb-4">Upload up to 3 sponsor logos — shown at the bottom of all competition screens. Use transparent PNG or white-background images for best results.</p>
