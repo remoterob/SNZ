@@ -15,6 +15,77 @@ const emptyCompetitor = {
   fit_to_dive: false,
 }
 
+function PersonExtras({ label, shirt, setShirt, shirtQty, setShirtQty, mealQty, setMealQty, offersShirt, offersMeal, shirtFee, shirtAllowsMultiple, mealFee }) {
+  if (!offersShirt && !offersMeal) return null
+  return (
+    <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-4">
+      <h3 className="text-sm font-black tracking-widest uppercase" style={{ color: SNZ_BLUE }}>{label} — Merch &amp; Meal (optional)</h3>
+
+      {offersShirt && (
+        <div className="border border-gray-200 rounded-xl p-4 space-y-3">
+          <div className="flex justify-between items-center">
+            <p className="font-bold text-gray-900 text-sm">👕 Event T-Shirt</p>
+            <p className="font-black text-gray-900 text-sm">${shirtFee}{shirtAllowsMultiple && shirtQty > 1 ? ` × ${shirtQty}` : ''}</p>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Gender fit</label>
+              <select value={shirt.gender} onChange={e => setShirt(s => ({ ...s, gender: e.target.value }))}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300">
+                <option value="">No shirt</option>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+              </select>
+            </div>
+            {shirt.gender && (
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Size</label>
+                <select value={shirt.size} onChange={e => setShirt(s => ({ ...s, size: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300">
+                  <option value="">Select size</option>
+                  {['XS','S','M','L','XL','2XL','3XL'].map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+            )}
+          </div>
+          {shirtAllowsMultiple && shirt.gender && shirt.size && (
+            <div className="flex items-center gap-3">
+              <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Quantity</label>
+              <div className="flex items-center gap-2">
+                <button type="button" onClick={() => setShirtQty(q => Math.max(1, q - 1))} disabled={shirtQty <= 1}
+                  className="w-8 h-8 rounded-lg border border-gray-300 text-gray-600 font-bold text-lg flex items-center justify-center hover:bg-gray-50 disabled:opacity-30">−</button>
+                <span className="w-8 text-center font-black text-gray-900">{shirtQty}</span>
+                <button type="button" onClick={() => setShirtQty(q => q + 1)}
+                  className="w-8 h-8 rounded-lg border border-gray-300 text-gray-600 font-bold text-lg flex items-center justify-center hover:bg-gray-50">+</button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {offersMeal && (
+        <div className="border border-gray-200 rounded-xl p-4">
+          <div className="flex justify-between items-center mb-3">
+            <p className="font-bold text-gray-900 text-sm">🍽️ Dinner Ticket</p>
+            <p className="text-xs text-gray-400">${mealFee} each</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Tickets</label>
+            <div className="flex items-center gap-2">
+              <button type="button" onClick={() => setMealQty(q => Math.max(0, q - 1))} disabled={mealQty === 0}
+                className="w-8 h-8 rounded-lg border border-gray-300 text-gray-600 font-bold text-lg flex items-center justify-center hover:bg-gray-50 disabled:opacity-30">−</button>
+              <span className="w-8 text-center font-black text-gray-900">{mealQty}</span>
+              <button type="button" onClick={() => setMealQty(q => q + 1)}
+                className="w-8 h-8 rounded-lg border border-gray-300 text-gray-600 font-bold text-lg flex items-center justify-center hover:bg-gray-50">+</button>
+            </div>
+            {mealQty > 0 && <span className="text-sm font-bold text-gray-700 ml-2">${mealFee * mealQty}</span>}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function CompetitorForm({ label, data, onChange, required }) {
   const set = k => v => onChange({ ...data, [k]: v })
   return (
@@ -111,6 +182,13 @@ export default function CatfishCullRegister() {
 
   const [rulesAccepted, setRulesAccepted] = useState(false)
 
+  const [shirt1, setShirt1] = useState({ gender: '', size: '' })
+  const [shirtQty1, setShirtQty1] = useState(1)
+  const [mealQty1, setMealQty1] = useState(0)
+  const [shirt2, setShirt2] = useState({ gender: '', size: '' })
+  const [shirtQty2, setShirtQty2] = useState(1)
+  const [mealQty2, setMealQty2] = useState(0)
+
   useEffect(() => {
     supabase.from('competitions').select('*').ilike('name', '%catfish%2027%').maybeSingle()
       .then(({ data }) => { setComp(data); setLoading(false) })
@@ -172,7 +250,32 @@ export default function CatfishCullRegister() {
   }
 
   const competitorCount = 2 + (hasThird ? 1 : 0)
-  const entryFeeCents = competitorCount * PER_COMPETITOR_FEE * 100
+
+  // Entry fee must respect the competition's own early-bird cutoff/pricing
+  // (category_fees.Open) instead of a flat hardcoded amount — previously this
+  // ignored early_bird entirely and always charged the standard rate.
+  const isEarlyBird = comp?.early_bird_cutoff ? new Date() < new Date(comp.early_bird_cutoff) : false
+  const openFee = comp?.category_fees?.Open || {}
+  const perCompetitorCents = isEarlyBird && openFee.early_bird != null
+    ? openFee.early_bird
+    : (openFee.standard ?? comp?.entry_fee_cents ?? PER_COMPETITOR_FEE * 100)
+  const entryFeeCents = competitorCount * perCompetitorCents
+
+  const merchFees = comp?.category_fees?.merch
+  const mealFee = comp?.category_fees?.meal?.price
+  const offersShirt = !!merchFees?.shirt
+  const offersMeal = mealFee > 0
+  const shirtFee = merchFees?.shirt?.price
+  const shirtAllowsMultiple = !!merchFees?.shirt?.allowMultiple
+
+  const wantShirt1 = offersShirt && shirt1.gender && shirt1.size
+  const wantShirt2 = offersShirt && shirt2.gender && shirt2.size
+  const effShirtQty1 = shirtAllowsMultiple ? shirtQty1 : 1
+  const effShirtQty2 = shirtAllowsMultiple ? shirtQty2 : 1
+  const extrasCents = (wantShirt1 ? shirtFee * 100 * effShirtQty1 : 0)
+    + (wantShirt2 ? shirtFee * 100 * effShirtQty2 : 0)
+    + (offersMeal ? (mealQty1 + mealQty2) * mealFee * 100 : 0)
+  const totalCents = entryFeeCents + extrasCents
 
   const validate = () => {
     const e = []
@@ -206,6 +309,17 @@ export default function CatfishCullRegister() {
         ? (await supabase.from('members').select('id').eq('email', p3.email.trim().toLowerCase()).maybeSingle()).data
         : null
 
+      const buildMerch = (wantShirt, shirt, shirtQty, mealQty) => {
+        if (!wantShirt && mealQty <= 0) return null
+        const merch = {}
+        if (wantShirt) {
+          if (shirtAllowsMultiple) merch.shirts = [{ gender: shirt.gender, size: shirt.size, qty: shirtQty }]
+          else merch.shirt = { gender: shirt.gender, size: shirt.size }
+        }
+        if (mealQty > 0) merch.meal_qty = mealQty
+        return merch
+      }
+
       const { data: team, error: tErr } = await supabase.from('comp_teams').insert({
         competition_id: comp.id,
         team_name: teamName.trim(),
@@ -218,6 +332,8 @@ export default function CatfishCullRegister() {
         diver2_email: p2.email.trim().toLowerCase(),
         status: 'pending_payment',
         entry_fee_cents: entryFeeCents,
+        merch_d1: buildMerch(wantShirt1, shirt1, effShirtQty1, mealQty1),
+        merch_d2: buildMerch(wantShirt2, shirt2, effShirtQty2, mealQty2),
       }).select('id').single()
       if (tErr) throw tErr
 
@@ -247,10 +363,15 @@ export default function CatfishCullRegister() {
 
       sessionStorage.setItem('snz_catfish_entry', JSON.stringify({ teamName: teamName.trim() }))
 
+      const earlyBirdSuffix = isEarlyBird ? ' (early bird)' : ''
       const lineItems = [
-        { name: `Entry fee — ${p1.name}`, amountCents: PER_COMPETITOR_FEE * 100 },
-        { name: `Entry fee — ${p2.name}`, amountCents: PER_COMPETITOR_FEE * 100 },
-        ...(hasThird ? [{ name: `Entry fee — ${p3.name}`, amountCents: PER_COMPETITOR_FEE * 100 }] : []),
+        { name: `Entry fee — ${p1.name}${earlyBirdSuffix}`, amountCents: perCompetitorCents },
+        { name: `Entry fee — ${p2.name}${earlyBirdSuffix}`, amountCents: perCompetitorCents },
+        ...(hasThird ? [{ name: `Entry fee — ${p3.name}${earlyBirdSuffix}`, amountCents: perCompetitorCents }] : []),
+        ...(wantShirt1 ? [{ name: `👕 T-Shirt (${p1.name}, ${shirt1.gender} ${shirt1.size})${effShirtQty1 > 1 ? ` × ${effShirtQty1}` : ''}`, amountCents: shirtFee * 100 * effShirtQty1 }] : []),
+        ...(wantShirt2 ? [{ name: `👕 T-Shirt (${p2.name}, ${shirt2.gender} ${shirt2.size})${effShirtQty2 > 1 ? ` × ${effShirtQty2}` : ''}`, amountCents: shirtFee * 100 * effShirtQty2 }] : []),
+        ...(offersMeal && mealQty1 > 0 ? [{ name: `🍽️ Dinner ticket × ${mealQty1} (${p1.name})`, amountCents: mealFee * 100 * mealQty1 }] : []),
+        ...(offersMeal && mealQty2 > 0 ? [{ name: `🍽️ Dinner ticket × ${mealQty2} (${p2.name})`, amountCents: mealFee * 100 * mealQty2 }] : []),
       ]
 
       // checkout() swallows its own errors (sets the hook's `error` state
@@ -263,7 +384,7 @@ export default function CatfishCullRegister() {
         teamId: team.id,
         competitionId: comp.id,
         competitionName: comp.name,
-        amountCents: entryFeeCents,
+        amountCents: totalCents,
         lineItems,
         memberEmail: member?.email || p1.email,
         memberName: member?.name || p1.name,
@@ -350,8 +471,13 @@ export default function CatfishCullRegister() {
         )}
 
         <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-          <p className="text-sm font-black text-blue-900">$50 per competitor</p>
-          <p className="text-xs text-blue-700 mt-0.5">Pairs = $100 · Trios = $150 (groups of 3 welcome but ineligible for top prizes).</p>
+          <p className="text-sm font-black text-blue-900">
+            ${(perCompetitorCents / 100).toFixed(0)} per competitor{isEarlyBird && <span className="text-amber-600"> 🐦 Early bird</span>}
+          </p>
+          <p className="text-xs text-blue-700 mt-0.5">
+            Pairs = ${(perCompetitorCents * 2 / 100).toFixed(0)} · Trios = ${(perCompetitorCents * 3 / 100).toFixed(0)} (groups of 3 welcome but ineligible for top prizes).
+            {isEarlyBird && comp?.early_bird_cutoff && ` Early bird pricing until ${new Date(comp.early_bird_cutoff).toLocaleDateString('en-NZ', { day: 'numeric', month: 'short' })}.`}
+          </p>
         </div>
 
         <div className="bg-white border border-gray-200 rounded-xl p-5">
@@ -362,6 +488,12 @@ export default function CatfishCullRegister() {
         </div>
 
         <CompetitorForm label="Competitor 1 (You)" data={p1} onChange={setP1} required />
+
+        <PersonExtras label={p1.name || 'Competitor 1'}
+          shirt={shirt1} setShirt={setShirt1} shirtQty={shirtQty1} setShirtQty={setShirtQty1}
+          mealQty={mealQty1} setMealQty={setMealQty1}
+          offersShirt={offersShirt} offersMeal={offersMeal} shirtFee={shirtFee}
+          shirtAllowsMultiple={shirtAllowsMultiple} mealFee={mealFee} />
 
         <div className="bg-white border border-gray-200 rounded-xl p-5">
           <h3 className="text-sm font-black tracking-widest uppercase mb-3" style={{ color: SNZ_BLUE }}>Competitor 2</h3>
@@ -380,6 +512,12 @@ export default function CatfishCullRegister() {
           </div>
           <CompetitorForm label="" data={p2} onChange={v => { setP2(v); setP2Checked(false) }} required />
         </div>
+
+        <PersonExtras label={p2.name || 'Competitor 2'}
+          shirt={shirt2} setShirt={setShirt2} shirtQty={shirtQty2} setShirtQty={setShirtQty2}
+          mealQty={mealQty2} setMealQty={setMealQty2}
+          offersShirt={offersShirt} offersMeal={offersMeal} shirtFee={shirtFee}
+          shirtAllowsMultiple={shirtAllowsMultiple} mealFee={mealFee} />
 
         {!hasThird ? (
           <button type="button" onClick={() => setHasThird(true)}
@@ -428,15 +566,27 @@ export default function CatfishCullRegister() {
           </label>
         </div>
 
-        <div className="bg-white border-2 border-gray-200 rounded-xl p-5 flex items-center justify-between">
-          <span className="text-sm font-bold text-gray-500 uppercase tracking-wider">Total ({competitorCount} competitors)</span>
-          <span className="text-2xl font-black" style={{ color: SNZ_BLUE }}>${(entryFeeCents / 100).toFixed(0)} NZD</span>
+        <div className="bg-white border-2 border-gray-200 rounded-xl p-5 space-y-1.5">
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-gray-500">Entry fee ({competitorCount} competitors)</span>
+            <span className="font-bold text-gray-700">${(entryFeeCents / 100).toFixed(0)}</span>
+          </div>
+          {extrasCents > 0 && (
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-gray-500">Merch &amp; meal tickets</span>
+              <span className="font-bold text-gray-700">${(extrasCents / 100).toFixed(0)}</span>
+            </div>
+          )}
+          <div className="flex items-center justify-between pt-1.5 border-t border-gray-100">
+            <span className="text-sm font-bold text-gray-500 uppercase tracking-wider">Total</span>
+            <span className="text-2xl font-black" style={{ color: SNZ_BLUE }}>${(totalCents / 100).toFixed(0)} NZD</span>
+          </div>
         </div>
 
         <button type="submit" disabled={submitting || checkoutLoading}
           className="w-full py-4 rounded-xl font-black text-white text-base disabled:opacity-50"
           style={{ background: SNZ_BLUE }}>
-          {submitting || checkoutLoading ? 'Processing…' : `Pay $${(entryFeeCents / 100).toFixed(0)} & Enter →`}
+          {submitting || checkoutLoading ? 'Processing…' : `Pay $${(totalCents / 100).toFixed(0)} & Enter →`}
         </button>
         <p className="text-xs text-gray-400 text-center">You'll be redirected to Stripe to complete your entry fee payment.</p>
       </form>
