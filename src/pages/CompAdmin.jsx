@@ -1757,23 +1757,25 @@ function TeamsTab({ teams, members, weighins, comp, onRefresh, showToast }) {
           const isExpanded = expandedTeam === t.id
           return (
             <div key={t.id} className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
-              <div className="flex items-center gap-3 px-4 py-3">
-                {/* Team photo */}
-                {t.team_photo_url
-                  ? <img src={t.team_photo_url} alt={t.team_name} className="w-10 h-10 rounded-full object-cover border border-gray-200 flex-shrink-0" />
-                  : <div className="w-10 h-10 rounded-full bg-gray-100 border-2 border-dashed border-gray-200 flex items-center justify-center text-lg flex-shrink-0">👥</div>
-                }
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-bold text-gray-900 text-sm">{t.team_name}</span>
-                    <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">{t.category}</span>
-                    {t.status === 'pending_payment' && (
-                      <span className="text-xs font-black px-2 py-0.5 rounded-full bg-red-100 text-red-700 border border-red-300 uppercase tracking-wide">⚠ Unpaid</span>
-                    )}
+              <div className="px-4 py-3 space-y-2.5">
+                <div className="flex items-center gap-3 min-w-0">
+                  {/* Team photo */}
+                  {t.team_photo_url
+                    ? <img src={t.team_photo_url} alt={t.team_name} className="w-10 h-10 rounded-full object-cover border border-gray-200 flex-shrink-0" />
+                    : <div className="w-10 h-10 rounded-full bg-gray-100 border-2 border-dashed border-gray-200 flex items-center justify-center text-lg flex-shrink-0">👥</div>
+                  }
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-bold text-gray-900 text-sm break-words">{t.team_name}</span>
+                      <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">{t.category}</span>
+                      {t.status === 'pending_payment' && (
+                        <span className="text-xs font-black px-2 py-0.5 rounded-full bg-red-100 text-red-700 border border-red-300 uppercase tracking-wide">⚠ Unpaid</span>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-400 mt-0.5">{mems.map(m => m.name).join(' & ') || 'No members'}</p>
                   </div>
-                  <p className="text-xs text-gray-400 mt-0.5">{mems.map(m => m.name).join(' & ') || 'No members'}</p>
                 </div>
-                <div className="flex items-center gap-2 flex-shrink-0">
+                <div className="flex items-center gap-2 flex-wrap">
                   <button onClick={() => setExpandedTeam(isExpanded ? null : t.id)}
                     className="px-2.5 py-1 rounded-lg text-xs font-bold border border-gray-300 text-gray-500 hover:bg-gray-50">
                     {isExpanded ? 'Hide' : 'Details'}
