@@ -1298,6 +1298,82 @@ function MemberSection({ label, data, setField }) {
   )
 }
 
+// Reads a comp_teams.merch_d1/merch_d2 jsonb blob into editable form state,
+// handling both the singular `shirt` shape (Nationals) and the additive
+// `shirts` array shape (Catfish Cull's allowMultiple) — same dual shape
+// TeamExtras (membership dashboard) reads.
+function initTeamMerch(raw) {
+  const r = raw || {}
+  const firstShirtBatch = (r.shirts || [])[0]
+  return {
+    jacket: r.jacket || { gender: '', size: '' },
+    shirt: r.shirt || (firstShirtBatch ? { gender: firstShirtBatch.gender, size: firstShirtBatch.size } : { gender: '', size: '' }),
+    shirtQty: firstShirtBatch?.qty || 1,
+    meal_qty: r.meal_qty || 0,
+  }
+}
+
+function TeamMerchFields({ label, merch, setMerch, merchFees, mealFee, shirtAllowsMultiple }) {
+  const offersJacket = !!merchFees?.jacket
+  const offersShirt = !!merchFees?.shirt
+  const offersMeal = mealFee > 0
+  if (!offersJacket && !offersShirt && !offersMeal) return null
+  const sizes = ['XS','S','M','L','XL','2XL','3XL']
+  return (
+    <div className="border border-gray-200 rounded-xl p-3 space-y-2.5">
+      <p className="text-xs font-bold text-gray-500">{label}</p>
+      {offersJacket && (
+        <div className="grid grid-cols-3 gap-2 items-center">
+          <span className="text-xs text-gray-500">🧥 Jacket</span>
+          <select value={merch.jacket.gender} onChange={e => setMerch(m => ({ ...m, jacket: { ...m.jacket, gender: e.target.value } }))}
+            className="border border-gray-300 rounded-lg px-2 py-1.5 text-xs">
+            <option value="">None</option><option value="Male">Male</option><option value="Female">Female</option>
+          </select>
+          <select value={merch.jacket.size} onChange={e => setMerch(m => ({ ...m, jacket: { ...m.jacket, size: e.target.value } }))}
+            disabled={!merch.jacket.gender} className="border border-gray-300 rounded-lg px-2 py-1.5 text-xs disabled:opacity-40">
+            <option value="">Size</option>
+            {sizes.map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
+        </div>
+      )}
+      {offersShirt && (
+        <div className="grid grid-cols-3 gap-2 items-center">
+          <span className="text-xs text-gray-500">👕 Shirt</span>
+          <select value={merch.shirt.gender} onChange={e => setMerch(m => ({ ...m, shirt: { ...m.shirt, gender: e.target.value } }))}
+            className="border border-gray-300 rounded-lg px-2 py-1.5 text-xs">
+            <option value="">None</option><option value="Male">Male</option><option value="Female">Female</option>
+          </select>
+          <select value={merch.shirt.size} onChange={e => setMerch(m => ({ ...m, shirt: { ...m.shirt, size: e.target.value } }))}
+            disabled={!merch.shirt.gender} className="border border-gray-300 rounded-lg px-2 py-1.5 text-xs disabled:opacity-40">
+            <option value="">Size</option>
+            {sizes.map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
+        </div>
+      )}
+      {offersShirt && shirtAllowsMultiple && merch.shirt.gender && merch.shirt.size && (
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-gray-500 w-16">Shirt qty</span>
+          <button type="button" onClick={() => setMerch(m => ({ ...m, shirtQty: Math.max(1, m.shirtQty - 1) }))}
+            className="w-6 h-6 rounded border border-gray-300 text-gray-600 font-bold text-xs flex items-center justify-center">−</button>
+          <span className="w-6 text-center text-xs font-bold">{merch.shirtQty}</span>
+          <button type="button" onClick={() => setMerch(m => ({ ...m, shirtQty: m.shirtQty + 1 }))}
+            className="w-6 h-6 rounded border border-gray-300 text-gray-600 font-bold text-xs flex items-center justify-center">+</button>
+        </div>
+      )}
+      {offersMeal && (
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-gray-500 w-16">🍽️ Meals</span>
+          <button type="button" onClick={() => setMerch(m => ({ ...m, meal_qty: Math.max(0, m.meal_qty - 1) }))}
+            className="w-6 h-6 rounded border border-gray-300 text-gray-600 font-bold text-xs flex items-center justify-center">−</button>
+          <span className="w-6 text-center text-xs font-bold">{merch.meal_qty}</span>
+          <button type="button" onClick={() => setMerch(m => ({ ...m, meal_qty: m.meal_qty + 1 }))}
+            className="w-6 h-6 rounded border border-gray-300 text-gray-600 font-bold text-xs flex items-center justify-center">+</button>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function TeamModal({ comp, team, members: existingMembers, onClose, onSaved, showToast }) {
   const isNew = !team
   const isIndividual = comp?.scoring_mode === 'fish_bingo_individual'
@@ -1307,6 +1383,11 @@ function TeamModal({ comp, team, members: existingMembers, onClose, onSaved, sho
   const [boatDetails, setBoatDetails] = useState(team?.boat_details || '')
   const [p1, setP1] = useState(existingMembers?.[0] ? { ...existingMembers[0] } : { ...emptyMember })
   const [p2, setP2] = useState(existingMembers?.[1] ? { ...existingMembers[1] } : { ...emptyMember })
+  const [merch1, setMerch1] = useState(initTeamMerch(team?.merch_d1))
+  const [merch2, setMerch2] = useState(initTeamMerch(team?.merch_d2))
+  const merchFees = comp?.category_fees?.merch
+  const mealFee = comp?.category_fees?.meal?.price
+  const shirtAllowsMultiple = !!merchFees?.shirt?.allowMultiple
   const [saving, setSaving] = useState(false)
   const [uploadingPhoto, setUploadingPhoto] = useState(false)
   const [photoUrl, setPhotoUrl] = useState(team?.team_photo_url || null)
@@ -1378,6 +1459,17 @@ function TeamModal({ comp, team, members: existingMembers, onClose, onSaved, sho
       const diver1Id = memberByEmail[p1.email?.trim().toLowerCase()]?.id || null
       const diver2Id = memberByEmail[p2.email?.trim().toLowerCase()]?.id || null
 
+      const buildMerchPayload = (m) => {
+        const out = {}
+        if (m.jacket?.gender && m.jacket?.size) out.jacket = { gender: m.jacket.gender, size: m.jacket.size }
+        if (m.shirt?.gender && m.shirt?.size) {
+          if (shirtAllowsMultiple) out.shirts = [{ gender: m.shirt.gender, size: m.shirt.size, qty: m.shirtQty || 1 }]
+          else out.shirt = { gender: m.shirt.gender, size: m.shirt.size }
+        }
+        if (m.meal_qty > 0) out.meal_qty = m.meal_qty
+        return Object.keys(out).length > 0 ? out : null
+      }
+
       let teamId = team?.id
       const teamPayload = {
         team_name: teamName.trim(), category,
@@ -1385,6 +1477,8 @@ function TeamModal({ comp, team, members: existingMembers, onClose, onSaved, sho
         diver1_member_id: diver1Id,
         diver2_member_id: diver2Id,
         diver2_email: p2.email?.trim().toLowerCase() || null,
+        merch_d1: buildMerchPayload(merch1),
+        merch_d2: buildMerchPayload(merch2),
       }
       if (isNew) {
         const { data, error } = await supabase.from('comp_teams')
@@ -1485,6 +1579,18 @@ function TeamModal({ comp, team, members: existingMembers, onClose, onSaved, sho
 
           <MemberSection label={isIndividual ? 'Competitor' : 'Diver 1'} data={p1} setField={set1} />
           {!isIndividual && <MemberSection label="Diver 2" data={p2} setField={set2} />}
+
+          {(merchFees?.jacket || merchFees?.shirt || mealFee > 0) && (
+            <div className="space-y-2">
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">Merch &amp; Meal Tickets</p>
+              <TeamMerchFields label={isIndividual ? 'Competitor' : 'Diver 1'} merch={merch1} setMerch={setMerch1}
+                merchFees={merchFees} mealFee={mealFee} shirtAllowsMultiple={shirtAllowsMultiple} />
+              {!isIndividual && (
+                <TeamMerchFields label="Diver 2" merch={merch2} setMerch={setMerch2}
+                  merchFees={merchFees} mealFee={mealFee} shirtAllowsMultiple={shirtAllowsMultiple} />
+              )}
+            </div>
+          )}
 
           <div className="flex gap-3 pt-2">
             <button onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-gray-300 text-sm font-bold text-gray-600">Cancel</button>
