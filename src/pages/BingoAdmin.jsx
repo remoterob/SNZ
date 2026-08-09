@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom'
+import { clearAdminSession } from '../lib/supabase'
 
 const SNZ_BLUE = '#2B6CB0'
 
@@ -30,6 +31,8 @@ export default function BingoAdmin() {
           </button>
           <span className="text-blue-200 text-sm opacity-75">/ Fish Bingo Admin</span>
         </div>
+        <button onClick={() => { clearAdminSession(); navigate('/') }}
+          className="text-xs text-blue-200 hover:text-white transition">Sign out</button>
       </div>
 
       <div className="max-w-2xl mx-auto px-6 py-10">

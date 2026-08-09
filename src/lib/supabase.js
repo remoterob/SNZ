@@ -22,9 +22,16 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 
 // Admin password check (simple version - in production use Supabase Auth)
 export const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD || 'admin123'
+// Scoped password: unlocks Fish Bingo admin only, not the rest of /admin/*.
+export const BINGO_ADMIN_PASSWORD = import.meta.env.VITE_BINGO_ADMIN_PASSWORD || null
 
 export const isAdmin = () => {
   return sessionStorage.getItem('isAdmin') === 'true'
+}
+
+// Full sys admin also has Bingo access; the scoped password only grants this.
+export const isBingoAdmin = () => {
+  return isAdmin() || sessionStorage.getItem('isBingoAdmin') === 'true'
 }
 
 export const setAdminSession = (password) => {
@@ -32,9 +39,14 @@ export const setAdminSession = (password) => {
     sessionStorage.setItem('isAdmin', 'true')
     return true
   }
+  if (BINGO_ADMIN_PASSWORD && password === BINGO_ADMIN_PASSWORD) {
+    sessionStorage.setItem('isBingoAdmin', 'true')
+    return true
+  }
   return false
 }
 
 export const clearAdminSession = () => {
   sessionStorage.removeItem('isAdmin')
+  sessionStorage.removeItem('isBingoAdmin')
 }

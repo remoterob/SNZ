@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom'
-import { supabase, isAdmin, setAdminSession } from './lib/supabase'
+import { supabase, isAdmin, isBingoAdmin, setAdminSession } from './lib/supabase'
 import { useAnalytics } from './lib/useAnalytics'
 import PWAInstallPrompt from './components/PWAInstallPrompt'
 import { useMemberSession } from './components/MemberAuthGate'
@@ -57,6 +57,15 @@ import NearMissAdmin from './pages/NearMissAdmin'
 function ProtectedRoute({ children }) {
   const location = useLocation()
   if (!isAdmin()) return <Navigate to="/admin/login" state={{ from: location.pathname }} replace />
+  return children
+}
+
+// Fish Bingo admin accepts the scoped bingo password in addition to full
+// sys admin — used only for /bingo/admin/* so a bingo-only login can't
+// reach any other admin area.
+function ProtectedBingoRoute({ children }) {
+  const location = useLocation()
+  if (!isBingoAdmin()) return <Navigate to="/admin/login" state={{ from: location.pathname }} replace />
   return children
 }
 
@@ -1135,9 +1144,9 @@ export default function App() {
       {/* Fish Bingo */}
       <Route path="/bingo"                element={<BingoApp />} />
       <Route path="/bingo/diver"          element={<BingoDiverPage />} />
-      <Route path="/bingo/admin"          element={<ProtectedRoute><BingoAdmin /></ProtectedRoute>} />
-      <Route path="/bingo/admin/species"  element={<ProtectedRoute><BingoSpeciesAdmin /></ProtectedRoute>} />
-      <Route path="/bingo/admin/bonuses"  element={<ProtectedRoute><BingoBonusAdmin /></ProtectedRoute>} />
+      <Route path="/bingo/admin"          element={<ProtectedBingoRoute><BingoAdmin /></ProtectedBingoRoute>} />
+      <Route path="/bingo/admin/species"  element={<ProtectedBingoRoute><BingoSpeciesAdmin /></ProtectedBingoRoute>} />
+      <Route path="/bingo/admin/bonuses"  element={<ProtectedBingoRoute><BingoBonusAdmin /></ProtectedBingoRoute>} />
       {/* AGM / SGM */}
       <Route path="/agm"            element={<AGMPage />} />
       <Route path="/agm/admin"      element={<ProtectedRoute><AGMAdmin /></ProtectedRoute>} />
