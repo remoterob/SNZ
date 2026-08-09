@@ -2,6 +2,10 @@
 // POST  — create a claim in bingo_claims
 // DELETE — remove a claim from bingo_claims
 // Auth: SNZ Supabase JWT (session.access_token from client)
+// Requires plain SUPABASE_URL + SUPABASE_ANON_KEY Netlify env vars (not the
+// VITE_-prefixed client ones) — uses the anon key + the caller's own JWT so
+// inserts/deletes still go through bingo_claims' auth.uid() = user_id RLS
+// policy, rather than a service-role key that would bypass it.
 
 import { createClient } from '@supabase/supabase-js'
 
