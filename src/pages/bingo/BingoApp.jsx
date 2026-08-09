@@ -151,9 +151,14 @@ export default function BingoApp() {
   const infoMap = useMemo(() => buildInfoMap(species || []),         [species])
   const myScore = useMemo(() => scoreForClaims(myClaims, pMap),     [myClaims, pMap])
 
-  // Season status — 'open' | 'before' | 'after' | 'none' (no config)
+  // Season status — 'open' | 'before' | 'after' | 'none' (no config).
+  // Prefers the admin-set compCfg.status override; falls back to computing
+  // from dates only for rows saved before that column existed.
   const seasonStatus = useMemo(() => {
     if (!compCfg) return 'none'
+    if (compCfg.status) {
+      return compCfg.status === 'active' ? 'open' : compCfg.status === 'upcoming' ? 'before' : 'after'
+    }
     const now   = new Date()
     const start = new Date(compCfg.comp_start)
     const end   = new Date(compCfg.comp_end)
@@ -274,7 +279,7 @@ export default function BingoApp() {
           {tab === 'bonuses'     && <BingoBonusesPage     {...sharedProps} />}
           {tab === 'leaderboard' && <BingoLeaderboardPage {...sharedProps} />}
           {tab === 'catches'     && <BingoLatestCatchesPage {...sharedProps} />}
-          {tab === 'rules'       && <BingoRulesPage />}
+          {tab === 'rules'       && <BingoRulesPage {...sharedProps} />}
         </div>
       )}
     </div>

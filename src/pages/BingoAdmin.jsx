@@ -8,6 +8,12 @@ export default function BingoAdmin() {
 
   const sections = [
     {
+      title: 'Setup',
+      desc: 'Season status (upcoming/active/closed), start & end dates, and the rules text shown on the Rules tab.',
+      icon: '⚙️',
+      path: '/bingo/admin/setup',
+    },
+    {
       title: 'Species',
       desc: 'Add, edit and toggle species on the bingo board. Manage names, slugs, point values, images, targeting tips and recipe links.',
       icon: '🐟',

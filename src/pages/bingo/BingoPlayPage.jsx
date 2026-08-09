@@ -107,8 +107,13 @@ export default function BingoPlayPage(props) {
     }
   }
 
+  // Prefers the admin-set compCfg.status override (a real manual open/close
+  // switch); falls back to computing from dates for rows saved before that
+  // column existed.
   const windowGate = compCfg
-    ? windowState(new Date().toISOString(), compCfg.comp_start, compCfg.comp_end)
+    ? (compCfg.status
+        ? { ok: compCfg.status === 'active', state: compCfg.status === 'active' ? 'open' : compCfg.status === 'upcoming' ? 'before' : 'after' }
+        : windowState(new Date().toISOString(), compCfg.comp_start, compCfg.comp_end))
     : { ok: true, state: 'unknown' }
 
   if (!species) return <div className="bg-white border border-gray-200 rounded-2xl p-6 text-center text-gray-400 text-sm">Loading species…</div>

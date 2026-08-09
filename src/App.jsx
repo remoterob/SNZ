@@ -38,6 +38,7 @@ import AnalyticsDashboard from './pages/AnalyticsDashboard'
 import BingoAdmin from './pages/BingoAdmin'
 import BingoSpeciesAdmin from './pages/BingoSpeciesAdmin'
 import BingoBonusAdmin from './pages/BingoBonusAdmin'
+import BingoConfigAdmin from './pages/BingoConfigAdmin'
 import InspirationPage from './pages/InspirationPage'
 import CarouselAdmin from './pages/CarouselAdmin'
 import HubCarousel from './components/HubCarousel'
@@ -1147,6 +1148,7 @@ export default function App() {
       <Route path="/bingo/admin"          element={<ProtectedBingoRoute><BingoAdmin /></ProtectedBingoRoute>} />
       <Route path="/bingo/admin/species"  element={<ProtectedBingoRoute><BingoSpeciesAdmin /></ProtectedBingoRoute>} />
       <Route path="/bingo/admin/bonuses"  element={<ProtectedBingoRoute><BingoBonusAdmin /></ProtectedBingoRoute>} />
+      <Route path="/bingo/admin/setup"    element={<ProtectedBingoRoute><BingoConfigAdmin /></ProtectedBingoRoute>} />
       {/* AGM / SGM */}
       <Route path="/agm"            element={<AGMPage />} />
       <Route path="/agm/admin"      element={<ProtectedRoute><AGMAdmin /></ProtectedRoute>} />
