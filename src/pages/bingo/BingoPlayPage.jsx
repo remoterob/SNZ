@@ -141,7 +141,7 @@ export default function BingoPlayPage(props) {
         </div>
         <p className="text-xs text-gray-400 mb-4">Tick "First time" if it's truly your first ever claim for that species — you get double points.</p>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {species.filter(s => !isBonusSlug(s.slug)).map(s => {
             const mine  = myClaimFor(s.slug)
             const info  = infoFor(infoMap, s.name)

@@ -116,7 +116,7 @@ export default function BingoDiverPage() {
           <h3 className="font-black text-gray-900 mb-3">Catches</h3>
           {loading && <p className="text-sm text-gray-400">Loading…</p>}
           {!loading && catches.length === 0 && <p className="text-sm text-gray-400">No catches yet.</p>}
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {catches.map(cl => (
               <div key={cl.id} className="bg-white border border-gray-200 rounded-xl p-1.5">
                 <div className="w-full aspect-square bg-gray-50 rounded-lg overflow-hidden">

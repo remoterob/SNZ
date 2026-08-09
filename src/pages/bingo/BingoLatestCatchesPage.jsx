@@ -54,7 +54,7 @@ export default function BingoLatestCatchesPage({ allClaims, pMap, compCfg }) {
                       <span className="font-bold text-gray-900 text-sm">{name}</span>
                       <span className="text-xs text-gray-400">{items.length} photo{items.length > 1 ? 's' : ''}</span>
                     </div>
-                    <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))' }}>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                       {items.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).map(c => (
                         <div key={c.id} className="text-center">
                           <a href={c.photo_url} target="_blank" rel="noopener noreferrer" className="relative block">
