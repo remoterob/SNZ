@@ -1,20 +1,8 @@
-import { useState, useEffect } from 'react'
-import { supabase } from '../../lib/supabase'
 import { pointsForSlug, isBonusSlug } from '../../lib/bingo/helpers'
 
 const SNZ_BLUE = '#2B6CB0'
 
 export default function BingoLatestCatchesPage({ allClaims, pMap, compCfg }) {
-  const [dishes, setDishes] = useState([])
-
-  useEffect(() => {
-    supabase.from('bingo_dishes')
-      .select('id, user_id, title, species_slug, recipe_link, description, photo_url, thumb_url, created_at')
-      .order('created_at', { ascending: false })
-      .limit(20)
-      .then(({ data }) => setDishes(data || []))
-  }, [])
-
   const claimPoints = (c) => {
     const base = pointsForSlug(c.species_slug, pMap)
     return isBonusSlug(c.species_slug) ? base : base * (c.first_time ? 2 : 1)
@@ -86,42 +74,6 @@ export default function BingoLatestCatchesPage({ allClaims, pMap, compCfg }) {
               </div>
             )
           })
-        )}
-      </div>
-
-      <div className="bg-white border border-gray-200 rounded-2xl p-4 sm:p-5">
-        <h3 className="font-black text-gray-900 mb-3">Dishes</h3>
-        {dishes.length === 0 ? (
-          <p className="text-sm text-gray-400 text-center py-6">No dishes yet.</p>
-        ) : (
-          <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))' }}>
-            {dishes.map(d => (
-              <div key={d.id} className="bg-white border border-gray-200 rounded-xl p-2">
-                {d.photo_url && (
-                  <a href={d.photo_url} target="_blank" rel="noopener noreferrer" className="relative block">
-                    <img src={d.thumb_url || d.photo_url} alt={d.title}
-                      className="w-full rounded-lg" loading="lazy" />
-                    {d.species_slug && (
-                      <span className="absolute top-1.5 right-1.5 text-xs font-bold px-1.5 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-100">
-                        {d.species_slug}
-                      </span>
-                    )}
-                  </a>
-                )}
-                <p className="font-bold text-gray-900 text-sm mt-1.5">{d.title}</p>
-                {d.recipe_link && (
-                  <a href={d.recipe_link} target="_blank" rel="noreferrer" className="text-xs font-semibold underline" style={{ color: SNZ_BLUE }}>
-                    View Recipe
-                  </a>
-                )}
-                {d.description && (
-                  <p className="text-xs text-gray-500 mt-1 whitespace-pre-wrap">
-                    {d.description.length > 140 ? d.description.slice(0, 140) + '…' : d.description}
-                  </p>
-                )}
-              </div>
-            ))}
-          </div>
         )}
       </div>
     </div>

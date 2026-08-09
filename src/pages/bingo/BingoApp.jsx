@@ -8,7 +8,6 @@ import BingoPlayPage from './BingoPlayPage'
 import BingoBonusesPage from './BingoBonusesPage'
 import BingoLeaderboardPage from './BingoLeaderboardPage'
 import BingoLatestCatchesPage from './BingoLatestCatchesPage'
-import BingoDishesPage from './BingoDishesPage'
 import BingoRulesPage from './BingoRulesPage'
 
 const SNZ_BLUE = '#2B6CB0'
@@ -56,7 +55,6 @@ const TABS = [
   { id: 'bonuses',     label: 'Bonuses' },
   { id: 'leaderboard', label: 'Leaderboard' },
   { id: 'catches',     label: 'Catches' },
-  { id: 'dishes',      label: 'Dishes' },
   { id: 'rules',       label: 'Rules' },
 ]
 
@@ -274,7 +272,6 @@ export default function BingoApp() {
           {tab === 'bonuses'     && <BingoBonusesPage     {...sharedProps} />}
           {tab === 'leaderboard' && <BingoLeaderboardPage {...sharedProps} />}
           {tab === 'catches'     && <BingoLatestCatchesPage {...sharedProps} />}
-          {tab === 'dishes'      && <BingoDishesPage      {...sharedProps} />}
           {tab === 'rules'       && <BingoRulesPage />}
         </div>
       )}
