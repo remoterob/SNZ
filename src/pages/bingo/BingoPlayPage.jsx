@@ -150,7 +150,7 @@ export default function BingoPlayPage(props) {
 
             return (
               <div key={s.slug} className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-                <div className="relative w-full aspect-[4/3] bg-gray-50">
+                <div className="relative w-full aspect-[5/4] bg-gray-50">
                   <img
                     src={mine?.photo_url || mine?.thumb_url || imgFor(s) || ''}
                     alt={s.name}
