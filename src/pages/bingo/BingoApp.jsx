@@ -70,6 +70,7 @@ export default function BingoApp() {
   const [compCfg,   setCompCfg]   = useState(null)
   const [allClaims, setAllClaims] = useState([])
   const [myClaims,  setMyClaims]  = useState([])
+  const [profiles,  setProfiles]  = useState({})
   const [dataReady, setDataReady] = useState(false)
 
   const [firstChoice,    setFirstChoice]    = useState({})
@@ -112,16 +113,17 @@ export default function BingoApp() {
       .select('id, user_id, species_slug, first_time, photo_url, thumb_url, created_at, comp_season')
       .eq('comp_season', compCfg.season)
       .order('created_at', { ascending: false })
-    // Fetch member names for all unique user_ids
+    // Fetch member names + leaderboard grouping fields for all unique user_ids
     const rows = data || []
     const uids = [...new Set(rows.map(c => c.user_id).filter(Boolean))]
     if (uids.length) {
       const { data: members } = await supabase
         .from('members')
-        .select('id, name')
+        .select('id, name, gender, dob, club, experience')
         .in('id', uids)
       const nameMap = Object.fromEntries((members || []).map(m => [m.id, m.name]))
       rows.forEach(c => { c.display_name = nameMap[c.user_id] || 'Diver' })
+      setProfiles(Object.fromEntries((members || []).map(m => [m.id, m])))
     }
     setAllClaims(rows)
   }, [compCfg?.season])
@@ -221,7 +223,7 @@ export default function BingoApp() {
 
   // ── Game shell ────────────────────────────────────────────────────────────
   const sharedProps = {
-    species, compCfg, allClaims, myClaims, pMap, infoMap,
+    species, compCfg, allClaims, myClaims, profiles, pMap, infoMap,
     signedIn, me, token, myScore, seasonClosed,
     reloadAll, reloadMine,
     firstChoice, setFirstChoice,
