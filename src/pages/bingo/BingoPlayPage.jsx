@@ -94,14 +94,17 @@ export default function BingoPlayPage(props) {
       await supabase.storage.from(STORAGE_BUCKET).upload(fullPath, file, { upsert: true })
       const { data: fd } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(fullPath)
 
-      await supabase.from('bingo_claims')
+      const { data: updated, error: updErr } = await supabase.from('bingo_claims')
         .update({ photo_url: fd.publicUrl, thumb_url: td.publicUrl })
         .eq('user_id', me.id)
         .eq('species_slug', slug)
         .eq('comp_season', compCfg?.season)
+        .select('id')
+      if (updErr) throw updErr
+      if (!updated?.length) throw new Error('Could not attach photo to claim — no matching claim found.')
 
       notify('Photo uploaded!', 'success')
-      await reloadMine()
+      await Promise.all([reloadAll(), reloadMine()])
     } catch (err) {
       notify('Upload failed: ' + (err.message || err), 'error')
     }
