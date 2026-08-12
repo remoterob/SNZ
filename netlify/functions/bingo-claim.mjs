@@ -76,6 +76,15 @@ export async function handler(event) {
         ? false
         : !!(body.first_time ?? body.firstTime)
 
+      // Must be registered for this season before claiming
+      const { data: reg } = await client
+        .from('bingo_registrations')
+        .select('id')
+        .eq('user_id', user_id)
+        .eq('comp_season', comp_season)
+        .maybeSingle()
+      if (!reg) return bad(403, { error: 'Please register for the competition before claiming.' })
+
       // Check already claimed this season
       const { data: existing } = await client
         .from('bingo_claims')

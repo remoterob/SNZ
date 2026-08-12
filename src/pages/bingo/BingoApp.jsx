@@ -9,6 +9,7 @@ import BingoBonusesPage from './BingoBonusesPage'
 import BingoLeaderboardPage from './BingoLeaderboardPage'
 import BingoLatestCatchesPage from './BingoLatestCatchesPage'
 import BingoRulesPage from './BingoRulesPage'
+import { BingoRegistrationBanner } from './BingoRegistration'
 
 const SNZ_BLUE = '#2B6CB0'
 const SNZ_DARK = '#1e3a5f'
@@ -72,6 +73,8 @@ export default function BingoApp() {
   const [myClaims,  setMyClaims]  = useState([])
   const [profiles,  setProfiles]  = useState({})
   const [dataReady, setDataReady] = useState(false)
+  const [registration, setRegistration] = useState(null)
+  const [regReady, setRegReady] = useState(false)
 
   const [firstChoice,    setFirstChoice]    = useState({})
   const [openInfoSlug,   setOpenInfoSlug]   = useState(null)
@@ -145,6 +148,21 @@ export default function BingoApp() {
       Promise.all([reloadAll(), reloadMine()]).then(() => setDataReady(true))
     }
   }, [reloadAll, reloadMine, compCfg?.season])
+
+  // My registration for the active season — gates claiming until answered.
+  const reloadRegistration = useCallback(async () => {
+    if (!userId || !compCfg?.season) { setRegistration(null); setRegReady(true); return }
+    const { data } = await supabase
+      .from('bingo_registrations')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('comp_season', compCfg.season)
+      .maybeSingle()
+    setRegistration(data || null)
+    setRegReady(true)
+  }, [userId, compCfg?.season])
+
+  useEffect(() => { reloadRegistration() }, [reloadRegistration])
 
   // ── Derived ───────────────────────────────────────────────────────────────
   const pMap    = useMemo(() => pointsMapFromSpecies(species || []), [species])
@@ -227,12 +245,14 @@ export default function BingoApp() {
   }
 
   // ── Game shell ────────────────────────────────────────────────────────────
+  const isRegistered = !!registration
   const sharedProps = {
     species, compCfg, allClaims, myClaims, profiles, pMap, infoMap,
-    signedIn, me, token, myScore, seasonClosed,
+    signedIn, me, member, token, myScore, seasonClosed,
     reloadAll, reloadMine,
     firstChoice, setFirstChoice,
     openInfoSlug, setOpenInfoSlug,
+    registration, isRegistered, reloadRegistration,
   }
 
   return (
@@ -275,6 +295,10 @@ export default function BingoApp() {
       ) : (
         <div className="max-w-3xl mx-auto px-4 py-6">
           {seasonClosed && tab === 'play' && <SeasonClosedBanner />}
+          {compCfg && regReady && !isRegistered && (
+            <BingoRegistrationBanner me={me} member={member} compCfg={compCfg}
+              onRegistered={reloadRegistration} setTab={changeTab} />
+          )}
           {tab === 'play'        && <BingoPlayPage        {...sharedProps} />}
           {tab === 'bonuses'     && <BingoBonusesPage     {...sharedProps} />}
           {tab === 'leaderboard' && <BingoLeaderboardPage {...sharedProps} />}

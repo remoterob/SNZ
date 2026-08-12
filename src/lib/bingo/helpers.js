@@ -1,5 +1,15 @@
 // Bingo game helpers — adapted from V15 for SNZ
 
+// Mirrors the region/experience options used on the membership signup form
+// (MembershipPage.jsx) so a diver's answers stay consistent across the app.
+export const REGIONS = [
+  'Northland', 'Auckland', 'Waikato / Bay of Plenty', 'Coromandel',
+  'Hawke\'s Bay / Gisborne', 'Taranaki / Manawatū', 'Wellington / Wairarapa',
+  'Nelson / Marlborough', 'Canterbury', 'Otago / Southland', 'West Coast',
+]
+
+export const EXPERIENCE_LEVELS = ['Beginner', 'Intermediate', 'Experienced', 'Elite']
+
 export const isBonusSlug = (slug) => typeof slug === 'string' && slug.startsWith('bonus-')
 
 export const pointsMapFromSpecies = (species) =>

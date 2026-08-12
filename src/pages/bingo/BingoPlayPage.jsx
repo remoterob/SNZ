@@ -1,6 +1,8 @@
+import { useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { imgFor, infoFor, pointsForSlug, scoreForClaims, isBonusSlug, windowState, nzFormat } from '../../lib/bingo/helpers'
 import { notify } from '../../utils/toasts'
+import { BingoRegistrationModal } from './BingoRegistration'
 
 const SNZ_BLUE = '#2B6CB0'
 const BINGO_CLAIM_API = '/.netlify/functions/bingo-claim'
@@ -10,11 +12,14 @@ const STORAGE_BUCKET = 'snz-media'
 export default function BingoPlayPage(props) {
   const {
     species, compCfg, myClaims, pMap, infoMap,
-    signedIn, me, token, seasonClosed,
+    signedIn, me, member, token, seasonClosed,
     firstChoice, setFirstChoice,
     openInfoSlug, setOpenInfoSlug,
     reloadAll, reloadMine,
+    registration, isRegistered, reloadRegistration,
   } = props
+
+  const [showRegModal, setShowRegModal] = useState(false)
 
   const myClaimFor = (slug) => signedIn ? (myClaims.find(c => c.species_slug === slug) || null) : null
 
@@ -25,6 +30,7 @@ export default function BingoPlayPage(props) {
 
   const claim = async (slug) => {
     if (!signedIn) { notify('Please sign in first.', 'info'); return }
+    if (!isRegistered) { notify('Please register for the competition first.', 'info'); return }
     if (myClaimFor(slug)) return
     const gate = precheckWindow()
     if (!gate.ok) {
@@ -126,11 +132,24 @@ export default function BingoPlayPage(props) {
       {/* Score chip */}
       {signedIn && (
         <div className="bg-white border border-gray-200 rounded-2xl px-4 py-3 flex items-center justify-between">
-          <p className="font-bold text-gray-900 text-sm">Welcome, {me.name}</p>
+          <p className="font-bold text-gray-900 text-sm">
+            Welcome,{' '}
+            {isRegistered ? (
+              <button type="button" onClick={() => setShowRegModal(true)}
+                className="underline decoration-dashed underline-offset-2 hover:text-blue-700">
+                {me.name}
+              </button>
+            ) : me.name}
+          </p>
           <span className="text-xs font-black px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-100">
             {scoreForClaims(myClaims, pMap)} pts
           </span>
         </div>
+      )}
+
+      {showRegModal && (
+        <BingoRegistrationModal me={me} member={member} compCfg={compCfg} registration={registration}
+          onClose={() => setShowRegModal(false)} onSaved={reloadRegistration} />
       )}
 
       {/* Comp window info */}
@@ -215,7 +234,7 @@ export default function BingoPlayPage(props) {
                         className="text-xs font-bold px-3 py-1.5 rounded-lg text-white disabled:opacity-40 ml-auto flex-shrink-0"
                         style={{ background: SNZ_BLUE }}
                         onClick={() => { setFirstChoice(p => ({ ...p, [s.slug]: false })); claim(s.slug) }}
-                        disabled={!signedIn || (compCfg && !windowGate.ok)}>
+                        disabled={!signedIn || !isRegistered || (compCfg && !windowGate.ok)}>
                         Claim
                       </button>
                     </div>
