@@ -147,7 +147,7 @@ export default function BingoPlayPage(props) {
             </span>
           )}
         </div>
-        <p className="text-xs text-gray-400 mb-4">Tick "First time" if it's truly your first ever claim for that species — you get double points.</p>
+        <p className="text-xs text-gray-400 mb-4">Tick "First time / Pole Speared" if it's truly your first ever claim for that species, or you caught it on a pole spear — you get double points.</p>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {species.filter(s => !isBonusSlug(s.slug)).map(s => {
@@ -208,7 +208,7 @@ export default function BingoPlayPage(props) {
                         <label className="flex items-center gap-1.5 text-xs text-gray-500 cursor-pointer flex-1 min-w-0">
                           <input type="checkbox" checked={checked} className="w-3.5 h-3.5 flex-shrink-0"
                             onChange={e => setFirstChoice(prev => ({ ...prev, [s.slug]: e.target.checked }))} />
-                          <span className="truncate">First time (2x)</span>
+                          <span className="truncate">First time / Pole Speared (2x)</span>
                         </label>
                       )}
                       <button
@@ -222,7 +222,7 @@ export default function BingoPlayPage(props) {
                   ) : (
                     <div className="mt-2">
                       <p className="text-xs text-gray-600 mb-1.5">
-                        <span className="font-black text-gray-900">{pts}</span> pts {mine.first_time ? '(first-time ×2)' : ''}
+                        <span className="font-black text-gray-900">{pts}</span> pts {mine.first_time ? '(first-time/pole ×2)' : ''}
                       </p>
                       <div className="flex gap-1.5 flex-wrap">
                         {mine.photo_url ? (
@@ -277,7 +277,7 @@ export default function BingoPlayPage(props) {
                 <div key={c.id} className="px-4 sm:px-5 py-3 flex items-center gap-3">
                   <div className="flex-1 min-w-0">
                     <p className="font-bold text-gray-900 text-sm truncate">
-                      {name}{!isBonus && c.first_time ? ' (first-time)' : ''}
+                      {name}{!isBonus && c.first_time ? ' (first-time/pole)' : ''}
                     </p>
                     <p className="text-xs text-gray-400">
                       {c.created_at ? new Date(c.created_at).toLocaleString('en-NZ') : ''}

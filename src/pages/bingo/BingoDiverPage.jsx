@@ -130,7 +130,7 @@ export default function BingoDiverPage() {
                 <div className="text-center mt-1.5">
                   <p className="text-xs font-semibold text-gray-700 truncate">{cl._displayName}</p>
                   <p className={`text-xs font-bold ${cl._isFirst ? 'text-green-600' : 'text-gray-400'}`}>
-                    {cl._points} pts{cl._isFirst ? ' (first!)' : ''}
+                    {cl._points} pts{cl._isFirst ? ' (first/pole!)' : ''}
                   </p>
                 </div>
               </div>
