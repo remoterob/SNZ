@@ -1563,6 +1563,104 @@ function InstallAppCard() {
 }
 
 // ── Change Password ───────────────────────────────────────────────────────────
+// Login email change. Supabase Auth owns the credential, so this only *starts*
+// the change — auth.users.email flips when the member clicks the confirmation
+// link, and the on_auth_user_email_changed DB trigger syncs members.email at
+// that point (migration 020). Nothing here writes members.email directly.
+function ChangeEmail({ session, showToast }) {
+  const [mode, setMode] = useState('idle') // 'idle' | 'form' | 'sent'
+  const [newEmail, setNewEmail] = useState('')
+  const [current, setCurrent] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [sentTo, setSentTo] = useState('')
+
+  const currentEmail = session?.user?.email || ''
+
+  const save = async (e) => {
+    e.preventDefault()
+    const next = newEmail.trim().toLowerCase()
+    if (!next.includes('@')) { showToast('Enter a valid email address', 'error'); return }
+    if (next === currentEmail.trim().toLowerCase()) { showToast('That is already your email address', 'error'); return }
+    setLoading(true)
+    try {
+      // Friendly pre-check — Supabase also rejects duplicates, but this catches
+      // the common case with a clearer message.
+      const { data: taken } = await supabase.from('members')
+        .select('id').eq('email', next).not('id', 'is', null).maybeSingle()
+      if (taken) throw new Error('An SNZ account already uses that email address.')
+
+      // Re-authenticate before changing a login credential
+      const { error: signInErr } = await supabase.auth.signInWithPassword({
+        email: currentEmail, password: current
+      })
+      if (signInErr) throw new Error('Current password is incorrect')
+
+      const { error } = await supabase.auth.updateUser({ email: next })
+      if (error) throw error
+
+      setSentTo(next)
+      setMode('sent')
+      setCurrent(''); setNewEmail('')
+    } catch (err) {
+      showToast(err.message, 'error')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="bg-white border border-gray-200 rounded-2xl p-5">
+      <h3 className="font-black text-gray-900 mb-1">Login Email</h3>
+      <p className="text-xs text-gray-400 mb-1">{currentEmail}</p>
+
+      {mode === 'idle' && (
+        <button onClick={() => setMode('form')}
+          className="mt-2 px-4 py-2 rounded-lg text-sm font-bold border border-gray-300 text-gray-700 hover:bg-gray-50">
+          Change email
+        </button>
+      )}
+
+      {mode === 'sent' && (
+        <div className="mt-3 bg-blue-50 border border-blue-200 rounded-xl p-3">
+          <p className="text-sm font-bold text-blue-900 mb-1">Confirm your new address</p>
+          <p className="text-xs text-blue-800">
+            We've sent a confirmation link to <strong>{sentTo}</strong>. Your login email changes once you click it —
+            keep using <strong>{currentEmail}</strong> to sign in until then. If a confirmation also arrives at your
+            current address, click that one too.
+          </p>
+          <button onClick={() => setMode('idle')} className="text-xs font-bold text-blue-700 underline mt-2">Done</button>
+        </div>
+      )}
+
+      {mode === 'form' && (
+        <form onSubmit={save} className="space-y-3 mt-3">
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 mb-1">New email address</label>
+            <input type="email" value={newEmail} onChange={e => setNewEmail(e.target.value)} required
+              autoComplete="email"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 mb-1">Current password</label>
+            <input type="password" value={current} onChange={e => setCurrent(e.target.value)} required
+              autoComplete="current-password"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" />
+          </div>
+          <div className="flex gap-2">
+            <button type="button" onClick={() => { setMode('idle'); setCurrent(''); setNewEmail('') }}
+              className="flex-1 py-2 rounded-xl border border-gray-300 text-sm font-bold text-gray-600">Cancel</button>
+            <button type="submit" disabled={loading}
+              className="flex-1 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-50"
+              style={{ background: '#2B6CB0' }}>
+              {loading ? 'Sending…' : 'Send confirmation'}
+            </button>
+          </div>
+        </form>
+      )}
+    </div>
+  )
+}
+
 function ChangePassword({ session, showToast, navigate }) {
   const [mode, setMode] = useState('idle') // 'idle' | 'form'
   const [current, setCurrent] = useState('')
@@ -2058,6 +2156,9 @@ function MemberDashboard({ session, navigate, onSignOut }) {
 
         {/* Install App */}
         <InstallAppCard />
+
+        {/* Login email change */}
+        <ChangeEmail session={session} showToast={showToast} />
 
         {/* Password change */}
         <ChangePassword session={session} showToast={showToast} navigate={navigate} />
