@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { supabase } from '../../lib/supabase'
-import { imgFor, infoFor, pointsForSlug, scoreForClaims, isBonusSlug, windowState, nzFormat } from '../../lib/bingo/helpers'
+import { imgFor, infoFor, pointsForSlug, scoreForClaims, isBonusSlug, windowState, nzFormat, buildPhotoPools, pickShowcasePhoto } from '../../lib/bingo/helpers'
 import { notify } from '../../utils/toasts'
 import { BingoRegistrationModal } from './BingoRegistration'
 
@@ -11,7 +11,7 @@ const STORAGE_BUCKET = 'snz-media'
 
 export default function BingoPlayPage(props) {
   const {
-    species, compCfg, myClaims, pMap, infoMap,
+    species, compCfg, allClaims, profiles, myClaims, pMap, infoMap,
     signedIn, me, member, token, seasonClosed,
     firstChoice, setFirstChoice,
     openInfoSlug, setOpenInfoSlug,
@@ -20,6 +20,13 @@ export default function BingoPlayPage(props) {
   } = props
 
   const [showRegModal, setShowRegModal] = useState(false)
+
+  // Community photos for the species tiles, biased toward the diver's own
+  // region. Seeded once per mount so tiles stay put while you play, but vary
+  // between visits.
+  const [photoSeed] = useState(() => Math.random())
+  const myRegion = registration?.region || member?.region || null
+  const photoPools = useMemo(() => buildPhotoPools(allClaims, profiles), [allClaims, profiles])
 
   const myClaimFor = (slug) => signedIn ? (myClaims.find(c => c.species_slug === slug) || null) : null
 
@@ -174,12 +181,16 @@ export default function BingoPlayPage(props) {
             const info  = infoFor(infoMap, s.name)
             const pts   = mine ? s.points * (mine.first_time ? 2 : 1) : 0
             const checked = !!firstChoice[s.slug]
+            // Own photo wins; then a community shot; then the stock image.
+            const showcase = mine?.photo_url || mine?.thumb_url
+              ? null
+              : pickShowcasePhoto(photoPools, s.slug, myRegion, photoSeed)
 
             return (
               <div key={s.slug} className="bg-white border border-gray-200 rounded-xl overflow-hidden">
                 <div className="relative w-full aspect-[5/4] bg-gray-50">
                   <img
-                    src={mine?.photo_url || mine?.thumb_url || imgFor(s) || ''}
+                    src={mine?.photo_url || mine?.thumb_url || showcase?.url || imgFor(s) || ''}
                     alt={s.name}
                     className="w-full h-full object-cover"
                     onError={e => { e.currentTarget.style.opacity = 0.2 }}
@@ -187,6 +198,11 @@ export default function BingoPlayPage(props) {
                   {mine && (
                     <div className="absolute top-1.5 right-1.5 bg-green-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
                       Claimed
+                    </div>
+                  )}
+                  {showcase && (
+                    <div className="absolute bottom-0 inset-x-0 bg-black/45 text-white text-[10px] font-semibold px-2 py-1 truncate">
+                      📷 {showcase.name}{showcase.fromMyRegion && showcase.region ? ` · ${showcase.region}` : ''}
                     </div>
                   )}
                 </div>

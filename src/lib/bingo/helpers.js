@@ -56,6 +56,59 @@ export const infoFor = (infoMap, name) => {
   return v ? { tips: v.tips || '', recipe: v.recipe || '' } : null
 }
 
+// ── Community photo showcase ─────────────────────────────────────────────────
+// Species tiles prefer a real member-submitted photo over the stock image.
+// Roughly REGION_PHOTO_BIAS of tiles draw from the viewer's own region, the
+// rest from the full pool, so the board feels local without going stale.
+
+export const REGION_PHOTO_BIAS = 0.8
+
+// Deterministic 0..1 from a string, so a given species keeps the same photo
+// across re-renders instead of reshuffling on every reload.
+const hashUnit = (str, seed = 0) => {
+  let h = (2166136261 ^ Math.floor(seed * 0xffffffff)) >>> 0
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i)
+    h = Math.imul(h, 16777619)
+  }
+  return ((h >>> 0) % 100000) / 100000
+}
+
+// slug -> { all: [entry], byRegion: Map<region, [entry]> }
+export function buildPhotoPools(claims, profiles) {
+  const pools = new Map()
+  for (const c of claims || []) {
+    const url = c.thumb_url || c.photo_url
+    if (!url || !c.species_slug) continue
+    if (!pools.has(c.species_slug)) pools.set(c.species_slug, { all: [], byRegion: new Map() })
+    const pool = pools.get(c.species_slug)
+    const entry = {
+      url,
+      fullUrl: c.photo_url || url,
+      name: c.display_name || 'Diver',
+      region: profiles?.[c.user_id]?.region || null,
+    }
+    pool.all.push(entry)
+    if (entry.region) {
+      if (!pool.byRegion.has(entry.region)) pool.byRegion.set(entry.region, [])
+      pool.byRegion.get(entry.region).push(entry)
+    }
+  }
+  return pools
+}
+
+// Returns an entry, or null when nobody has uploaded this species yet (caller
+// then falls back to the stock species image).
+export function pickShowcasePhoto(pools, slug, myRegion, seed = 0) {
+  const pool = pools?.get?.(slug)
+  if (!pool?.all.length) return null
+  const regional = myRegion ? (pool.byRegion.get(myRegion) || []) : []
+  const useRegional = regional.length > 0 && hashUnit(`${slug}|bucket`, seed) < REGION_PHOTO_BIAS
+  const list = useRegional ? regional : pool.all
+  const idx = Math.floor(hashUnit(`${slug}|pick`, seed) * list.length) % list.length
+  return { ...list[idx], fromMyRegion: useRegional }
+}
+
 export const nzFormat = (iso) => {
   try {
     return new Date(iso).toLocaleString('en-NZ', {

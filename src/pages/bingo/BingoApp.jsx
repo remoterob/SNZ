@@ -122,7 +122,7 @@ export default function BingoApp() {
     if (uids.length) {
       const { data: members } = await supabase
         .from('members')
-        .select('id, name, gender, dob, club, experience')
+        .select('id, name, gender, dob, club, experience, region')
         .in('id', uids)
       const nameMap = Object.fromEntries((members || []).map(m => [m.id, m.name]))
       rows.forEach(c => { c.display_name = nameMap[c.user_id] || 'Diver' })

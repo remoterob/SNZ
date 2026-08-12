@@ -23,6 +23,7 @@ function ageGroupFor(dob) {
 
 const DIMENSIONS = [
   { id: 'overall',    label: 'Overall' },
+  { id: 'region',     label: 'Region' },
   { id: 'gender',     label: 'Gender' },
   { id: 'age',        label: 'Age Group' },
   { id: 'club',       label: 'Club' },
@@ -57,6 +58,7 @@ export default function BingoLeaderboardPage({ allClaims, pMap, profiles }) {
 
   const groupKeyFor = (d) => {
     const p = d.profile
+    if (dimension === 'region') return p.region?.trim() || 'Not stated'
     if (dimension === 'gender') return p.gender || 'Not stated'
     if (dimension === 'age') return ageGroupFor(p.dob) || 'Not stated'
     if (dimension === 'club') return p.club?.trim() || 'No club listed'
