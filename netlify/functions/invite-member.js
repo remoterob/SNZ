@@ -158,7 +158,9 @@ exports.handler = async (event) => {
         <strong>${invitedBy || 'A fellow competitor'}</strong> has registered you as their dive partner${compName ? ` for <strong>${compName}</strong>` : ''}.
       </p>
       <p style="margin:0 0 20px;color:#374151;font-size:14px;">
-        Click the button below to set up your SNZ membership and confirm your registration.
+        ${isExistingMember
+          ? 'Click the button below to sign in and confirm your details — your entry fee has already been taken care of.'
+          : 'Click the button below to set up your SNZ membership and confirm your registration.'}
       </p>
       `}
 
@@ -166,7 +168,7 @@ exports.handler = async (event) => {
       <div style="text-align:center;margin:28px 0;">
         <a href="${signInLink}" 
            style="display:inline-block;background:#2B6CB0;color:#ffffff;font-size:15px;font-weight:900;text-decoration:none;padding:14px 32px;border-radius:10px;">
-          ${isNationalsInvite ? 'Confirm My Entry →' : 'Set Up My Account →'}
+          ${isNationalsInvite || isExistingMember ? 'Confirm My Entry →' : 'Set Up My Account →'}
         </a>
       </div>
 

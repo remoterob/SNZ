@@ -8,13 +8,6 @@ const SNZ_BLUE = '#2B6CB0'
 const SNZ_DARK = '#1e3a5f'
 const PER_COMPETITOR_FEE = 50
 
-const emptyCompetitor = {
-  name: '', email: '', phone: '', club: '',
-  gender: '', dob: '',
-  emergency_contact: '', emergency_phone: '',
-  fit_to_dive: false,
-}
-
 function PersonExtras({ label, shirt, setShirt, shirtQty, setShirtQty, mealQty, setMealQty, offersShirt, offersMeal, shirtFee, shirtAllowsMultiple, mealFee }) {
   if (!offersShirt && !offersMeal) return null
   return (
@@ -86,71 +79,60 @@ function PersonExtras({ label, shirt, setShirt, shirtQty, setShirtQty, mealQty, 
   )
 }
 
-function CompetitorForm({ label, data, onChange, required }) {
-  const set = k => v => onChange({ ...data, [k]: v })
+// Partner slot — email + membership lookup, mirroring the Nationals Diver 2
+// pattern. Non-members are allowed through here (they get an invite to join)
+// rather than blocking the entry, which is what the old form did.
+function PartnerLookup({ slot, email, setEmail, status, partner, checking, onLookup, error, onRemove }) {
   return (
-    <div className="bg-gray-50 border border-gray-200 rounded-xl p-5">
-      <h3 className="font-black text-gray-900 mb-4 text-sm tracking-widest uppercase" style={{ color: SNZ_BLUE }}>{label}</h3>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="sm:col-span-2">
-          <label className="block text-xs font-semibold text-gray-600 mb-1">Full name {required && <span className="text-red-500">*</span>}</label>
-          <input value={data.name} onChange={e => set('name')(e.target.value)}
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
-            placeholder="Full legal name" />
-        </div>
-        <div>
-          <label className="block text-xs font-semibold text-gray-600 mb-1">Email {required && <span className="text-red-500">*</span>}</label>
-          <input type="email" value={data.email} onChange={e => set('email')(e.target.value)}
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
-            placeholder="email@example.com" />
-        </div>
-        <div>
-          <label className="block text-xs font-semibold text-gray-600 mb-1">Phone {required && <span className="text-red-500">*</span>}</label>
-          <input value={data.phone} onChange={e => set('phone')(e.target.value)}
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
-            placeholder="+64 21 xxx xxxx" />
-        </div>
-        <div>
-          <label className="block text-xs font-semibold text-gray-600 mb-1">Club</label>
-          <input value={data.club} onChange={e => set('club')(e.target.value)}
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
-            placeholder="Club name (optional)" />
-        </div>
-        <div>
-          <label className="block text-xs font-semibold text-gray-600 mb-1">Gender</label>
-          <select value={data.gender} onChange={e => set('gender')(e.target.value)}
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300">
-            <option value="">Prefer not to say</option>
-            <option>Male</option><option>Female</option><option>Non-binary</option>
-          </select>
-        </div>
-        <div>
-          <label className="block text-xs font-semibold text-gray-600 mb-1">Date of birth</label>
-          <input type="date" value={data.dob} onChange={e => set('dob')(e.target.value)}
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" />
-        </div>
-        <div>
-          <label className="block text-xs font-semibold text-gray-600 mb-1">Emergency contact name {required && <span className="text-red-500">*</span>}</label>
-          <input value={data.emergency_contact} onChange={e => set('emergency_contact')(e.target.value)}
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
-            placeholder="Full name" />
-        </div>
-        <div>
-          <label className="block text-xs font-semibold text-gray-600 mb-1">Emergency contact phone {required && <span className="text-red-500">*</span>}</label>
-          <input value={data.emergency_phone} onChange={e => set('emergency_phone')(e.target.value)}
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
-            placeholder="+64 21 xxx xxxx" />
-        </div>
-        <div className="sm:col-span-2">
-          <label className="flex items-start gap-3 cursor-pointer">
-            <input type="checkbox" checked={data.fit_to_dive} onChange={e => set('fit_to_dive')(e.target.checked)}
-              className="mt-0.5 w-5 h-5 flex-shrink-0" />
-            <span className="text-sm text-gray-700 font-semibold">
-              I confirm I am fit and able to dive safely, have no medical conditions that would prevent safe participation, and take full responsibility for my own safety. {required && <span className="text-red-500">*</span>}
-            </span>
-          </label>
-        </div>
+    <div className="bg-white border border-gray-200 rounded-xl p-5">
+      <div className="flex items-center justify-between mb-1">
+        <h3 className="text-sm font-black tracking-widest uppercase" style={{ color: SNZ_BLUE }}>Competitor {slot}</h3>
+        {onRemove && (
+          <button type="button" onClick={onRemove} className="text-xs font-bold text-red-500 hover:text-red-700">Remove</button>
+        )}
       </div>
+      <p className="text-xs text-gray-400 mb-3">
+        Enter their email and look them up. They'll get an invite to confirm their own details — you don't need to fill these in for them.
+      </p>
+
+      <div className="flex gap-2">
+        <input type="email" value={email}
+          onChange={e => setEmail(e.target.value)}
+          placeholder="partner@email.com"
+          className="flex-1 border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" />
+        <button type="button" onClick={onLookup} disabled={checking || !email.trim()}
+          className="px-4 py-2.5 rounded-lg text-sm font-bold border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-40 whitespace-nowrap">
+          {checking ? '…' : 'Check membership'}
+        </button>
+      </div>
+
+      {error && <p className="text-xs text-red-600 mt-1.5">{error}</p>}
+
+      {status === 'active' && partner && (
+        <div className="bg-green-50 border border-green-200 rounded-xl p-3 mt-2">
+          <p className="text-xs font-bold text-green-700 uppercase tracking-wide mb-0.5">✓ Active SNZ member</p>
+          <p className="font-bold text-gray-900 text-sm">{partner.name}</p>
+          <p className="text-xs text-gray-500">{partner.email}</p>
+          <p className="text-xs text-green-700 mt-1">They'll get an email to sign in and confirm their details.</p>
+        </div>
+      )}
+
+      {status === 'inactive' && partner && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mt-2">
+          <p className="text-xs font-bold text-amber-700 uppercase tracking-wide mb-0.5">⚠ Membership not current</p>
+          <p className="font-bold text-gray-900 text-sm">{partner.name}</p>
+          <p className="text-xs text-amber-700 mt-0.5">They're in our system but not currently active. We'll email them to renew their membership and confirm their details.</p>
+        </div>
+      )}
+
+      {status === 'not_found' && (
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 mt-2">
+          <p className="text-xs font-bold text-blue-700 uppercase tracking-wide mb-0.5">📧 Not yet an SNZ member</p>
+          <p className="text-xs text-blue-700">
+            That email isn't in our system. We'll email <strong>{email}</strong> inviting them to join SNZ and confirm their entry. Your team stays pending until they do.
+          </p>
+        </div>
+      )}
     </div>
   )
 }
@@ -168,17 +150,25 @@ export default function CatfishCullRegister() {
   const [paymentDone, setPaymentDone] = useState(false)
   const [teamName, setTeamName] = useState('')
 
-  const [p1, setP1] = useState({ ...emptyCompetitor })
-  const [p2, setP2] = useState({ ...emptyCompetitor })
-  const [hasThird, setHasThird] = useState(false)
-  const [p3, setP3] = useState({ ...emptyCompetitor })
+  // Competitor 1 is always the signed-in member — only the safety fields that
+  // may be missing from their profile are collected here.
+  const [emergencyContact, setEmergencyContact] = useState('')
+  const [emergencyPhone, setEmergencyPhone] = useState('')
+  const [fitToDive, setFitToDive] = useState(false)
 
-  const [p2Checked, setP2Checked] = useState(false)
-  const [p2Active, setP2Active] = useState(false)
+  // Partner slots
+  const [p2Email, setP2Email] = useState('')
+  const [p2Status, setP2Status] = useState(null) // null | 'active' | 'inactive' | 'not_found'
+  const [p2Member, setP2Member] = useState(null)
   const [checkingP2, setCheckingP2] = useState(false)
-  const [p3Checked, setP3Checked] = useState(false)
-  const [p3Active, setP3Active] = useState(false)
+  const [p2Error, setP2Error] = useState('')
+
+  const [hasThird, setHasThird] = useState(false)
+  const [p3Email, setP3Email] = useState('')
+  const [p3Status, setP3Status] = useState(null)
+  const [p3Member, setP3Member] = useState(null)
   const [checkingP3, setCheckingP3] = useState(false)
+  const [p3Error, setP3Error] = useState('')
 
   const [rulesAccepted, setRulesAccepted] = useState(false)
 
@@ -188,6 +178,9 @@ export default function CatfishCullRegister() {
   const [shirt2, setShirt2] = useState({ gender: '', size: '' })
   const [shirtQty2, setShirtQty2] = useState(1)
   const [mealQty2, setMealQty2] = useState(0)
+  const [shirt3, setShirt3] = useState({ gender: '', size: '' })
+  const [shirtQty3, setShirtQty3] = useState(1)
+  const [mealQty3, setMealQty3] = useState(0)
 
   useEffect(() => {
     supabase.from('competitions').select('*').ilike('name', '%catfish%2027%').maybeSingle()
@@ -219,31 +212,38 @@ export default function CatfishCullRegister() {
     }
   }, [])
 
+  // Pre-fill safety fields from the member's profile
   useEffect(() => {
-    if (member) {
-      setP1(p => ({
-        ...p,
-        name: member.name || p.name,
-        email: member.email || p.email,
-        phone: member.phone || p.phone,
-        club: member.club || p.club,
-        gender: member.gender || p.gender,
-        dob: member.dob || p.dob,
-        emergency_contact: member.emergency_contact || p.emergency_contact,
-        emergency_phone: member.emergency_phone || p.emergency_phone,
-        fit_to_dive: member.fit_to_dive || p.fit_to_dive,
-      }))
-    }
+    if (member?.emergency_contact) setEmergencyContact(member.emergency_contact)
+    if (member?.emergency_phone) setEmergencyPhone(member.emergency_phone)
+    if (member?.fit_to_dive) setFitToDive(true)
   }, [member])
 
-  const checkMemberEmail = async (email, setActive, setChecking, setChecked) => {
-    if (!email.trim()) return
+  const lookupPartner = async (email, { setStatus, setPartner, setChecking, setError, otherEmail }) => {
+    const trimmed = email.trim().toLowerCase()
+    if (!trimmed) return
     setChecking(true)
+    setError('')
+    setPartner(null)
+    setStatus(null)
     try {
-      const { data } = await supabase.from('members').select('*')
-        .eq('email', email.trim().toLowerCase()).maybeSingle()
-      setActive(!!(data && data.payment_status === 'paid' && data.membership_status === 'active'))
-      setChecked(true)
+      if (trimmed === member?.email?.toLowerCase()) {
+        setError('You cannot enter yourself as a partner.')
+        return
+      }
+      if (otherEmail && trimmed === otherEmail.trim().toLowerCase()) {
+        setError('That competitor has already been added to this team.')
+        return
+      }
+      const { data } = await supabase.from('members')
+        .select('id, name, email, membership_status, payment_status')
+        .eq('email', trimmed)
+        .maybeSingle()
+      if (!data) { setStatus('not_found'); return }
+      if (data.id === member?.id) { setError('You cannot enter yourself as a partner.'); return }
+      const isActive = data.membership_status === 'active' || data.payment_status === 'paid'
+      setPartner(data)
+      setStatus(isActive ? 'active' : 'inactive')
     } finally {
       setChecking(false)
     }
@@ -251,9 +251,8 @@ export default function CatfishCullRegister() {
 
   const competitorCount = 2 + (hasThird ? 1 : 0)
 
-  // Entry fee must respect the competition's own early-bird cutoff/pricing
-  // (category_fees.Open) instead of a flat hardcoded amount — previously this
-  // ignored early_bird entirely and always charged the standard rate.
+  // Entry fee respects the competition's own early-bird cutoff/pricing
+  // (category_fees.Open) instead of a flat hardcoded amount.
   const isEarlyBird = comp?.early_bird_cutoff ? new Date() < new Date(comp.early_bird_cutoff) : false
   const openFee = comp?.category_fees?.Open || {}
   const perCompetitorCents = isEarlyBird && openFee.early_bird != null
@@ -270,28 +269,32 @@ export default function CatfishCullRegister() {
 
   const wantShirt1 = offersShirt && shirt1.gender && shirt1.size
   const wantShirt2 = offersShirt && shirt2.gender && shirt2.size
+  const wantShirt3 = hasThird && offersShirt && shirt3.gender && shirt3.size
   const effShirtQty1 = shirtAllowsMultiple ? shirtQty1 : 1
   const effShirtQty2 = shirtAllowsMultiple ? shirtQty2 : 1
+  const effShirtQty3 = shirtAllowsMultiple ? shirtQty3 : 1
+  const effMealQty3 = hasThird ? mealQty3 : 0
   const extrasCents = (wantShirt1 ? shirtFee * 100 * effShirtQty1 : 0)
     + (wantShirt2 ? shirtFee * 100 * effShirtQty2 : 0)
-    + (offersMeal ? (mealQty1 + mealQty2) * mealFee * 100 : 0)
+    + (wantShirt3 ? shirtFee * 100 * effShirtQty3 : 0)
+    + (offersMeal ? (mealQty1 + mealQty2 + effMealQty3) * mealFee * 100 : 0)
   const totalCents = entryFeeCents + extrasCents
+
+  // A partner slot is ready once it's been looked up — any of the three
+  // outcomes is valid, since non-members now get invited rather than blocked.
+  const p2Ready = ['active', 'inactive', 'not_found'].includes(p2Status) && !p2Error
+  const p3Ready = ['active', 'inactive', 'not_found'].includes(p3Status) && !p3Error
 
   const validate = () => {
     const e = []
     if (!teamName.trim()) e.push('Team name is required')
-    if (!p1.name.trim() || !p1.email.trim() || !p1.phone.trim()) e.push('Your name, email and phone are required')
-    if (!p1.emergency_contact.trim() || !p1.emergency_phone.trim()) e.push('Your emergency contact details are required')
-    if (!p1.fit_to_dive) e.push('You must confirm you are fit to dive')
-    if (!p2.name.trim() || !p2.email.trim() || !p2.phone.trim()) e.push('Competitor 2 name, email and phone are required')
-    if (!p2.emergency_contact.trim() || !p2.emergency_phone.trim()) e.push('Competitor 2 emergency contact details are required')
-    if (!p2.fit_to_dive) e.push('Competitor 2 must confirm fitness to dive')
-    if (!p2Checked || !p2Active) e.push('Competitor 2 must be an active SNZ member — click "Check membership"')
+    if (!emergencyContact.trim() || !emergencyPhone.trim()) e.push('Your emergency contact details are required')
+    if (!fitToDive) e.push('You must confirm you are fit to dive')
+    if (!p2Email.trim()) e.push('Competitor 2 email is required')
+    else if (!p2Ready) e.push('Click "Check membership" to confirm Competitor 2')
     if (hasThird) {
-      if (!p3.name.trim() || !p3.email.trim() || !p3.phone.trim()) e.push('Competitor 3 name, email and phone are required')
-      if (!p3.emergency_contact.trim() || !p3.emergency_phone.trim()) e.push('Competitor 3 emergency contact details are required')
-      if (!p3.fit_to_dive) e.push('Competitor 3 must confirm fitness to dive')
-      if (!p3Checked || !p3Active) e.push('Competitor 3 must be an active SNZ member — click "Check membership"')
+      if (!p3Email.trim()) e.push('Competitor 3 email is required')
+      else if (!p3Ready) e.push('Click "Check membership" to confirm Competitor 3')
     }
     if (!rulesAccepted) e.push('You must accept the Catfish Cull rules and conservation declaration')
     setErrors(e)
@@ -303,12 +306,6 @@ export default function CatfishCullRegister() {
     if (!validate()) { window.scrollTo({ top: 0, behavior: 'smooth' }); return }
     setSubmitting(true)
     try {
-      const { data: p2Row } = await supabase.from('members').select('id')
-        .eq('email', p2.email.trim().toLowerCase()).maybeSingle()
-      const p3Row = hasThird
-        ? (await supabase.from('members').select('id').eq('email', p3.email.trim().toLowerCase()).maybeSingle()).data
-        : null
-
       const buildMerch = (wantShirt, shirt, shirtQty, mealQty) => {
         if (!wantShirt && mealQty <= 0) return null
         const merch = {}
@@ -320,6 +317,10 @@ export default function CatfishCullRegister() {
         return merch
       }
 
+      // Diver 1 pays for the whole team, so the team is only waiting on the
+      // partners' own confirmations — not their money.
+      const allPartnersActive = p2Status === 'active' && (!hasThird || p3Status === 'active')
+
       const { data: team, error: tErr } = await supabase.from('comp_teams').insert({
         competition_id: comp.id,
         team_name: teamName.trim(),
@@ -328,50 +329,98 @@ export default function CatfishCullRegister() {
         waiver_accepted: true,
         acceptance_at: new Date().toISOString(),
         diver1_member_id: member?.id || null,
-        diver2_member_id: p2Row?.id || null,
-        diver2_email: p2.email.trim().toLowerCase(),
-        status: 'pending_payment',
+        diver2_member_id: p2Status === 'active' ? p2Member.id : null,
+        diver2_email: p2Email.trim().toLowerCase(),
+        diver3_member_id: hasThird && p3Status === 'active' ? p3Member.id : null,
+        diver3_email: hasThird ? p3Email.trim().toLowerCase() : null,
+        status: allPartnersActive ? 'pending_payment' : 'pending_diver2',
         entry_fee_cents: entryFeeCents,
         merch_d1: buildMerch(wantShirt1, shirt1, effShirtQty1, mealQty1),
         merch_d2: buildMerch(wantShirt2, shirt2, effShirtQty2, mealQty2),
+        merch_d3: hasThird ? buildMerch(wantShirt3, shirt3, effShirtQty3, mealQty3) : null,
       }).select('id').single()
       if (tErr) throw tErr
 
-      const memberPayload = [
-        { ...p1, team_id: team.id, competition_id: comp.id },
-        { ...p2, team_id: team.id, competition_id: comp.id },
-        ...(hasThird ? [{ ...p3, team_id: team.id, competition_id: comp.id }] : []),
-      ]
-      const { error: mErr } = await supabase.from('comp_team_members').insert(memberPayload)
+      // Only Diver 1's roster row is created here — partners supply their own
+      // details (and create their row) when they confirm.
+      const { error: mErr } = await supabase.from('comp_team_members').insert([{
+        team_id: team.id,
+        competition_id: comp.id,
+        name: member?.name || '',
+        email: member?.email || session.user.email,
+        phone: member?.phone || '',
+        club: member?.club || '',
+        gender: member?.gender || '',
+        dob: member?.dob || null,
+        emergency_contact: emergencyContact.trim(),
+        emergency_phone: emergencyPhone.trim(),
+        fit_to_dive: fitToDive,
+      }])
       if (mErr) throw mErr
 
-      if (member?.id) {
+      // Save safety details back to the profile so they prefill next time
+      await supabase.from('members').update({
+        emergency_contact: emergencyContact.trim(),
+        emergency_phone: emergencyPhone.trim(),
+        fit_to_dive: fitToDive,
+      }).eq('id', member.id)
+
+      await supabase.from('member_competitions').upsert({
+        member_id: member.id, competition_id: comp.id, team_id: team.id, year: 2027
+      }, { onConflict: 'member_id,competition_id' })
+
+      if (p2Status === 'active' && p2Member?.id) {
         await supabase.from('member_competitions').upsert({
-          member_id: member.id, competition_id: comp.id, team_id: team.id, year: 2027
+          member_id: p2Member.id, competition_id: comp.id, team_id: team.id, year: 2027
         }, { onConflict: 'member_id,competition_id' })
       }
-      if (p2Row?.id) {
+      if (hasThird && p3Status === 'active' && p3Member?.id) {
         await supabase.from('member_competitions').upsert({
-          member_id: p2Row.id, competition_id: comp.id, team_id: team.id, year: 2027
+          member_id: p3Member.id, competition_id: comp.id, team_id: team.id, year: 2027
         }, { onConflict: 'member_id,competition_id' })
       }
-      if (p3Row?.id) {
-        await supabase.from('member_competitions').upsert({
-          member_id: p3Row.id, competition_id: comp.id, team_id: team.id, year: 2027
-        }, { onConflict: 'member_id,competition_id' })
-      }
+
+      // Invite each partner to confirm. Entry fees are already covered by
+      // Diver 1, so these are confirmation-only links.
+      const invites = [
+        { email: p2Email.trim().toLowerCase(), slot: 2, active: p2Status === 'active' },
+        ...(hasThird ? [{ email: p3Email.trim().toLowerCase(), slot: 3, active: p3Status === 'active' }] : []),
+      ]
+      await Promise.all(invites.map(inv =>
+        fetch('/.netlify/functions/invite-member', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+          body: JSON.stringify({
+            email: inv.email,
+            invitedBy: member?.name || session.user.email,
+            compName: comp.name,
+            teamId: team.id,
+            teamName: teamName.trim(),
+            isExistingMember: inv.active,
+            confirmUrl: `${window.location.origin}/catfish/confirm?team=${team.id}&slot=${inv.slot}`,
+          }),
+        }).catch(err => console.error('Invite failed for', inv.email, err))
+      ))
+
+      await supabase.from('comp_teams')
+        .update({ diver2_invite_sent: true, ...(hasThird ? { diver3_invite_sent: true } : {}) })
+        .eq('id', team.id)
 
       sessionStorage.setItem('snz_catfish_entry', JSON.stringify({ teamName: teamName.trim() }))
 
       const earlyBirdSuffix = isEarlyBird ? ' (early bird)' : ''
+      const p2Label = p2Member?.name || p2Email.trim()
+      const p3Label = p3Member?.name || p3Email.trim()
       const lineItems = [
-        { name: `Entry fee — ${p1.name}${earlyBirdSuffix}`, amountCents: perCompetitorCents },
-        { name: `Entry fee — ${p2.name}${earlyBirdSuffix}`, amountCents: perCompetitorCents },
-        ...(hasThird ? [{ name: `Entry fee — ${p3.name}${earlyBirdSuffix}`, amountCents: perCompetitorCents }] : []),
-        ...(wantShirt1 ? [{ name: `👕 T-Shirt (${p1.name}, ${shirt1.gender} ${shirt1.size})${effShirtQty1 > 1 ? ` × ${effShirtQty1}` : ''}`, amountCents: shirtFee * 100 * effShirtQty1 }] : []),
-        ...(wantShirt2 ? [{ name: `👕 T-Shirt (${p2.name}, ${shirt2.gender} ${shirt2.size})${effShirtQty2 > 1 ? ` × ${effShirtQty2}` : ''}`, amountCents: shirtFee * 100 * effShirtQty2 }] : []),
-        ...(offersMeal && mealQty1 > 0 ? [{ name: `🍽️ Dinner ticket × ${mealQty1} (${p1.name})`, amountCents: mealFee * 100 * mealQty1 }] : []),
-        ...(offersMeal && mealQty2 > 0 ? [{ name: `🍽️ Dinner ticket × ${mealQty2} (${p2.name})`, amountCents: mealFee * 100 * mealQty2 }] : []),
+        { name: `Entry fee — ${member?.name || 'Competitor 1'}${earlyBirdSuffix}`, amountCents: perCompetitorCents },
+        { name: `Entry fee — ${p2Label}${earlyBirdSuffix}`, amountCents: perCompetitorCents },
+        ...(hasThird ? [{ name: `Entry fee — ${p3Label}${earlyBirdSuffix}`, amountCents: perCompetitorCents }] : []),
+        ...(wantShirt1 ? [{ name: `👕 T-Shirt (${member?.name || 'Competitor 1'}, ${shirt1.gender} ${shirt1.size})${effShirtQty1 > 1 ? ` × ${effShirtQty1}` : ''}`, amountCents: shirtFee * 100 * effShirtQty1 }] : []),
+        ...(wantShirt2 ? [{ name: `👕 T-Shirt (${p2Label}, ${shirt2.gender} ${shirt2.size})${effShirtQty2 > 1 ? ` × ${effShirtQty2}` : ''}`, amountCents: shirtFee * 100 * effShirtQty2 }] : []),
+        ...(wantShirt3 ? [{ name: `👕 T-Shirt (${p3Label}, ${shirt3.gender} ${shirt3.size})${effShirtQty3 > 1 ? ` × ${effShirtQty3}` : ''}`, amountCents: shirtFee * 100 * effShirtQty3 }] : []),
+        ...(offersMeal && mealQty1 > 0 ? [{ name: `🍽️ Dinner ticket × ${mealQty1} (${member?.name || 'Competitor 1'})`, amountCents: mealFee * 100 * mealQty1 }] : []),
+        ...(offersMeal && mealQty2 > 0 ? [{ name: `🍽️ Dinner ticket × ${mealQty2} (${p2Label})`, amountCents: mealFee * 100 * mealQty2 }] : []),
+        ...(offersMeal && effMealQty3 > 0 ? [{ name: `🍽️ Dinner ticket × ${effMealQty3} (${p3Label})`, amountCents: mealFee * 100 * effMealQty3 }] : []),
       ]
 
       // checkout() swallows its own errors (sets the hook's `error` state
@@ -386,8 +435,8 @@ export default function CatfishCullRegister() {
         competitionName: comp.name,
         amountCents: totalCents,
         lineItems,
-        memberEmail: member?.email || p1.email,
-        memberName: member?.name || p1.name,
+        memberEmail: member?.email || session.user.email,
+        memberName: member?.name || '',
       })
       setSubmitting(false)
     } catch (err) {
@@ -408,6 +457,12 @@ export default function CatfishCullRegister() {
         <p className="text-gray-600 text-sm">
           {paymentDone ? <>Payment confirmed — <strong>{teamName || 'your team'}</strong> is registered for the Rosemergy Catfish Cull 2027.</> : 'Your entry is confirmed.'}
         </p>
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-left">
+          <p className="text-sm font-black text-amber-800 mb-1">⏳ Awaiting your teammates</p>
+          <p className="text-xs text-amber-700">
+            Their entry fees are already paid. We've emailed each of them a link to sign in, confirm their details and accept the rules — your team shows as pending until they do.
+          </p>
+        </div>
         <p className="text-xs text-gray-400">Motuoapa, Lake Taupō · 13 February 2027</p>
         <button onClick={() => navigate('/catfish')}
           className="w-full py-3 rounded-xl font-black text-white text-sm" style={{ background: SNZ_BLUE }}>
@@ -437,6 +492,30 @@ export default function CatfishCullRegister() {
       </div>
       <div className="max-w-md mx-auto px-4 py-8">
         <MemberAuthGate message="You must be an active SNZ member to enter the Catfish Cull. Sign in or join — a small annual fee applies, takes 2 minutes." />
+      </div>
+    </div>
+  )
+
+  // Competitor 1 must be a current member before they can register a team
+  const isActiveMember = member?.membership_status === 'active' || member?.payment_status === 'paid'
+  if (!isActiveMember) return (
+    <div className="min-h-screen bg-gray-50">
+      <div style={{ background: SNZ_DARK }} className="px-6 py-3 flex items-center border-b border-blue-900">
+        <button onClick={() => navigate('/catfish')}
+          className="flex items-center gap-1.5 text-white font-bold text-sm bg-white/15 hover:bg-white/25 px-3 py-1.5 rounded-lg transition">
+          ← Catfish Cull
+        </button>
+      </div>
+      <div className="max-w-md mx-auto px-6 py-12 text-center">
+        <div className="text-4xl mb-3">🤿</div>
+        <h1 className="text-xl font-black text-gray-900 mb-2">Active Membership Required</h1>
+        <p className="text-gray-500 text-sm mb-6">
+          Your SNZ membership isn't currently active, so you can't register a team yet. Renew your membership and you'll be able to enter straight away.
+        </p>
+        <button onClick={() => navigate('/membership')}
+          className="px-5 py-2.5 rounded-xl font-bold text-sm text-white" style={{ background: SNZ_BLUE }}>
+          Go to My Membership
+        </button>
       </div>
     </div>
   )
@@ -478,6 +557,7 @@ export default function CatfishCullRegister() {
             Pairs = ${(perCompetitorCents * 2 / 100).toFixed(0)} · Trios = ${(perCompetitorCents * 3 / 100).toFixed(0)} (groups of 3 welcome but ineligible for top prizes).
             {isEarlyBird && comp?.early_bird_cutoff && ` Early bird pricing until ${new Date(comp.early_bird_cutoff).toLocaleDateString('en-NZ', { day: 'numeric', month: 'short' })}.`}
           </p>
+          <p className="text-xs text-blue-700 mt-1.5 font-semibold">You pay for the whole team — your teammates just confirm their own details.</p>
         </div>
 
         <div className="bg-white border border-gray-200 rounded-xl p-5">
@@ -487,33 +567,52 @@ export default function CatfishCullRegister() {
             placeholder="e.g. The Whisker Whackers" required />
         </div>
 
-        <CompetitorForm label="Competitor 1 (You)" data={p1} onChange={setP1} required />
+        {/* Competitor 1 — the signed-in member */}
+        <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-4">
+          <h3 className="text-sm font-black tracking-widest uppercase" style={{ color: SNZ_BLUE }}>Competitor 1 (You)</h3>
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-3">
+            <p className="font-bold text-gray-900 text-sm">{member?.name}</p>
+            <p className="text-xs text-gray-500">{member?.email}</p>
+            <p className="text-xs text-green-700 font-semibold mt-0.5">✓ Active SNZ member</p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1">Emergency contact name <span className="text-red-500">*</span></label>
+              <input value={emergencyContact} onChange={e => setEmergencyContact(e.target.value)}
+                placeholder="Full name"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1">Emergency contact phone <span className="text-red-500">*</span></label>
+              <input value={emergencyPhone} onChange={e => setEmergencyPhone(e.target.value)}
+                placeholder="+64 21 xxx xxxx"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" />
+            </div>
+          </div>
+          <label className="flex items-start gap-3 cursor-pointer">
+            <input type="checkbox" checked={fitToDive} onChange={e => setFitToDive(e.target.checked)}
+              className="mt-0.5 w-5 h-5 flex-shrink-0" />
+            <span className="text-sm text-gray-700 font-semibold">
+              I confirm I am fit and able to dive safely, have no medical conditions that would prevent safe participation, and take full responsibility for my own safety. <span className="text-red-500">*</span>
+            </span>
+          </label>
+        </div>
 
-        <PersonExtras label={p1.name || 'Competitor 1'}
+        <PersonExtras label={member?.name || 'Competitor 1'}
           shirt={shirt1} setShirt={setShirt1} shirtQty={shirtQty1} setShirtQty={setShirtQty1}
           mealQty={mealQty1} setMealQty={setMealQty1}
           offersShirt={offersShirt} offersMeal={offersMeal} shirtFee={shirtFee}
           shirtAllowsMultiple={shirtAllowsMultiple} mealFee={mealFee} />
 
-        <div className="bg-white border border-gray-200 rounded-xl p-5">
-          <h3 className="text-sm font-black tracking-widest uppercase mb-3" style={{ color: SNZ_BLUE }}>Competitor 2</h3>
-          <p className="text-xs text-gray-400 mb-3">Must be an active SNZ member to enter as a team.</p>
-          <div className="flex gap-2 mb-3">
-            <button type="button" onClick={() => checkMemberEmail(p2.email, setP2Active, setCheckingP2, setP2Checked)}
-              disabled={checkingP2 || !p2.email.trim()}
-              className="px-4 py-2 rounded-lg text-sm font-bold border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-40 transition whitespace-nowrap">
-              {checkingP2 ? 'Checking…' : 'Check membership'}
-            </button>
-            {p2Checked && (
-              <span className={`text-xs font-bold px-3 py-2 rounded-lg ${p2Active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'}`}>
-                {p2Active ? '✓ Active member' : '✗ Not an active member'}
-              </span>
-            )}
-          </div>
-          <CompetitorForm label="" data={p2} onChange={v => { setP2(v); setP2Checked(false) }} required />
-        </div>
+        <PartnerLookup slot={2} email={p2Email}
+          setEmail={v => { setP2Email(v); setP2Status(null); setP2Member(null); setP2Error('') }}
+          status={p2Status} partner={p2Member} checking={checkingP2} error={p2Error}
+          onLookup={() => lookupPartner(p2Email, {
+            setStatus: setP2Status, setPartner: setP2Member, setChecking: setCheckingP2,
+            setError: setP2Error, otherEmail: hasThird ? p3Email : '',
+          })} />
 
-        <PersonExtras label={p2.name || 'Competitor 2'}
+        <PersonExtras label={p2Member?.name || 'Competitor 2'}
           shirt={shirt2} setShirt={setShirt2} shirtQty={shirtQty2} setShirtQty={setShirtQty2}
           mealQty={mealQty2} setMealQty={setMealQty2}
           offersShirt={offersShirt} offersMeal={offersMeal} shirtFee={shirtFee}
@@ -525,27 +624,27 @@ export default function CatfishCullRegister() {
             + Add a 3rd competitor (team of 3 — ineligible for top prizes)
           </button>
         ) : (
-          <div className="bg-white border border-gray-200 rounded-xl p-5">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-black tracking-widest uppercase" style={{ color: SNZ_BLUE }}>Competitor 3</h3>
-              <button type="button" onClick={() => { setHasThird(false); setP3({ ...emptyCompetitor }); setP3Checked(false) }}
-                className="text-xs font-bold text-red-500 hover:text-red-700">Remove</button>
+          <>
+            <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5">
+              <p className="text-xs text-amber-700">⚠ Teams of 3 are welcome but not eligible for top prizes.</p>
             </div>
-            <p className="text-xs text-amber-600 mb-3">⚠ Teams of 3 are welcome but not eligible for top prizes.</p>
-            <div className="flex gap-2 mb-3">
-              <button type="button" onClick={() => checkMemberEmail(p3.email, setP3Active, setCheckingP3, setP3Checked)}
-                disabled={checkingP3 || !p3.email.trim()}
-                className="px-4 py-2 rounded-lg text-sm font-bold border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-40 transition whitespace-nowrap">
-                {checkingP3 ? 'Checking…' : 'Check membership'}
-              </button>
-              {p3Checked && (
-                <span className={`text-xs font-bold px-3 py-2 rounded-lg ${p3Active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'}`}>
-                  {p3Active ? '✓ Active member' : '✗ Not an active member'}
-                </span>
-              )}
-            </div>
-            <CompetitorForm label="" data={p3} onChange={v => { setP3(v); setP3Checked(false) }} required />
-          </div>
+            <PartnerLookup slot={3} email={p3Email}
+              setEmail={v => { setP3Email(v); setP3Status(null); setP3Member(null); setP3Error('') }}
+              status={p3Status} partner={p3Member} checking={checkingP3} error={p3Error}
+              onLookup={() => lookupPartner(p3Email, {
+                setStatus: setP3Status, setPartner: setP3Member, setChecking: setCheckingP3,
+                setError: setP3Error, otherEmail: p2Email,
+              })}
+              onRemove={() => {
+                setHasThird(false); setP3Email(''); setP3Status(null); setP3Member(null); setP3Error('')
+                setShirt3({ gender: '', size: '' }); setShirtQty3(1); setMealQty3(0)
+              }} />
+            <PersonExtras label={p3Member?.name || 'Competitor 3'}
+              shirt={shirt3} setShirt={setShirt3} shirtQty={shirtQty3} setShirtQty={setShirtQty3}
+              mealQty={mealQty3} setMealQty={setMealQty3}
+              offersShirt={offersShirt} offersMeal={offersMeal} shirtFee={shirtFee}
+              shirtAllowsMultiple={shirtAllowsMultiple} mealFee={mealFee} />
+          </>
         )}
 
         <div className="bg-red-50 border-2 border-red-200 rounded-xl p-5">
@@ -561,7 +660,7 @@ export default function CatfishCullRegister() {
             <input type="checkbox" checked={rulesAccepted} onChange={e => setRulesAccepted(e.target.checked)}
               className="mt-0.5 w-5 h-5 flex-shrink-0" />
             <span className="text-sm font-bold text-red-900">
-              Every competitor on this team has read, understood, and agrees to the above. <span className="text-red-600">*</span>
+              I have read, understood, and agree to the above. Each teammate will confirm the same when they accept their invite. <span className="text-red-600">*</span>
             </span>
           </label>
         </div>
@@ -588,7 +687,7 @@ export default function CatfishCullRegister() {
           style={{ background: SNZ_BLUE }}>
           {submitting || checkoutLoading ? 'Processing…' : `Pay $${(totalCents / 100).toFixed(0)} & Enter →`}
         </button>
-        <p className="text-xs text-gray-400 text-center">You'll be redirected to Stripe to complete your entry fee payment.</p>
+        <p className="text-xs text-gray-400 text-center">You'll be redirected to Stripe to complete your team's entry fee payment.</p>
       </form>
     </div>
   )
