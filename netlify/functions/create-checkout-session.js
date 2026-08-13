@@ -42,7 +42,11 @@ exports.handler = async (event) => {
     const isNationals = type === 'nationals_entry'
     const isExtras = type === 'nationals_extra'
     const isCompetitionEntry = type === 'competition_entry'
-    const slot = diverSlot === '2' || diverSlot === 2 ? '2' : '1'
+    // Slot 3 exists for Catfish Cull trios. Anything unrecognised falls back to
+    // '1' (the team-level payment) — previously '3' silently became '1', which
+    // meant a third diver's payment overwrote the team's stripe_session_id and
+    // paid_at instead of recording against their own column.
+    const slot = ['2', '3'].includes(String(diverSlot)) ? String(diverSlot) : '1'
 
     // Membership price is NEVER taken from the client — look it up from the
     // member's own record so a tampered request can't underpay.
@@ -111,7 +115,7 @@ exports.handler = async (event) => {
         : buildNationalsEntryLineItems({
             diverSlot: slot,
             nationalsEvent: team.nationals_event,
-            merch: slot === '2' ? team.merch_d2 : team.merch_d1,
+            merch: slot === '3' ? team.merch_d3 : slot === '2' ? team.merch_d2 : team.merch_d1,
             categoryFees: competition.category_fees,
             isEarlyBird: isEarlyBirdNow(competition),
           })

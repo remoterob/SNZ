@@ -6,10 +6,9 @@ import { useMemberSession, MemberAuthGate } from '../components/MemberAuthGate'
 const SNZ_BLUE = '#2B6CB0'
 const SNZ_DARK = '#1e3a5f'
 
-// Diver 1 pays the whole team's entry when they register, so this page is
-// confirmation-only — no Stripe step. The partner signs in, supplies their own
-// safety details and accepts the rules, which is what Diver 1 used to (badly)
-// fill in on their behalf.
+// Each competitor pays their own way, mirroring /nationals/confirm: the partner
+// signs in, supplies their own safety details, accepts the rules, picks their
+// own merch/dinner tickets, then pays their own entry fee via Stripe.
 export default function CatfishConfirm() {
   const navigate = useNavigate()
   const location = useLocation()
@@ -29,9 +28,34 @@ export default function CatfishConfirm() {
   const [fitToDive, setFitToDive] = useState(false)
   const [rulesAck, setRulesAck] = useState(false)
 
+  // This competitor's own extras
+  const [shirt, setShirt] = useState({ gender: '', size: '' })
+  const [shirtQty, setShirtQty] = useState(1)
+  const [mealQty, setMealQty] = useState(0)
+
   const params = new URLSearchParams(location.search)
   const teamId = params.get('team')
   const slotParam = params.get('slot')
+
+  // Returning from Stripe — the webhook is the primary path; verifying here
+  // gives instant confirmation without trusting the URL.
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search)
+    if (p.get('payment') === 'success' && teamId) {
+      const stripeSessionId = p.get('session_id')
+      const verify = stripeSessionId
+        ? fetch('/.netlify/functions/verify-checkout-session', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sessionId: stripeSessionId }),
+          }).catch(e => console.error('Payment verification failed:', e))
+        : Promise.resolve()
+      verify.then(() => {
+        window.history.replaceState({}, '', `/catfish/confirm?team=${teamId}`)
+        setSubmitted(true)
+      })
+    }
+  }, [teamId])
 
   useEffect(() => {
     if (member?.emergency_contact) setEmergencyContact(member.emergency_contact)
@@ -78,9 +102,32 @@ export default function CatfishConfirm() {
   }
 
   const slot = resolveSlot()
-  const alreadyConfirmed = slot === 2 ? !!team?.diver2_accepted_at
-    : slot === 3 ? !!team?.diver3_accepted_at
-    : false
+  // Only a completed payment counts as done — an accepted_at with an unpaid
+  // slot means they bailed out at Stripe and must be able to come back.
+  const myPaymentStatus = slot === 2 ? team?.diver2_payment_status
+    : slot === 3 ? team?.diver3_payment_status
+    : null
+  const alreadyConfirmed = myPaymentStatus === 'paid'
+
+  // Fees — same early-bird resolution as the register page
+  const isEarlyBird = comp?.early_bird_cutoff ? new Date() < new Date(comp.early_bird_cutoff) : false
+  const openFee = comp?.category_fees?.Open || {}
+  const perCompetitorCents = isEarlyBird && openFee.early_bird != null
+    ? openFee.early_bird
+    : (openFee.standard ?? comp?.entry_fee_cents ?? 5000)
+
+  const merchFees = comp?.category_fees?.merch
+  const mealFee = comp?.category_fees?.meal?.price
+  const offersShirt = !!merchFees?.shirt
+  const offersMeal = mealFee > 0
+  const shirtFee = merchFees?.shirt?.price
+  const shirtAllowsMultiple = !!merchFees?.shirt?.allowMultiple
+
+  const wantShirt = offersShirt && shirt.gender && shirt.size
+  const effShirtQty = shirtAllowsMultiple ? shirtQty : 1
+  const extrasCents = (wantShirt ? shirtFee * 100 * effShirtQty : 0)
+    + (offersMeal ? mealQty * mealFee * 100 : 0)
+  const totalCents = perCompetitorCents + extrasCents
 
   const handleConfirm = async () => {
     setError('')
@@ -128,15 +175,23 @@ export default function CatfishConfirm() {
       }
 
       const now = new Date().toISOString()
-      const teamPatch = slot === 2
-        ? { diver2_member_id: session.user.id, diver2_accepted_at: now }
-        : { diver3_member_id: session.user.id, diver3_accepted_at: now }
+      const merch = (() => {
+        if (!wantShirt && mealQty <= 0) return null
+        const m = {}
+        if (wantShirt) {
+          if (shirtAllowsMultiple) m.shirts = [{ gender: shirt.gender, size: shirt.size, qty: effShirtQty }]
+          else m.shirt = { gender: shirt.gender, size: shirt.size }
+        }
+        if (mealQty > 0) m.meal_qty = mealQty
+        return m
+      })()
 
-      // Team goes active once every seat has confirmed and Diver 1 has paid.
-      const otherConfirmed = slot === 2
-        ? (!team.diver3_email || !!team.diver3_accepted_at)
-        : !!team.diver2_accepted_at
-      if (otherConfirmed && team.payment_status === 'paid') teamPatch.status = 'active'
+      // Save the seat + this competitor's own merch before heading to Stripe,
+      // mirroring NationalsConfirm — payment status is set by the webhook /
+      // verify-checkout-session, never optimistically here.
+      const teamPatch = slot === 2
+        ? { diver2_member_id: session.user.id, diver2_accepted_at: now, merch_d2: merch }
+        : { diver3_member_id: session.user.id, diver3_accepted_at: now, merch_d3: merch }
 
       const { error: updErr } = await supabase.from('comp_teams').update(teamPatch).eq('id', team.id)
       if (updErr) throw updErr
@@ -148,12 +203,50 @@ export default function CatfishConfirm() {
         year: 2027,
       }, { onConflict: 'member_id,competition_id' })
 
+      if (totalCents > 0) {
+        const earlyBirdSuffix = isEarlyBird ? ' (early bird)' : ''
+        const lineItems = [
+          { name: `Entry fee — ${member?.name || 'Competitor ' + slot}${earlyBirdSuffix}`, amountCents: perCompetitorCents },
+          ...(wantShirt ? [{ name: `👕 T-Shirt (${shirt.gender} ${shirt.size})${effShirtQty > 1 ? ` × ${effShirtQty}` : ''}`, amountCents: shirtFee * 100 * effShirtQty }] : []),
+          ...(offersMeal && mealQty > 0 ? [{ name: `🍽️ Dinner ticket × ${mealQty}`, amountCents: mealFee * 100 * mealQty }] : []),
+        ]
+        const res = await fetch('/.netlify/functions/create-checkout-session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+          body: JSON.stringify({
+            type: 'competition_entry',
+            diverSlot: String(slot),
+            successPath: '/catfish/confirm',
+            amountCents: totalCents,
+            lineItems,
+            memberId: session.user.id,
+            memberEmail: session.user.email,
+            memberName: member?.name || '',
+            teamId: team.id,
+            competitionId: team.competition_id,
+            competitionName: comp?.name || 'Rosemergy Catfish Cull 2027',
+          }),
+        })
+        const { url, error: stripeErr } = await res.json()
+        if (stripeErr) throw new Error(stripeErr)
+        window.location.href = url
+        return
+      }
+
+      // No fee configured — confirm outright
+      await supabase.from('comp_teams').update(
+        slot === 2 ? { diver2_payment_status: 'paid' } : { diver3_payment_status: 'paid' }
+      ).eq('id', team.id)
       setSubmitted(true)
+      setSubmitting(false)
     } catch (e) {
       setError(e.message)
-    } finally {
       setSubmitting(false)
     }
+    // No `finally` here deliberately — on the Stripe-redirect path above,
+    // window.location.href only *schedules* navigation, so resetting
+    // `submitting` would re-enable the button during that gap and allow a
+    // second checkout session. Same reasoning as NationalsConfirm.
   }
 
   const Header = () => (
@@ -225,7 +318,7 @@ export default function CatfishConfirm() {
               <strong>{team.team_name}</strong> for the Rosemergy Catfish Cull 2027.
             </p>
             <p className="text-xs text-blue-600 mt-2">
-              Your entry fee is already paid. Sign in or create your SNZ account to confirm your details.
+              Sign in or create your SNZ account to confirm your details, pick your merch and pay your entry fee.
             </p>
           </div>
         )}
@@ -292,8 +385,8 @@ export default function CatfishConfirm() {
             Entered by <strong>{d1Member?.name || 'your teammate'}</strong>
           </p>
           <p className="text-xs text-gray-400 mt-1">You are Competitor {slot} on this team.</p>
-          <p className="text-xs text-blue-700 mt-2 font-semibold">
-            ✓ Your entry fee has already been paid by {d1Member?.name?.split(' ')[0] || 'your teammate'} — nothing to pay here.
+          <p className="text-xs text-blue-600 mt-2">
+            This is your own entry fee, paid separately from {d1Member?.name?.split(' ')[0] || 'your teammate'}'s. Add any merch or dinner tickets you'd like below.
           </p>
         </div>
 
@@ -357,11 +450,104 @@ export default function CatfishConfirm() {
           </label>
         </div>
 
+        {/* Merch & meal — this competitor's own */}
+        {(offersShirt || offersMeal) && (
+          <div className="bg-white border border-gray-200 rounded-2xl p-5 space-y-4">
+            <div>
+              <h2 className="font-black text-gray-900 text-sm uppercase tracking-widest" style={{ color: SNZ_BLUE }}>Merch &amp; Meal (optional)</h2>
+              <p className="text-xs text-gray-400 mt-0.5">Yours to choose — added to your own payment below.</p>
+            </div>
+
+            {offersShirt && (
+              <div className="border border-gray-200 rounded-xl p-4 space-y-3">
+                <div className="flex justify-between items-center">
+                  <p className="font-bold text-gray-900 text-sm">👕 Event T-Shirt</p>
+                  <p className="font-black text-gray-900 text-sm">${shirtFee}{shirtAllowsMultiple && shirtQty > 1 ? ` × ${shirtQty}` : ''}</p>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Gender fit</label>
+                    <select value={shirt.gender} onChange={e => setShirt(s => ({ ...s, gender: e.target.value }))}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300">
+                      <option value="">No shirt</option>
+                      <option value="Male">Male</option>
+                      <option value="Female">Female</option>
+                    </select>
+                  </div>
+                  {shirt.gender && (
+                    <div>
+                      <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Size</label>
+                      <select value={shirt.size} onChange={e => setShirt(s => ({ ...s, size: e.target.value }))}
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300">
+                        <option value="">Select size</option>
+                        {['XS','S','M','L','XL','2XL','3XL'].map(s => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                    </div>
+                  )}
+                </div>
+                {shirtAllowsMultiple && shirt.gender && shirt.size && (
+                  <div className="flex items-center gap-3">
+                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Quantity</label>
+                    <div className="flex items-center gap-2">
+                      <button type="button" onClick={() => setShirtQty(q => Math.max(1, q - 1))} disabled={shirtQty <= 1}
+                        className="w-8 h-8 rounded-lg border border-gray-300 text-gray-600 font-bold text-lg flex items-center justify-center hover:bg-gray-50 disabled:opacity-30">−</button>
+                      <span className="w-8 text-center font-black text-gray-900">{shirtQty}</span>
+                      <button type="button" onClick={() => setShirtQty(q => q + 1)}
+                        className="w-8 h-8 rounded-lg border border-gray-300 text-gray-600 font-bold text-lg flex items-center justify-center hover:bg-gray-50">+</button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {offersMeal && (
+              <div className="border border-gray-200 rounded-xl p-4">
+                <div className="flex justify-between items-center mb-3">
+                  <p className="font-bold text-gray-900 text-sm">🍽️ Dinner Ticket</p>
+                  <p className="text-xs text-gray-400">${mealFee} each</p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Tickets</label>
+                  <div className="flex items-center gap-2">
+                    <button type="button" onClick={() => setMealQty(q => Math.max(0, q - 1))} disabled={mealQty === 0}
+                      className="w-8 h-8 rounded-lg border border-gray-300 text-gray-600 font-bold text-lg flex items-center justify-center hover:bg-gray-50 disabled:opacity-30">−</button>
+                    <span className="w-8 text-center font-black text-gray-900">{mealQty}</span>
+                    <button type="button" onClick={() => setMealQty(q => q + 1)}
+                      className="w-8 h-8 rounded-lg border border-gray-300 text-gray-600 font-bold text-lg flex items-center justify-center hover:bg-gray-50">+</button>
+                  </div>
+                  {mealQty > 0 && <span className="text-sm font-bold text-gray-700 ml-2">${mealFee * mealQty}</span>}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Your total */}
+        <div className="bg-white border-2 border-gray-200 rounded-xl p-5 space-y-1.5">
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-gray-500">Your entry fee{isEarlyBird && <span className="text-amber-600"> 🐦</span>}</span>
+            <span className="font-bold text-gray-700">${(perCompetitorCents / 100).toFixed(0)}</span>
+          </div>
+          {extrasCents > 0 && (
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-gray-500">Merch &amp; meal tickets</span>
+              <span className="font-bold text-gray-700">${(extrasCents / 100).toFixed(0)}</span>
+            </div>
+          )}
+          <div className="flex items-center justify-between pt-1.5 border-t border-gray-100">
+            <span className="text-sm font-bold text-gray-500 uppercase tracking-wider">Your total</span>
+            <span className="text-2xl font-black" style={{ color: SNZ_BLUE }}>${(totalCents / 100).toFixed(0)} NZD</span>
+          </div>
+        </div>
+
         <button onClick={handleConfirm} disabled={submitting}
           className="w-full py-4 rounded-xl font-black text-white text-base disabled:opacity-50"
           style={{ background: SNZ_BLUE }}>
-          {submitting ? 'Confirming…' : 'Confirm My Entry →'}
+          {submitting ? 'Processing…' : totalCents > 0 ? `Confirm & Pay $${(totalCents / 100).toFixed(0)} →` : 'Confirm My Entry →'}
         </button>
+        {totalCents > 0 && (
+          <p className="text-xs text-gray-400 text-center">You'll be redirected to Stripe to pay your own entry fee securely.</p>
+        )}
         <p className="text-xs text-gray-400 text-center">Motuoapa, Lake Taupō · 13 February 2027</p>
       </div>
     </div>

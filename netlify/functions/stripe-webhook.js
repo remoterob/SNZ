@@ -103,15 +103,15 @@ exports.handler = async (event) => {
         console.log(`Membership paid for member ${member_id} (session ${session.id})`)
 
       } else if ((type === 'competition_entry' || type === 'nationals_entry') && team_id) {
-        if (diver_slot === '2') {
-          // Diver 2 pays their own share on /nationals/confirm — track it
-          // separately so it doesn't clobber diver 1's stripe_session_id /
-          // paid_at / payment_intent (a shared team-level record).
+        if (diver_slot === '2' || diver_slot === '3') {
+          // Partners pay their own share on the confirm page — track it in
+          // their own column so it doesn't clobber diver 1's
+          // stripe_session_id / paid_at / payment_intent (a team-level record).
           await safeUpdate('comp_teams', {
-            diver2_payment_status: 'paid',
+            [`diver${diver_slot}_payment_status`]: 'paid',
             status: 'active',
           }, 'id', team_id)
-          console.log(`${type} diver2 paid for team ${team_id} (session ${session.id})`)
+          console.log(`${type} diver${diver_slot} paid for team ${team_id} (session ${session.id})`)
         } else {
           await safeUpdate('comp_teams', {
             payment_status: 'paid',
@@ -174,11 +174,11 @@ exports.handler = async (event) => {
             // it must NOT withdraw the whole team, since Diver 1 may still be
             // competing. Only a Diver 1 refund (the team's primary payment)
             // withdraws the team.
-            if (diver_slot === '2') {
+            if (diver_slot === '2' || diver_slot === '3') {
               await safeUpdate('comp_teams', {
-                diver2_payment_status: 'refunded',
+                [`diver${diver_slot}_payment_status`]: 'refunded',
               }, 'id', teamId)
-              console.log(`Refund synced: team ${teamId} diver2 payment refunded (${intentId})`)
+              console.log(`Refund synced: team ${teamId} diver${diver_slot} payment refunded (${intentId})`)
             } else {
               await safeUpdate('comp_teams', {
                 payment_status: 'refunded',

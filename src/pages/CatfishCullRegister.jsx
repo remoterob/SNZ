@@ -172,15 +172,11 @@ export default function CatfishCullRegister() {
 
   const [rulesAccepted, setRulesAccepted] = useState(false)
 
+  // Only Competitor 1's own extras are chosen here — each teammate picks and
+  // pays for their own on the confirm page.
   const [shirt1, setShirt1] = useState({ gender: '', size: '' })
   const [shirtQty1, setShirtQty1] = useState(1)
   const [mealQty1, setMealQty1] = useState(0)
-  const [shirt2, setShirt2] = useState({ gender: '', size: '' })
-  const [shirtQty2, setShirtQty2] = useState(1)
-  const [mealQty2, setMealQty2] = useState(0)
-  const [shirt3, setShirt3] = useState({ gender: '', size: '' })
-  const [shirtQty3, setShirtQty3] = useState(1)
-  const [mealQty3, setMealQty3] = useState(0)
 
   useEffect(() => {
     supabase.from('competitions').select('*').ilike('name', '%catfish%2027%').maybeSingle()
@@ -258,7 +254,6 @@ export default function CatfishCullRegister() {
   const perCompetitorCents = isEarlyBird && openFee.early_bird != null
     ? openFee.early_bird
     : (openFee.standard ?? comp?.entry_fee_cents ?? PER_COMPETITOR_FEE * 100)
-  const entryFeeCents = competitorCount * perCompetitorCents
 
   const merchFees = comp?.category_fees?.merch
   const mealFee = comp?.category_fees?.meal?.price
@@ -267,18 +262,15 @@ export default function CatfishCullRegister() {
   const shirtFee = merchFees?.shirt?.price
   const shirtAllowsMultiple = !!merchFees?.shirt?.allowMultiple
 
+  // Each diver pays their own entry + their own extras, so Diver 1's checkout
+  // covers one entry fee only. entry_fee_cents on the team still records the
+  // full team value for admin/reporting.
   const wantShirt1 = offersShirt && shirt1.gender && shirt1.size
-  const wantShirt2 = offersShirt && shirt2.gender && shirt2.size
-  const wantShirt3 = hasThird && offersShirt && shirt3.gender && shirt3.size
   const effShirtQty1 = shirtAllowsMultiple ? shirtQty1 : 1
-  const effShirtQty2 = shirtAllowsMultiple ? shirtQty2 : 1
-  const effShirtQty3 = shirtAllowsMultiple ? shirtQty3 : 1
-  const effMealQty3 = hasThird ? mealQty3 : 0
   const extrasCents = (wantShirt1 ? shirtFee * 100 * effShirtQty1 : 0)
-    + (wantShirt2 ? shirtFee * 100 * effShirtQty2 : 0)
-    + (wantShirt3 ? shirtFee * 100 * effShirtQty3 : 0)
-    + (offersMeal ? (mealQty1 + mealQty2 + effMealQty3) * mealFee * 100 : 0)
-  const totalCents = entryFeeCents + extrasCents
+    + (offersMeal ? mealQty1 * mealFee * 100 : 0)
+  const totalCents = perCompetitorCents + extrasCents
+  const teamEntryFeeCents = competitorCount * perCompetitorCents
 
   // A partner slot is ready once it's been looked up — any of the three
   // outcomes is valid, since non-members now get invited rather than blocked.
@@ -317,8 +309,6 @@ export default function CatfishCullRegister() {
         return merch
       }
 
-      // Diver 1 pays for the whole team, so the team is only waiting on the
-      // partners' own confirmations — not their money.
       const allPartnersActive = p2Status === 'active' && (!hasThird || p3Status === 'active')
 
       const { data: team, error: tErr } = await supabase.from('comp_teams').insert({
@@ -331,13 +321,14 @@ export default function CatfishCullRegister() {
         diver1_member_id: member?.id || null,
         diver2_member_id: p2Status === 'active' ? p2Member.id : null,
         diver2_email: p2Email.trim().toLowerCase(),
+        diver2_payment_status: 'pending',
         diver3_member_id: hasThird && p3Status === 'active' ? p3Member.id : null,
         diver3_email: hasThird ? p3Email.trim().toLowerCase() : null,
+        diver3_payment_status: hasThird ? 'pending' : null,
         status: allPartnersActive ? 'pending_payment' : 'pending_diver2',
-        entry_fee_cents: entryFeeCents,
+        entry_fee_cents: teamEntryFeeCents,
+        // Partners choose their own merch when they confirm and pay.
         merch_d1: buildMerch(wantShirt1, shirt1, effShirtQty1, mealQty1),
-        merch_d2: buildMerch(wantShirt2, shirt2, effShirtQty2, mealQty2),
-        merch_d3: hasThird ? buildMerch(wantShirt3, shirt3, effShirtQty3, mealQty3) : null,
       }).select('id').single()
       if (tErr) throw tErr
 
@@ -380,8 +371,8 @@ export default function CatfishCullRegister() {
         }, { onConflict: 'member_id,competition_id' })
       }
 
-      // Invite each partner to confirm. Entry fees are already covered by
-      // Diver 1, so these are confirmation-only links.
+      // Invite each partner to confirm, choose their own extras and pay their
+      // own entry fee.
       const invites = [
         { email: p2Email.trim().toLowerCase(), slot: 2, active: p2Status === 'active' },
         ...(hasThird ? [{ email: p3Email.trim().toLowerCase(), slot: 3, active: p3Status === 'active' }] : []),
@@ -409,18 +400,10 @@ export default function CatfishCullRegister() {
       sessionStorage.setItem('snz_catfish_entry', JSON.stringify({ teamName: teamName.trim() }))
 
       const earlyBirdSuffix = isEarlyBird ? ' (early bird)' : ''
-      const p2Label = p2Member?.name || p2Email.trim()
-      const p3Label = p3Member?.name || p3Email.trim()
       const lineItems = [
         { name: `Entry fee — ${member?.name || 'Competitor 1'}${earlyBirdSuffix}`, amountCents: perCompetitorCents },
-        { name: `Entry fee — ${p2Label}${earlyBirdSuffix}`, amountCents: perCompetitorCents },
-        ...(hasThird ? [{ name: `Entry fee — ${p3Label}${earlyBirdSuffix}`, amountCents: perCompetitorCents }] : []),
-        ...(wantShirt1 ? [{ name: `👕 T-Shirt (${member?.name || 'Competitor 1'}, ${shirt1.gender} ${shirt1.size})${effShirtQty1 > 1 ? ` × ${effShirtQty1}` : ''}`, amountCents: shirtFee * 100 * effShirtQty1 }] : []),
-        ...(wantShirt2 ? [{ name: `👕 T-Shirt (${p2Label}, ${shirt2.gender} ${shirt2.size})${effShirtQty2 > 1 ? ` × ${effShirtQty2}` : ''}`, amountCents: shirtFee * 100 * effShirtQty2 }] : []),
-        ...(wantShirt3 ? [{ name: `👕 T-Shirt (${p3Label}, ${shirt3.gender} ${shirt3.size})${effShirtQty3 > 1 ? ` × ${effShirtQty3}` : ''}`, amountCents: shirtFee * 100 * effShirtQty3 }] : []),
-        ...(offersMeal && mealQty1 > 0 ? [{ name: `🍽️ Dinner ticket × ${mealQty1} (${member?.name || 'Competitor 1'})`, amountCents: mealFee * 100 * mealQty1 }] : []),
-        ...(offersMeal && mealQty2 > 0 ? [{ name: `🍽️ Dinner ticket × ${mealQty2} (${p2Label})`, amountCents: mealFee * 100 * mealQty2 }] : []),
-        ...(offersMeal && effMealQty3 > 0 ? [{ name: `🍽️ Dinner ticket × ${effMealQty3} (${p3Label})`, amountCents: mealFee * 100 * effMealQty3 }] : []),
+        ...(wantShirt1 ? [{ name: `👕 T-Shirt (${shirt1.gender} ${shirt1.size})${effShirtQty1 > 1 ? ` × ${effShirtQty1}` : ''}`, amountCents: shirtFee * 100 * effShirtQty1 }] : []),
+        ...(offersMeal && mealQty1 > 0 ? [{ name: `🍽️ Dinner ticket × ${mealQty1}`, amountCents: mealFee * 100 * mealQty1 }] : []),
       ]
 
       // checkout() swallows its own errors (sets the hook's `error` state
@@ -460,7 +443,7 @@ export default function CatfishCullRegister() {
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-left">
           <p className="text-sm font-black text-amber-800 mb-1">⏳ Awaiting your teammates</p>
           <p className="text-xs text-amber-700">
-            Their entry fees are already paid. We've emailed each of them a link to sign in, confirm their details and accept the rules — your team shows as pending until they do.
+            We've emailed each of them a link to sign in, confirm their details, accept the rules, pick any merch or dinner tickets, and pay their own entry fee — your team shows as pending until they do.
           </p>
         </div>
         <p className="text-xs text-gray-400">Motuoapa, Lake Taupō · 13 February 2027</p>
@@ -557,7 +540,7 @@ export default function CatfishCullRegister() {
             Pairs = ${(perCompetitorCents * 2 / 100).toFixed(0)} · Trios = ${(perCompetitorCents * 3 / 100).toFixed(0)} (groups of 3 welcome but ineligible for top prizes).
             {isEarlyBird && comp?.early_bird_cutoff && ` Early bird pricing until ${new Date(comp.early_bird_cutoff).toLocaleDateString('en-NZ', { day: 'numeric', month: 'short' })}.`}
           </p>
-          <p className="text-xs text-blue-700 mt-1.5 font-semibold">You pay for the whole team — your teammates just confirm their own details.</p>
+          <p className="text-xs text-blue-700 mt-1.5 font-semibold">Each competitor pays their own entry and picks their own merch — you only pay for yourself today.</p>
         </div>
 
         <div className="bg-white border border-gray-200 rounded-xl p-5">
@@ -612,12 +595,6 @@ export default function CatfishCullRegister() {
             setError: setP2Error, otherEmail: hasThird ? p3Email : '',
           })} />
 
-        <PersonExtras label={p2Member?.name || 'Competitor 2'}
-          shirt={shirt2} setShirt={setShirt2} shirtQty={shirtQty2} setShirtQty={setShirtQty2}
-          mealQty={mealQty2} setMealQty={setMealQty2}
-          offersShirt={offersShirt} offersMeal={offersMeal} shirtFee={shirtFee}
-          shirtAllowsMultiple={shirtAllowsMultiple} mealFee={mealFee} />
-
         {!hasThird ? (
           <button type="button" onClick={() => setHasThird(true)}
             className="w-full py-3 rounded-xl font-bold text-sm border-2 border-dashed border-gray-300 text-gray-500 hover:border-gray-400 transition">
@@ -637,13 +614,7 @@ export default function CatfishCullRegister() {
               })}
               onRemove={() => {
                 setHasThird(false); setP3Email(''); setP3Status(null); setP3Member(null); setP3Error('')
-                setShirt3({ gender: '', size: '' }); setShirtQty3(1); setMealQty3(0)
               }} />
-            <PersonExtras label={p3Member?.name || 'Competitor 3'}
-              shirt={shirt3} setShirt={setShirt3} shirtQty={shirtQty3} setShirtQty={setShirtQty3}
-              mealQty={mealQty3} setMealQty={setMealQty3}
-              offersShirt={offersShirt} offersMeal={offersMeal} shirtFee={shirtFee}
-              shirtAllowsMultiple={shirtAllowsMultiple} mealFee={mealFee} />
           </>
         )}
 
@@ -667,18 +638,24 @@ export default function CatfishCullRegister() {
 
         <div className="bg-white border-2 border-gray-200 rounded-xl p-5 space-y-1.5">
           <div className="flex items-center justify-between text-sm">
-            <span className="text-gray-500">Entry fee ({competitorCount} competitors)</span>
-            <span className="font-bold text-gray-700">${(entryFeeCents / 100).toFixed(0)}</span>
+            <span className="text-gray-500">Your entry fee</span>
+            <span className="font-bold text-gray-700">${(perCompetitorCents / 100).toFixed(0)}</span>
           </div>
           {extrasCents > 0 && (
             <div className="flex items-center justify-between text-sm">
-              <span className="text-gray-500">Merch &amp; meal tickets</span>
+              <span className="text-gray-500">Your merch &amp; meal tickets</span>
               <span className="font-bold text-gray-700">${(extrasCents / 100).toFixed(0)}</span>
             </div>
           )}
           <div className="flex items-center justify-between pt-1.5 border-t border-gray-100">
-            <span className="text-sm font-bold text-gray-500 uppercase tracking-wider">Total</span>
+            <span className="text-sm font-bold text-gray-500 uppercase tracking-wider">Your total today</span>
             <span className="text-2xl font-black" style={{ color: SNZ_BLUE }}>${(totalCents / 100).toFixed(0)} NZD</span>
+          </div>
+          <div className="flex items-center justify-between pt-1">
+            <span className="text-xs text-gray-400">
+              {competitorCount - 1} teammate{competitorCount - 1 > 1 ? 's' : ''} pay on confirmation
+            </span>
+            <span className="text-xs text-gray-400">${((perCompetitorCents * (competitorCount - 1)) / 100).toFixed(0)}+ NZD</span>
           </div>
         </div>
 
@@ -687,7 +664,7 @@ export default function CatfishCullRegister() {
           style={{ background: SNZ_BLUE }}>
           {submitting || checkoutLoading ? 'Processing…' : `Pay $${(totalCents / 100).toFixed(0)} & Enter →`}
         </button>
-        <p className="text-xs text-gray-400 text-center">You'll be redirected to Stripe to complete your team's entry fee payment.</p>
+        <p className="text-xs text-gray-400 text-center">You'll be redirected to Stripe to pay your own entry. Each teammate pays their own when they confirm.</p>
       </form>
     </div>
   )

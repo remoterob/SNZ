@@ -71,12 +71,12 @@ exports.handler = async (event) => {
       console.log(`Membership verified+activated for member ${member_id} (session ${session.id})`)
 
     } else if ((type === 'competition_entry' || type === 'nationals_entry') && team_id) {
-      if (diver_slot === '2') {
+      if (diver_slot === '2' || diver_slot === '3') {
         await safeUpdate('comp_teams', {
-          diver2_payment_status: 'paid',
+          [`diver${diver_slot}_payment_status`]: 'paid',
           status: 'active',
         }, 'id', team_id)
-        console.log(`${type} diver2 verified+activated for team ${team_id} (session ${session.id})`)
+        console.log(`${type} diver${diver_slot} verified+activated for team ${team_id} (session ${session.id})`)
       } else {
         await safeUpdate('comp_teams', {
           payment_status: 'paid',
