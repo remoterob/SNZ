@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase'
 import CompCopilotFAB from './CompCopilotFAB'
 import { teamLeaderboard, openTeamLeaderboard, photographyLeaderboard, finSwimLeaderboard, superDiverLeaderboard, medalFor } from '../lib/nationalsScoring'
 import { toCSV, downloadCSV } from '../lib/csvExport'
+import CheckInRollCall, { NATIONALS_CHECKIN_EVENTS, teamInNationalsEvent } from '../components/CheckInRollCall'
 
 const SNZ_BLUE = '#2B6CB0'
 const SNZ_DARK = '#1e3a5f'
@@ -2064,6 +2065,7 @@ export default function NationalsAdmin() {
 
   const TABS = [
     ['registrations', 'Registrations'],
+    ['checkin', '✅ Check-in'],
     ['fishlists', '🐟 Fish Lists'],
     ['results', '🏆 Results'],
     ['setup', '⚙ Setup'],
@@ -2125,6 +2127,14 @@ export default function NationalsAdmin() {
 
       <div className="max-w-5xl mx-auto px-4 py-6">
         {activeTab === 'registrations' && <RegistrationsTab teams={teams} comp={comp} loading={loading} onRefresh={fetchData} />}
+        {activeTab === 'checkin' && comp && (
+          <CheckInRollCall
+            competitionId={comp.id}
+            teams={teams.filter(t => !t.withdrawn_at)}
+            events={NATIONALS_CHECKIN_EVENTS}
+            teamsForEvent={teamInNationalsEvent}
+          />
+        )}
         {activeTab === 'fishlists' && comp && <FishListTab comp={comp} fishLists={fishLists} onRefresh={fetchData} />}
         {activeTab === 'results' && comp && <ResultsTab comp={comp} teams={teams} fishLists={fishLists} allWeighins={weighins} onRefresh={fetchData} />}
         {activeTab === 'setup' && <SetupTab comp={comp} onRefresh={fetchData} />}

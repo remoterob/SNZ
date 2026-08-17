@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, Fragment } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import CompCopilotFAB from './CompCopilotFAB'
+import CheckInRollCall from '../components/CheckInRollCall'
 
 const SNZ_BLUE = '#2B6CB0'
 const SNZ_LOGO = import.meta.env.VITE_SNZ_LOGO_URL || null
@@ -2982,24 +2983,10 @@ function BoatsTab({ comp, teams, members, boats, onRefresh, showToast }) {
   )
 }
 
-// ── Check-in Tab ──────────────────────────────────────────────────────────────
+// ── Check-in Tab ────────────────────────────────────────────────────────
+// Single-event comps (Catfish Cull et al): one check-in list, with pre- and
+// post-event phases. Boat assignment rides along in the same row.
 function CheckInTab({ comp, teams, members, boats, onRefresh, showToast }) {
-  const checkedInCount = teams.filter(t => t.checked_in).length
-
-  const checkIn = async (teamId) => {
-    const { error } = await supabase.from('comp_teams')
-      .update({ checked_in: true, checked_in_at: new Date().toISOString() }).eq('id', teamId)
-    if (error) { showToast(error.message, 'error'); return }
-    onRefresh()
-  }
-
-  const uncheckIn = async (teamId) => {
-    const { error } = await supabase.from('comp_teams')
-      .update({ checked_in: false, checked_in_at: null }).eq('id', teamId)
-    if (error) { showToast(error.message, 'error'); return }
-    onRefresh()
-  }
-
   const assignBoat = async (teamId, boatId) => {
     await supabase.from('comp_teams').update({ boat_id: boatId || null }).eq('id', teamId)
     onRefresh()
@@ -3012,86 +2999,18 @@ function CheckInTab({ comp, teams, members, boats, onRefresh, showToast }) {
   )
 
   return (
-    <div className="space-y-4">
-      {/* Summary bar */}
-      <div className="bg-white border-2 border-blue-100 rounded-xl p-4 flex items-center justify-between">
-        <div>
-          <p className="font-black text-gray-900 text-lg">{checkedInCount} <span className="text-gray-400 font-normal text-base">/ {teams.length} checked in</span></p>
-          <p className="text-xs text-gray-400 mt-0.5">{teams.length - checkedInCount} still to arrive</p>
-        </div>
-        <div className="flex gap-1.5">
-          {teams.map(t => (
-            <div key={t.id} className={`w-3 h-3 rounded-full ${t.checked_in ? 'bg-green-400' : 'bg-gray-200'}`} title={t.team_name} />
-          ))}
-        </div>
-      </div>
-
-      {/* Team list in entry order */}
-      <div className="space-y-2">
-        {teams.map((t, i) => {
-          const mems = members.filter(m => m.team_id === t.id)
-          const boat = boats.find(b => b.id === t.boat_id)
-          return (
-            <div key={t.id} className={`flex items-center gap-3 p-3 rounded-xl border-2 transition ${
-              t.checked_in ? 'border-green-400 bg-green-50' : 'border-gray-200 bg-white hover:border-gray-300'
-            }`}>
-              {/* Entry number */}
-              <div className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center text-xs font-black text-gray-500 flex-shrink-0">{i + 1}</div>
-
-              {/* Team photo */}
-              {t.team_photo_url
-                ? <img src={t.team_photo_url} alt={t.team_name} className="w-10 h-10 rounded-full object-cover border border-gray-200 flex-shrink-0" />
-                : <div className="w-10 h-10 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center text-base flex-shrink-0">👥</div>
-              }
-
-              {/* Info */}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <p className="font-bold text-gray-900 text-sm">{t.team_name}</p>
-                  <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">{t.category}</span>
-                  {t.status === 'pending_payment' && (
-                    <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-red-100 text-red-600 border border-red-200">Unpaid</span>
-                  )}
-                </div>
-                <p className="text-xs text-gray-500 truncate">{mems.map(m => m.name).join(' & ')}</p>
-                {t.checked_in && t.checked_in_at && (
-                  <p className="text-xs text-green-600 font-semibold">✓ {new Date(t.checked_in_at).toLocaleTimeString('en-NZ', { hour: '2-digit', minute: '2-digit' })}</p>
-                )}
-              </div>
-
-              {/* Boat selector */}
-              <select value={t.boat_id || ''} onChange={e => assignBoat(t.id, e.target.value || null)}
-                className="border border-gray-300 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-300 max-w-[130px] flex-shrink-0">
-                <option value="">No boat</option>
-                {boats.map(b => <option key={b.id} value={b.id}>{b.boat_name}</option>)}
-              </select>
-
-              {/* Check-in button */}
-              {t.checked_in ? (
-                <button onClick={() => uncheckIn(t.id)}
-                  className="flex-shrink-0 px-3 py-2 rounded-lg text-xs font-black bg-green-100 text-green-700 border border-green-300 hover:bg-green-200 transition min-w-[72px] text-center">
-                  ✓ In
-                </button>
-              ) : (
-                <button onClick={() => checkIn(t.id)}
-                  className="flex-shrink-0 px-3 py-2 rounded-lg text-xs font-black text-white transition min-w-[72px] text-center"
-                  style={{ background: SNZ_BLUE }}>
-                  Check In
-                </button>
-              )}
-            </div>
-          )
-        })}
-      </div>
-
-      {/* Footer total */}
-      <div className={`rounded-xl p-4 text-center font-black text-lg border-2 ${
-        checkedInCount === teams.length ? 'bg-green-50 border-green-300 text-green-700' : 'bg-gray-50 border-gray-200 text-gray-500'
-      }`}>
-        {checkedInCount === teams.length
-          ? `✓ All ${teams.length} teams checked in — ready to dive!`
-          : `${checkedInCount} / ${teams.length} teams checked in`}
-      </div>
-    </div>
+    <CheckInRollCall
+      competitionId={comp?.id}
+      teams={teams}
+      members={members}
+      showToast={showToast}
+      renderTeamExtra={boats?.length ? (t) => (
+        <select value={t.boat_id || ''} onChange={e => assignBoat(t.id, e.target.value || null)}
+          className="border border-gray-300 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-300 max-w-[130px] flex-shrink-0">
+          <option value="">No boat</option>
+          {boats.map(b => <option key={b.id} value={b.id}>{b.boat_name}</option>)}
+        </select>
+      ) : undefined}
+    />
   )
 }
