@@ -3,6 +3,8 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import CompCopilotFAB from './CompCopilotFAB'
 import CheckInRollCall from '../components/CheckInRollCall'
+import SocialCardExporter from '../components/SocialCardExporter'
+import TeamPhotoCapture from '../components/TeamPhotoCapture'
 
 const SNZ_BLUE = '#2B6CB0'
 const SNZ_LOGO = import.meta.env.VITE_SNZ_LOGO_URL || null
@@ -637,7 +639,7 @@ export default function CompAdmin() {
         {tab === 'boats' && <BoatsTab comp={comp} teams={activeTeams} members={members} boats={boats} onRefresh={fetchAll} showToast={showToast} />}
         {tab === 'checkin' && <CheckInTab comp={comp} teams={teams} members={members} boats={boats} onRefresh={fetchAll} showToast={showToast} />}
         {tab === 'weighin' && (comp.scoring_mode === 'catfish_count'
-          ? <CatfishWeighInTab teams={activeTeams} members={members} onRefresh={fetchAll} showToast={showToast} />
+          ? <CatfishWeighInTab comp={comp} teams={activeTeams} members={members} onRefresh={fetchAll} showToast={showToast} />
           : <WeighInTab comp={comp} teams={activeTeams} members={members} fish={fish} weighins={weighins} onRefresh={fetchAll} showToast={showToast} />)}
         {tab === 'leaderboard' && (comp.scoring_mode === 'catfish_count'
           ? <CatfishLeaderboardTab teams={activeTeams} members={members} />
@@ -2091,6 +2093,10 @@ function WeighInTab({ comp, teams, members, fish, weighins: initialWeighins, onR
             </div>
           </div>
 
+          {/* Team photo — optional, shown on the leaderboard */}
+          <TeamPhotoCapture competitionId={comp.id} team={selectedTeam}
+            onSaved={onRefresh} showToast={showToast} />
+
           <div className="p-5">
             {/* Fish claim list */}
             <div className="space-y-2 mb-5">
@@ -2270,7 +2276,7 @@ function WeighInTab({ comp, teams, members, fish, weighins: initialWeighins, onR
 // ── Catfish Count Weigh-in Tab (scoring_mode='catfish_count') ────────────────
 // Simple count-based scoring — total catfish per team + one heaviest/lightest
 // single fish, unlike the fish-species points engine WeighInTab uses above.
-function CatfishWeighInTab({ teams, members, onRefresh, showToast }) {
+function CatfishWeighInTab({ comp, teams, members, onRefresh, showToast }) {
   const [drafts, setDrafts] = useState({})
   const [savingId, setSavingId] = useState(null)
 
@@ -2342,6 +2348,10 @@ function CatfishWeighInTab({ teams, members, onRefresh, showToast }) {
                   onChange={e => setField(team.id, 'lightest_fish_grams', e.target.value)}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
               </div>
+            </div>
+            <div className="mt-3 pt-3 border-t border-gray-100">
+              <TeamPhotoCapture competitionId={comp?.id} team={team}
+                onSaved={onRefresh} showToast={showToast} compact />
             </div>
             <button onClick={() => save(team)} disabled={savingId === team.id}
               className="mt-3 px-4 py-2 rounded-lg text-sm font-bold text-white disabled:opacity-40"
@@ -2517,278 +2527,42 @@ function AdminLeaderboard({ comp, teams, weighins, fish }) {
   )
 }
 
-// ── Socials Tab ──────────────────────────────────────────────────────────────
+// ── Socials Tab ─────────────────────────────────────────────────
+// One 1080x1080 card per team. The catch photo is the hero where there is one,
+// otherwise the weigh-station team photo - so every photographed team gets a
+// card, not just those with a catch shot.
 function SocialsTab({ comp, teams, members, weighins }) {
-  const [generating, setGenerating] = useState(null)
-  const [previews, setPreviews] = useState({}) // key: teamId → dataURL
-  const [selected, setSelected] = useState(new Set()) // selected team ids for bulk export
-  const [bulkExporting, setBulkExporting] = useState(false)
-
-  // One card per TEAM that has a catch photo — deduplicate
-  const catchCards = teams
+  const cards = teams
     .map(team => {
       const teamWeighins = weighins.filter(w => w.team_id === team.id)
-      const photoUrl = teamWeighins.find(w => w.catch_photo_url)?.catch_photo_url
-      if (!photoUrl) return null
+      const catchUrl = teamWeighins.find(w => w.catch_photo_url)?.catch_photo_url || null
+      const heroUrl = catchUrl || team.team_photo_url || null
+      if (!heroUrl) return null
       const teamMembers = members.filter(m => m.team_id === team.id)
-      const teamTotal = teamWeighins.reduce((s, w) => s + (w.points_awarded || 0), 0)
-      const fishClaimed = teamWeighins.filter(w => !w.is_bulk).length
-      return { teamId: team.id, team, teamMembers, teamTotal, fishClaimed, catch_photo_url: photoUrl }
+      const isCatfish = comp?.scoring_mode === 'catfish_count'
+      // Catfish results live on comp_teams, not comp_weighins
+      const teamTotal = isCatfish
+        ? (team.catfish_count || 0)
+        : teamWeighins.reduce((s, w) => s + (w.points_awarded || 0), 0)
+      const fishClaimed = isCatfish
+        ? (team.catfish_count || 0)
+        : teamWeighins.filter(w => !w.is_bulk).length
+      return {
+        key: String(team.id),
+        team,
+        heroUrl,
+        teamPhotoUrl: team.team_photo_url || null,
+        teamName: team.team_name,
+        subtitle: teamMembers.map(m => m.name).join(' & '),
+        statLine: [fishClaimed ? `${fishClaimed} fish` : null, team.category].filter(Boolean).join(' · '),
+        scoreLine: isCatfish ? `${teamTotal} catfish` : `${teamTotal} pts`,
+        usedFallback: !catchUrl,
+      }
     })
     .filter(Boolean)
 
-  const MAX_SELECT = 15
-
-  const toggleSelect = (teamId) => {
-    setSelected(s => {
-      const n = new Set(s)
-      if (n.has(teamId)) n.delete(teamId)
-      else if (n.size < MAX_SELECT) n.add(teamId)
-      return n
-    })
-  }
-  const selectAll = () => setSelected(new Set(catchCards.slice(0, MAX_SELECT).map(c => c.teamId)))
-  const clearAll = () => setSelected(new Set())
-
-  const generateCard = async (card) => {
-    setGenerating(card.teamId)
-    try {
-      const canvas = document.createElement('canvas')
-      canvas.width = 1080
-      canvas.height = 1080
-      const ctx = canvas.getContext('2d')
-
-      // Rounded-rect helper (fallback for browsers without roundRect)
-      const rRect = (x, y, w, h, r) => {
-        ctx.beginPath()
-        ctx.moveTo(x + r, y)
-        ctx.lineTo(x + w - r, y)
-        ctx.arcTo(x + w, y, x + w, y + r, r)
-        ctx.lineTo(x + w, y + h - r)
-        ctx.arcTo(x + w, y + h, x + w - r, y + h, r)
-        ctx.lineTo(x + r, y + h)
-        ctx.arcTo(x, y + h, x, y + h - r, r)
-        ctx.lineTo(x, y + r)
-        ctx.arcTo(x, y, x + r, y, r)
-        ctx.closePath()
-      }
-
-      // Catch photo (cover)
-      const img = await new Promise((resolve, reject) => {
-        const i = new Image(); i.crossOrigin = 'anonymous'
-        i.onload = () => resolve(i); i.onerror = reject; i.src = card.catch_photo_url
-      })
-      const scale = Math.max(canvas.width / img.width, canvas.height / img.height)
-      const w = img.width * scale, h = img.height * scale
-      ctx.drawImage(img, (canvas.width - w) / 2, (canvas.height - h) / 2, w, h)
-
-      // Dark gradient overlay
-      const overlayH = 310
-      const grad = ctx.createLinearGradient(0, canvas.height - overlayH, 0, canvas.height)
-      grad.addColorStop(0, 'rgba(0,0,0,0)')
-      grad.addColorStop(0.3, 'rgba(0,0,0,0.65)')
-      grad.addColorStop(1, 'rgba(0,0,0,0.93)')
-      ctx.fillStyle = grad
-      ctx.fillRect(0, canvas.height - overlayH, canvas.width, overlayH)
-
-      // Team photo thumbnail (bottom-left)
-      const pad = 44
-      const ts = 120
-      const tx = pad
-      const ty = canvas.height - pad - ts
-      let thumbDrawn = false
-      if (card.team?.team_photo_url) {
-        try {
-          const ti = await new Promise((res, rej) => {
-            const i = new Image(); i.crossOrigin = 'anonymous'
-            i.onload = () => res(i); i.onerror = rej; i.src = card.team.team_photo_url
-          })
-          ctx.save()
-          rRect(tx, ty, ts, ts, 14)
-          ctx.clip()
-          ctx.drawImage(ti, tx, ty, ts, ts)
-          ctx.restore()
-          ctx.strokeStyle = 'rgba(255,255,255,0.85)'
-          ctx.lineWidth = 3
-          rRect(tx, ty, ts, ts, 14)
-          ctx.stroke()
-          thumbDrawn = true
-        } catch (_) {}
-      }
-
-      const textX = thumbDrawn ? tx + ts + 20 : pad
-      const maxW = canvas.width - textX - pad
-
-      const truncate = (text, font) => {
-        ctx.font = font
-        if (ctx.measureText(text).width <= maxW) return text
-        let t = text
-        while (t.length > 0 && ctx.measureText(t + '…').width > maxW) t = t.slice(0, -1)
-        return t + '…'
-      }
-
-      const teamName = card.team?.team_name || ''
-      const memberNames = card.teamMembers.map(m => m.name).join(' & ') || ''
-
-      // Team name
-      const nameFont = 'bold 50px system-ui, sans-serif'
-      ctx.fillStyle = '#ffffff'
-      ctx.font = nameFont
-      ctx.fillText(truncate(teamName, nameFont), textX, canvas.height - 178)
-
-      // Member names
-      const membersFont = 'bold 32px system-ui, sans-serif'
-      ctx.fillStyle = 'rgba(255,255,255,0.82)'
-      ctx.font = membersFont
-      ctx.fillText(truncate(memberNames, membersFont), textX, canvas.height - 120)
-
-      // Fish count + category (small)
-      ctx.fillStyle = 'rgba(255,255,255,0.55)'
-      ctx.font = '26px system-ui, sans-serif'
-      ctx.fillText(`${card.fishClaimed} fish · ${card.team?.category || ''}`, textX, canvas.height - 76)
-
-      // Score (prominent, amber)
-      ctx.fillStyle = '#F6E05E'
-      ctx.font = 'bold 44px system-ui, sans-serif'
-      ctx.fillText(`${card.teamTotal} pts`, textX, canvas.height - 34)
-
-      // SNZ logo (top-right)
-      if (SNZ_LOGO) {
-        try {
-          const logo = await new Promise((res, rej) => {
-            const i = new Image(); i.crossOrigin = 'anonymous'
-            i.onload = () => res(i); i.onerror = rej; i.src = SNZ_LOGO
-          })
-          const logoH = 72
-          const logoW = Math.round(logo.width * (logoH / logo.height))
-          const lx = canvas.width - pad - logoW
-          const ly = pad
-          // Soft white pill behind logo for contrast
-          ctx.fillStyle = 'rgba(255,255,255,0.18)'
-          ctx.beginPath()
-          ctx.roundRect(lx - 12, ly - 8, logoW + 24, logoH + 16, 12)
-          ctx.fill()
-          ctx.drawImage(logo, lx, ly, logoW, logoH)
-        } catch (_) {}
-      }
-
-      // Comp name watermark (top-right, below logo)
-      ctx.fillStyle = 'rgba(255,255,255,0.45)'
-      ctx.font = 'bold 22px system-ui, sans-serif'
-      ctx.textAlign = 'right'
-      ctx.fillText(comp.name, canvas.width - pad, pad + 110)
-      ctx.textAlign = 'left'
-
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.92)
-      setPreviews(p => ({ ...p, [card.teamId]: dataUrl }))
-      return dataUrl
-    } catch (err) {
-      alert('Could not generate card: ' + err.message)
-      return null
-    } finally {
-      setGenerating(null)
-    }
-  }
-
-  const downloadCard = (card, dataUrl) => {
-    const a = document.createElement('a')
-    a.href = dataUrl
-    const teamName = (card.team?.team_name || 'team').replace(/\s+/g, '-').toLowerCase()
-    a.download = `${comp.name.replace(/\s+/g,'-')}-${teamName}.jpg`
-    a.click()
-  }
-
-  const exportSelected = async () => {
-    if (selected.size === 0) return
-    setBulkExporting(true)
-    const toExport = catchCards.filter(c => selected.has(c.teamId))
-    for (const card of toExport) {
-      let dataUrl = previews[card.teamId]
-      if (!dataUrl) dataUrl = await generateCard(card)
-      if (dataUrl) {
-        downloadCard(card, dataUrl)
-        await new Promise(r => setTimeout(r, 300)) // small delay between downloads
-      }
-    }
-    setBulkExporting(false)
-  }
-
-  return (
-    <div className="space-y-5">
-      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-800">
-        <p className="font-bold mb-1">Social Media Export</p>
-        <p className="text-xs">One 1080×1080 card per team. Team photo, names and score stamped at the bottom-left. Select up to 15 to bulk download.</p>
-      </div>
-
-      {catchCards.length === 0 && (
-        <div className="text-center py-16 bg-gray-50 rounded-xl text-gray-400">
-          <p className="font-semibold text-gray-500 mb-1">No catch photos yet</p>
-          <p className="text-sm">Add a catch photo during weigh-in to generate social cards.</p>
-        </div>
-      )}
-
-      {catchCards.length > 0 && (
-        <>
-          {/* Selection toolbar */}
-          <div className="flex items-center justify-between flex-wrap gap-3">
-            <div className="flex items-center gap-3">
-              <button onClick={selectAll} className="text-xs font-bold px-3 py-1.5 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50">Select All</button>
-              {selected.size > 0 && <button onClick={clearAll} className="text-xs font-bold px-3 py-1.5 rounded-lg border border-gray-300 text-gray-500 hover:bg-gray-50">Clear</button>}
-              {selected.size > 0 && <span className="text-xs text-gray-500">{selected.size} / {MAX_SELECT} selected</span>}
-              {selected.size >= MAX_SELECT && <span className="text-xs text-amber-600 font-semibold">Max {MAX_SELECT} reached</span>}
-            </div>
-            {selected.size > 0 && (
-              <button onClick={exportSelected} disabled={bulkExporting}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold text-white disabled:opacity-50"
-                style={{ background: SNZ_BLUE }}>
-                {bulkExporting ? 'Exporting…' : `↓ Export ${selected.size} card${selected.size > 1 ? 's' : ''}`}
-              </button>
-            )}
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {catchCards.map(card => {
-              const isSelected = selected.has(card.teamId)
-              const isGenerating = generating === card.teamId
-              const preview = previews[card.teamId]
-              return (
-                <div key={card.teamId}
-                  className={`bg-white rounded-xl overflow-hidden shadow-sm border-2 transition cursor-pointer ${isSelected ? 'border-blue-500' : 'border-gray-200 hover:border-gray-300'}`}
-                  onClick={() => toggleSelect(card.teamId)}>
-                  <div className="relative">
-                    <img src={preview || card.catch_photo_url} alt={card.team?.team_name}
-                      className="w-full aspect-square object-cover" />
-                    {/* Select overlay */}
-                    <div className={`absolute top-2 left-2 w-7 h-7 rounded-full border-2 flex items-center justify-center font-black text-sm transition ${
-                      isSelected ? 'bg-blue-500 border-blue-500 text-white' : 'bg-white/80 border-gray-300 text-transparent'
-                    }`}>✓</div>
-                    {preview && <div className="absolute top-2 right-2 bg-green-500 text-white text-xs font-bold px-2 py-1 rounded-lg">✓ Ready</div>}
-                  </div>
-                  <div className="p-3" onClick={e => e.stopPropagation()}>
-                    <p className="font-bold text-sm text-gray-900">{card.team?.team_name}</p>
-                    <p className="text-xs text-gray-400 mt-0.5">
-                      {card.teamMembers.map(m=>m.name).join(' & ')} · {card.fishClaimed} fish · {card.teamTotal} pts
-                    </p>
-                    <div className="flex gap-2 mt-3">
-                      <button onClick={() => generateCard(card)} disabled={!!isGenerating}
-                        className="flex-1 py-2 rounded-lg text-xs font-bold border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50">
-                        {isGenerating ? 'Generating…' : preview ? 'Regenerate' : 'Preview Card'}
-                      </button>
-                      {preview && (
-                        <button onClick={() => downloadCard(card, preview)}
-                          className="flex-1 py-2 rounded-lg text-xs font-bold text-white"
-                          style={{ background: SNZ_BLUE }}>↓ Download</button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </>
-      )}
-    </div>
-  )
+  return <SocialCardExporter comp={comp} cards={cards}
+    emptyHint="Add a catch photo or a team photo at weigh-in to generate cards." />
 }
 
 // ── Boats Tab ─────────────────────────────────────────────────────────────────

@@ -5,6 +5,8 @@ import CompCopilotFAB from './CompCopilotFAB'
 import { teamLeaderboard, openTeamLeaderboard, photographyLeaderboard, finSwimLeaderboard, superDiverLeaderboard, medalFor } from '../lib/nationalsScoring'
 import { toCSV, downloadCSV } from '../lib/csvExport'
 import CheckInRollCall, { NATIONALS_CHECKIN_EVENTS, teamInNationalsEvent } from '../components/CheckInRollCall'
+import SocialCardExporter from '../components/SocialCardExporter'
+import TeamPhotoCapture from '../components/TeamPhotoCapture'
 
 const SNZ_BLUE = '#2B6CB0'
 const SNZ_DARK = '#1e3a5f'
@@ -1673,6 +1675,13 @@ function StandardDivisionResults({ divId, comp, teams, fishLists, allWeighins, o
         </div>
 
         {selectedTeam && (
+          <div className="bg-white border border-gray-200 rounded-xl mb-3">
+            <TeamPhotoCapture competitionId={comp.id} team={selectedTeam}
+              onSaved={onRefresh} showToast={(m, t) => t === 'error' && alert(m)} />
+          </div>
+        )}
+
+        {selectedTeam && (
           <WeighInPanel
             key={`${selectedTeam.id}-${isOpen ? selectedDay : ''}`}
             team={selectedTeam}
@@ -1690,6 +1699,43 @@ function StandardDivisionResults({ divId, comp, teams, fishLists, allWeighins, o
       <DivisionLeaderboard divId={divId} teams={teams} allWeighins={allWeighins} />
     </div>
   )
+}
+
+// ── Socials Tab ───────────────────────────────────────────────────
+// One card per team per division entered, so each division's result can be
+// posted on its own. Open uses the percentage-based board (which is also what
+// Women's and Silver Oldie are ranked off), everything else its own points.
+function NationalsSocialsTab({ comp, teams, allWeighins }) {
+  const cards = []
+
+  for (const div of STANDARD_DIVS) {
+    const board = div.id === 'open' || div.derived
+      ? openTeamLeaderboard(teams, allWeighins, div.id)
+      : teamLeaderboard(teams, allWeighins, div.id)
+
+    for (const row of board) {
+      const catchUrl = allWeighins.find(w => w.team_id === row.id && w.catch_photo_url)?.catch_photo_url || null
+      const heroUrl = catchUrl || row.team_photo_url || null
+      if (!heroUrl) continue
+      const divers = [row._d1?.name, row._d2?.name].filter(Boolean).join(' & ')
+      const score = row.total != null ? row.total : 0
+      const isPct = div.id === 'open' || div.derived
+      cards.push({
+        key: `${row.id}-${div.id}`,
+        suffix: div.id,
+        heroUrl,
+        teamPhotoUrl: row.team_photo_url || null,
+        teamName: row.team_name,
+        subtitle: divers,
+        statLine: [DIV_LABELS[div.id], row.rank ? medalFor(row.rank) : null].filter(Boolean).join(' · '),
+        scoreLine: isPct ? `${Number(score).toFixed(1)}%` : `${score} pts`,
+        usedFallback: !catchUrl,
+      })
+    }
+  }
+
+  return <SocialCardExporter comp={comp} cards={cards}
+    emptyHint="Add a catch photo or a team photo at weigh-in to generate cards." />
 }
 
 // ── Photography Results ───────────────────────────────────────────────────────
@@ -2068,6 +2114,7 @@ export default function NationalsAdmin() {
     ['checkin', '✅ Check-in'],
     ['fishlists', '🐟 Fish Lists'],
     ['results', '🏆 Results'],
+    ['socials', '📸 Socials'],
     ['setup', '⚙ Setup'],
   ]
 
@@ -2137,6 +2184,7 @@ export default function NationalsAdmin() {
         )}
         {activeTab === 'fishlists' && comp && <FishListTab comp={comp} fishLists={fishLists} onRefresh={fetchData} />}
         {activeTab === 'results' && comp && <ResultsTab comp={comp} teams={teams} fishLists={fishLists} allWeighins={weighins} onRefresh={fetchData} />}
+        {activeTab === 'socials' && comp && <NationalsSocialsTab comp={comp} teams={teams} allWeighins={weighins} />}
         {activeTab === 'setup' && <SetupTab comp={comp} onRefresh={fetchData} />}
       </div>
     </div>
