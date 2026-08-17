@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom'
-import { supabase, isAdmin, isBingoAdmin, setAdminSession } from './lib/supabase'
+import { supabase, isAdmin, isBingoAdmin, setAdminSession, isNationalsAdmin } from './lib/supabase'
 import { useAnalytics } from './lib/useAnalytics'
 import PWAInstallPrompt from './components/PWAInstallPrompt'
 import { useMemberSession } from './components/MemberAuthGate'
@@ -68,6 +68,15 @@ function ProtectedRoute({ children }) {
 function ProtectedBingoRoute({ children }) {
   const location = useLocation()
   if (!isBingoAdmin()) return <Navigate to="/admin/login" state={{ from: location.pathname }} replace />
+  return children
+}
+
+// Nationals admin accepts the scoped nationals password in addition to full
+// sys admin — used only for /nationals/admin so a nationals-only login can't
+// reach any other admin area.
+function ProtectedNationalsRoute({ children }) {
+  const location = useLocation()
+  if (!isNationalsAdmin()) return <Navigate to="/admin/login" state={{ from: location.pathname }} replace />
   return children
 }
 
@@ -1119,7 +1128,7 @@ export default function App() {
       <Route path="/membership/*"           element={<MembershipRouter />} />
       <Route path="/membership/invited"       element={<MembershipRouter />} />
       <Route path="/nationals"              element={<NationalsPage />} />
-      <Route path="/nationals/admin"         element={<ProtectedRoute><NationalsAdmin /></ProtectedRoute>} />
+      <Route path="/nationals/admin"         element={<ProtectedNationalsRoute><NationalsAdmin /></ProtectedNationalsRoute>} />
       <Route path="/nationals/register"      element={<NationalsRegister />} />
       <Route path="/nationals/register/individual" element={<NationalsRegisterIndividual />} />
       <Route path="/nationals/confirm"       element={<NationalsConfirm />} />

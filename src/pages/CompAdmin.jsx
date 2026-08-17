@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, Fragment } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { supabase } from '../lib/supabase'
+import { supabase, CATFISH_ADMIN_PASSWORD } from '../lib/supabase'
 import CompCopilotFAB from './CompCopilotFAB'
 import CheckInRollCall from '../components/CheckInRollCall'
 import SocialCardExporter from '../components/SocialCardExporter'
@@ -240,8 +240,14 @@ function ComplianceGate({ comp, onAccepted, showToast }) {
 function AuthGate({ comp, onAuth }) {
   const [pwd, setPwd] = useState('')
   const [err, setErr] = useState('')
+  // The scoped Catfish password unlocks the Catfish Cull only — gated on the
+  // comp's own scoring mode so it can never open another club's competition.
+  const catfishScoped = CATFISH_ADMIN_PASSWORD
+    && comp.scoring_mode === 'catfish_count'
+    && pwd === CATFISH_ADMIN_PASSWORD
+
   const check = () => {
-    if (btoa(pwd) === comp.club_password || pwd === import.meta.env.VITE_ADMIN_PASSWORD) {
+    if (btoa(pwd) === comp.club_password || pwd === import.meta.env.VITE_ADMIN_PASSWORD || catfishScoped) {
       sessionStorage.setItem(`comp_admin_${comp.id}`, '1')
       onAuth()
     } else {
