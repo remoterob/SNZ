@@ -50,18 +50,16 @@ export async function generateTeamCard({
     ctx.closePath()
   }
 
-  // Hero (cover). Images are loaded with crossOrigin='anonymous' so the canvas
-  // stays untainted and can be exported — Supabase storage sends
-  // Access-Control-Allow-Origin, but an externally *linked* photo often won't,
-  // and then the load fails outright. Say so plainly rather than surfacing a
+  // Hero (cover). Loaded with crossOrigin='anonymous' so the canvas stays
+  // untainted and can be exported — Supabase storage sends
+  // Access-Control-Allow-Origin, so uploaded photos are fine. A failure here
+  // means the image is missing or unreachable; say so rather than surfacing a
   // bare network error.
   let img
   try {
     img = await loadImage(heroUrl)
   } catch (_) {
-    throw new Error(
-      "couldn't load the photo. If it's a linked image, the site hosting it may block other sites from using it — upload the photo directly instead."
-    )
+    throw new Error("couldn't load the photo — it may have been removed. Try re-uploading it at weigh-in.")
   }
   const scale = Math.max(canvas.width / img.width, canvas.height / img.height)
   const w = img.width * scale, h = img.height * scale

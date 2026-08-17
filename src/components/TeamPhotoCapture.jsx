@@ -13,8 +13,6 @@ const SNZ_BLUE = '#2B6CB0'
  */
 export default function TeamPhotoCapture({ competitionId, team, onSaved, showToast, compact = false }) {
   const [uploading, setUploading] = useState(false)
-  const [linking, setLinking] = useState(false)
-  const [linkUrl, setLinkUrl] = useState('')
   const photoUrl = team?.team_photo_url || null
 
   const save = async (url) => {
@@ -39,23 +37,6 @@ export default function TeamPhotoCapture({ competitionId, team, onSaved, showToa
       const bustUrl = `${publicUrl}?t=${Date.now()}`
       await save(bustUrl)
       showToast?.('Team photo saved')
-    } catch (err) {
-      showToast?.(err.message, 'error')
-    } finally {
-      setUploading(false)
-    }
-  }
-
-  const saveLink = async () => {
-    const url = linkUrl.trim()
-    if (!url) return
-    if (!/^https?:\/\//i.test(url)) { showToast?.('Enter a full image URL starting with http', 'error'); return }
-    setUploading(true)
-    try {
-      await save(url)
-      showToast?.('Team photo linked')
-      setLinkUrl('')
-      setLinking(false)
     } catch (err) {
       showToast?.(err.message, 'error')
     } finally {
@@ -90,43 +71,34 @@ export default function TeamPhotoCapture({ competitionId, team, onSaved, showToa
 
       <div className="min-w-0">
         <p className="text-sm font-bold text-gray-700">Team photo <span className="text-gray-400 font-normal">(optional)</span></p>
-        <p className="text-xs text-gray-400 mb-2">Shown as their image on the leaderboard</p>
+        <p className="text-xs text-gray-400 mb-2">Shown as their image on the leaderboard{photoUrl ? '' : ' — take one now or pick an existing photo'}</p>
 
-        {linking ? (
-          <div className="flex items-center gap-2 flex-wrap">
-            <input type="url" value={linkUrl} onChange={e => setLinkUrl(e.target.value)}
-              placeholder="https://…/photo.jpg"
-              className="border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs w-56 focus:outline-none focus:ring-1 focus:ring-blue-300" />
-            <button type="button" onClick={saveLink} disabled={uploading || !linkUrl.trim()}
-              className="px-3 py-1.5 rounded-lg text-xs font-bold text-white disabled:opacity-40"
-              style={{ background: SNZ_BLUE }}>
-              {uploading ? 'Saving…' : 'Save'}
+        {/* Two inputs on purpose: `capture` forces the camera app on mobile, so
+            a single input with it set makes picking an existing photo
+            impossible. Without it, mobile offers gallery/files and desktop
+            opens the normal file browser. */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <label className={`cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border border-gray-300 text-gray-600 hover:bg-white transition ${uploading ? 'opacity-50 pointer-events-none' : ''}`}>
+            📷 Take photo
+            <input type="file" accept="image/*" capture="environment" className="hidden" disabled={uploading}
+              onChange={e => { const f = e.target.files?.[0]; if (f) upload(f); e.target.value = '' }} />
+          </label>
+
+          <label className={`cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border border-gray-300 text-gray-600 hover:bg-white transition ${uploading ? 'opacity-50 pointer-events-none' : ''}`}>
+            🖼 Choose image
+            <input type="file" accept="image/*" className="hidden" disabled={uploading}
+              onChange={e => { const f = e.target.files?.[0]; if (f) upload(f); e.target.value = '' }} />
+          </label>
+
+          {uploading && <span className="text-xs font-bold text-gray-400">Uploading…</span>}
+
+          {photoUrl && !uploading && (
+            <button type="button" onClick={clear}
+              className="px-2 py-1.5 rounded-lg text-xs font-bold text-red-500 hover:bg-red-50 transition">
+              Remove
             </button>
-            <button type="button" onClick={() => { setLinking(false); setLinkUrl('') }}
-              className="px-2 py-1.5 rounded-lg text-xs font-bold text-gray-500 hover:bg-white">Cancel</button>
-            <p className="text-[11px] text-gray-400 w-full">
-              Linked images show on the leaderboard, but some sites block other sites from reusing them — if the social card won't generate, upload the photo instead.
-            </p>
-          </div>
-        ) : (
-          <div className="flex items-center gap-2 flex-wrap">
-            <label className={`cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border border-gray-300 text-gray-600 hover:bg-white transition ${uploading ? 'opacity-50' : ''}`}>
-              {uploading ? 'Uploading…' : photoUrl ? '📷 Replace' : '📷 Take photo'}
-              <input type="file" accept="image/*" capture="environment" className="hidden" disabled={uploading}
-                onChange={e => { const f = e.target.files?.[0]; if (f) upload(f); e.target.value = '' }} />
-            </label>
-            <button type="button" onClick={() => setLinking(true)} disabled={uploading}
-              className="px-3 py-1.5 rounded-lg text-xs font-bold border border-gray-300 text-gray-600 hover:bg-white transition disabled:opacity-40">
-              🔗 Link image
-            </button>
-            {photoUrl && (
-              <button type="button" onClick={clear} disabled={uploading}
-                className="px-2 py-1.5 rounded-lg text-xs font-bold text-red-500 hover:bg-red-50 transition disabled:opacity-40">
-                Remove
-              </button>
-            )}
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   )
