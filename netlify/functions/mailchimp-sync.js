@@ -176,8 +176,19 @@ exports.handler = async (event) => {
         console.log(`mailchimp-sync: ${action} — contact not on audience, nothing to do`)
         return json(200, { action, skipped: 'not on audience' })
       }
-      console.error(`mailchimp-sync: ${action} failed (${res.status}):`, res.raw?.slice(0, 400))
-      return json(502, { action, error: 'Mailchimp rejected the request', status: res.status })
+      // Surface Mailchimp's own reason. Without it a failure is opaque in the
+      // pg_net response log, and the trigger is fire-and-forget so this is
+      // often the only trace of what went wrong.
+      const detail = res.body?.detail || res.body?.title || res.raw?.slice(0, 200)
+      const fieldErrors = (res.body?.errors || []).map(e => `${e.field}: ${e.message}`).join('; ')
+      console.error(`mailchimp-sync: ${action} failed (${res.status}): ${detail} ${fieldErrors}`)
+      return json(502, {
+        action,
+        error: 'Mailchimp rejected the request',
+        status: res.status,
+        detail,
+        ...(fieldErrors ? { fieldErrors } : {}),
+      })
     }
 
     console.log(`mailchimp-sync: ${action} ok for member ${member.id}`)
