@@ -436,6 +436,7 @@ export default function CatfishConfirm() {
           <h3 className="font-black text-red-800 text-sm mb-3">⚠ Rules &amp; Conservation Declaration</h3>
           <ul className="text-xs text-red-900 leading-relaxed space-y-1.5 list-disc list-inside mb-4">
             <li>Hawaiian slings and pole spears only — no spearguns</li>
+            <li>Shore diving only — no boats</li>
             <li>Compete in pairs (or a group of 3), towing a float with a dive flag at all times while diving</li>
             <li>Only catfish score — it is illegal to shoot trout; kōura and eels belong to Ngāti Tūwharetoa and may not be taken</li>
             <li>Keep 200m away from fly fishers at all times</li>

@@ -384,6 +384,7 @@ export default function CatfishCullPage() {
                 <p className="text-sm font-black text-blue-900 mb-2">How the Cull works</p>
                 <ul className="text-sm text-blue-800 space-y-1.5">
                   <li>• Hawaiian slings and pole spears only — no spearguns</li>
+                  <li>• Shore diving only — no boats</li>
                   <li>• Compete in pairs, towing a float with a dive flag</li>
                   <li>• Groups of 3 are welcome but cannot win the top prizes</li>
                   <li>• Only catfish score — no trout, no kōura, no eels</li>
@@ -507,6 +508,7 @@ export default function CatfishCullPage() {
               <div className="space-y-2">
                 {[
                   ['Hawaiian slings & pole spears only', 'No spearguns permitted'],
+                  ['Shore diving only', 'No boats — enter and exit from the shore'],
                   ['Pairs required', 'Groups of 3 allowed but ineligible for top prizes'],
                   ['Float & dive flag', 'Must be towed at all times while diving'],
                   ['Catfish only', 'Only catfish score — all other species protected'],
