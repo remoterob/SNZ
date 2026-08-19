@@ -2246,6 +2246,24 @@ function InvitedMember({ navigate }) {
             year: 2026,
           }, { onConflict: 'member_id,competition_id' })
         }
+
+        // An admin can enter a team whose Diver 1 hasn't joined SNZ yet, which
+        // leaves diver1_member_id null and diver1_email holding their address.
+        // Link them on signup the same way Diver 2 is linked above, so the team
+        // resolves even if they join without clicking the invite link.
+        const { data: leadTeams } = await supabase
+          .from('comp_teams').select('id, competition_id')
+          .eq('diver1_email', user.email).is('diver1_member_id', null)
+
+        for (const team of (leadTeams || [])) {
+          await supabase.from('comp_teams').update({ diver1_member_id: user.id }).eq('id', team.id)
+          await supabase.from('member_competitions').upsert({
+            member_id: user.id,
+            competition_id: team.competition_id,
+            team_id: team.id,
+            year: 2026,
+          }, { onConflict: 'member_id,competition_id' })
+        }
       }
       setDone(true)
     } catch (err) {

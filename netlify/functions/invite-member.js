@@ -27,6 +27,7 @@ exports.handler = async (event) => {
       nationals,
       isExistingMember,
       confirmUrl,
+      adminPassword,
     } = JSON.parse(event.body)
 
     if (!email) {
@@ -41,11 +42,16 @@ exports.handler = async (event) => {
     // that team's Diver 1 — only the registrant can invite their own
     // partner. The membership-dashboard "change buddy" path doesn't send a
     // teamId today, so it's only gated on being signed in.
-    const callerUserId = await getAuthenticatedUserId(event)
-    if (!callerUserId) {
+    // Competition admins invite divers for teams they don't dive in (phone and
+    // paper entries), so they authenticate with the admin password instead of
+    // being the team's Diver 1. Same gate the other admin functions use.
+    const isAdminCaller = !!adminPassword && adminPassword === process.env.VITE_ADMIN_PASSWORD
+
+    const callerUserId = isAdminCaller ? null : await getAuthenticatedUserId(event)
+    if (!isAdminCaller && !callerUserId) {
       return { statusCode: 401, body: JSON.stringify({ error: 'Sign in required' }) }
     }
-    if (teamId) {
+    if (teamId && !isAdminCaller) {
       const { data: team, error: teamErr } = await supabase
         .from('comp_teams').select('diver1_member_id').eq('id', teamId).maybeSingle()
       if (teamErr || !team) {

@@ -127,8 +127,33 @@ function TeamModal({ team, compId, onClose, onSaved }) {
   })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  // null = not looked up, else { status: 'active'|'inactive'|'not_found', member }
+  const [d1Lookup, setD1Lookup] = useState(null)
+  const [d2Lookup, setD2Lookup] = useState(null)
+  const [checking, setChecking] = useState(null)
+  const [inviteNote, setInviteNote] = useState('')
 
   const set = k => v => setForm(f => ({ ...f, [k]: v }))
+
+  // A team can be entered for someone who hasn't joined SNZ yet — this just
+  // tells the admin who that is, so the follow-up isn't a surprise.
+  const lookupDiver = async (email, setLookup, which) => {
+    const trimmed = (email || '').trim().toLowerCase()
+    if (!trimmed) { setLookup(null); return null }
+    setChecking(which)
+    try {
+      const { data } = await supabase.from('members')
+        .select('id, name, email, membership_status, payment_status')
+        .eq('email', trimmed).maybeSingle()
+      const result = !data
+        ? { status: 'not_found', member: null }
+        : { status: (data.membership_status === 'active' || data.payment_status === 'paid') ? 'active' : 'inactive', member: data }
+      setLookup(result)
+      return result
+    } finally {
+      setChecking(null)
+    }
+  }
 
   const toggleEvent = key => setForm(f => ({
     ...f,
@@ -143,20 +168,18 @@ function TeamModal({ team, compId, onClose, onSaved }) {
       let diver1_member_id = isNew ? null : team.diver1_member_id
       let diver2_member_id = isNew ? null : team.diver2_member_id
 
-      if (isNew && form.diver1_email.trim()) {
-        const { data } = await supabase.from('members').select('id').eq('email', form.diver1_email.trim().toLowerCase()).maybeSingle()
-        diver1_member_id = data?.id || null
-      }
-      if (form.diver2_email.trim()) {
-        const { data } = await supabase.from('members').select('id').eq('email', form.diver2_email.trim().toLowerCase()).maybeSingle()
-        diver2_member_id = data?.id || null
-      }
+      const d1 = form.diver1_email.trim() ? (d1Lookup || await lookupDiver(form.diver1_email, setD1Lookup, 1)) : null
+      const d2 = form.diver2_email.trim() ? (d2Lookup || await lookupDiver(form.diver2_email, setD2Lookup, 2)) : null
+
+      if (isNew && form.diver1_email.trim()) diver1_member_id = d1?.member?.id || null
+      if (form.diver2_email.trim()) diver2_member_id = d2?.member?.id || null
 
       const payload = {
         competition_id: compId,
         team_name: form.team_name.trim(),
         diver1_member_id,
         diver2_member_id,
+        diver1_email: form.diver1_email.trim().toLowerCase() || null,
         diver2_email: form.diver2_email.trim().toLowerCase() || null,
         status: form.status,
         payment_status: form.payment_status,
@@ -169,10 +192,52 @@ function TeamModal({ team, compId, onClose, onSaved }) {
       }
 
       const res = isNew
-        ? await supabase.from('comp_teams').insert(payload)
-        : await supabase.from('comp_teams').update(payload).eq('id', team.id)
+        ? await supabase.from('comp_teams').insert(payload).select('id').single()
+        : await supabase.from('comp_teams').update(payload).eq('id', team.id).select('id').single()
 
       if (res.error) throw res.error
+      const savedTeamId = res.data?.id || team?.id
+
+      // Chase anyone who still owes us something: joining SNZ, or their entry
+      // fee. A diver who is an active member with a settled fee gets nothing,
+      // so re-saving a complete team doesn't spam people.
+      const adminPassword = sessionStorage.getItem('snz_admin_session') || import.meta.env.VITE_ADMIN_PASSWORD
+      const invites = [
+        { slot: 1, email: form.diver1_email.trim().toLowerCase(), lookup: d1, pay: form.payment_status },
+        { slot: 2, email: form.diver2_email.trim().toLowerCase(), lookup: d2, pay: form.diver2_payment_status },
+      ].filter(d => {
+        if (!d.email) return false
+        const needsMembership = d.lookup?.status !== 'active'
+        const needsEntry = d.pay === 'pending'
+        return needsMembership || needsEntry
+      })
+
+      const sent = []
+      for (const d of invites) {
+        try {
+          const r = await fetch('/.netlify/functions/invite-member', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              email: d.email,
+              adminPassword,
+              invitedBy: 'Spearfishing New Zealand',
+              compName: 'SNZ Nationals 2027',
+              teamName: form.team_name.trim(),
+              teamId: savedTeamId,
+              nationals: true,
+              isExistingMember: d.lookup?.status === 'active' || d.lookup?.status === 'inactive',
+              confirmUrl: `${window.location.origin}/nationals/confirm?team=${savedTeamId}&slot=${d.slot}`,
+            }),
+          })
+          if (r.ok) sent.push(`Diver ${d.slot}`)
+          else console.error('Invite failed for diver', d.slot, await r.text())
+        } catch (err) {
+          console.error('Invite failed for diver', d.slot, err)
+        }
+      }
+      if (sent.length) setInviteNote(`Invite sent to ${sent.join(' and ')}`)
+
       onSaved()
     } catch (e) {
       setError(e.message)
@@ -200,21 +265,59 @@ function TeamModal({ team, compId, onClose, onSaved }) {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Diver 1 Email</label>
-              <input value={form.diver1_email} onChange={e => set('diver1_email')(e.target.value)}
-                placeholder="diver1@email.com" disabled={!isNew}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300 disabled:bg-gray-50 disabled:text-gray-400" />
-              {!isNew && <p className="text-xs text-gray-400 mt-0.5">{team._d1?.name || 'Not found'}</p>}
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Diver 2 Email</label>
-              <input value={form.diver2_email} onChange={e => set('diver2_email')(e.target.value)}
-                placeholder="diver2@email.com"
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" />
-              {!isNew && team._d2 && <p className="text-xs text-gray-400 mt-0.5">{team._d2.name}</p>}
-            </div>
+            {[
+              { n: 1, value: form.diver1_email, key: 'diver1_email', lookup: d1Lookup, setLookup: setD1Lookup,
+                disabled: !isNew, fallbackName: team?._d1?.name, pay: form.payment_status },
+              { n: 2, value: form.diver2_email, key: 'diver2_email', lookup: d2Lookup, setLookup: setD2Lookup,
+                disabled: false, fallbackName: team?._d2?.name, pay: form.diver2_payment_status },
+            ].map(d => (
+              <div key={d.n}>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Diver {d.n} Email</label>
+                <div className="flex gap-1.5">
+                  <input value={d.value}
+                    onChange={e => { set(d.key)(e.target.value); d.setLookup(null) }}
+                    onBlur={e => lookupDiver(e.target.value, d.setLookup, d.n)}
+                    placeholder={`diver${d.n}@email.com`} disabled={d.disabled}
+                    className="flex-1 min-w-0 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300 disabled:bg-gray-50 disabled:text-gray-400" />
+                  <button type="button" onClick={() => lookupDiver(d.value, d.setLookup, d.n)}
+                    disabled={checking === d.n || !d.value.trim()}
+                    className="px-2.5 rounded-lg text-xs font-bold border border-gray-300 text-gray-600 hover:bg-gray-50 disabled:opacity-40 whitespace-nowrap">
+                    {checking === d.n ? '…' : 'Check'}
+                  </button>
+                </div>
+
+                {d.lookup?.status === 'active' && (
+                  <p className="text-xs text-green-600 font-semibold mt-1">✓ Active member — {d.lookup.member.name}</p>
+                )}
+                {d.lookup?.status === 'inactive' && (
+                  <p className="text-xs text-amber-600 font-semibold mt-1">
+                    ⚠ {d.lookup.member.name} — membership not active. They'll be emailed to renew{d.pay === 'pending' ? ' and pay their entry' : ''}.
+                  </p>
+                )}
+                {d.lookup?.status === 'not_found' && (
+                  <p className="text-xs text-blue-600 font-semibold mt-1">
+                    📧 Not an SNZ member. They'll be emailed to join{d.pay === 'pending' ? ' and pay their entry' : ''}.
+                  </p>
+                )}
+                {!d.lookup && d.lookup !== null && null}
+                {!d.lookup && d.value.trim() && (
+                  <p className="text-xs text-gray-400 mt-1">Tab out or press Check to look them up</p>
+                )}
+                {!d.lookup && !d.value.trim() && d.fallbackName && (
+                  <p className="text-xs text-gray-400 mt-0.5">{d.fallbackName}</p>
+                )}
+                {d.lookup?.status === 'active' && d.pay === 'pending' && (
+                  <p className="text-xs text-amber-600 mt-0.5">Entry fee still pending — they'll be emailed to pay.</p>
+                )}
+              </div>
+            ))}
           </div>
+
+          {inviteNote && (
+            <div className="bg-green-50 border border-green-200 rounded-lg px-3 py-2 text-xs font-semibold text-green-700">
+              ✉ {inviteNote}
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-3">
             <div>

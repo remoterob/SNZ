@@ -66,6 +66,23 @@ export default function NationalsConfirm() {
 
   const params = new URLSearchParams(location.search)
   const teamId = params.get('team')
+  const slotParam = params.get('slot')
+
+  // Which diver is this? An admin can now enter a team where Diver 1 isn't a
+  // member yet, so this page has to serve slot 1 as well as slot 2. Prefer a
+  // real match on member id or email; the ?slot= hint is only a fallback so a
+  // forwarded link can't claim someone else's seat.
+  const resolveSlot = () => {
+    if (!team || !session) return null
+    const myEmail = (session.user.email || '').toLowerCase()
+    if (team.diver1_member_id === session.user.id) return 1
+    if (team.diver2_member_id === session.user.id) return 2
+    if ((team.diver1_email || '').toLowerCase() === myEmail) return 1
+    if ((team.diver2_email || '').toLowerCase() === myEmail) return 2
+    if (slotParam === '1' && !team.diver1_member_id) return 1
+    if (slotParam === '2' && !team.diver2_member_id) return 2
+    return null
+  }
 
   // Handle Stripe return. diver2_member_id / diver2_accepted_at are already
   // saved by handleConfirm() before the redirect to Stripe, so we only need
@@ -150,7 +167,10 @@ export default function NationalsConfirm() {
   )
 
   // Already confirmed
-  if (team?.diver2_payment_status === 'paid' && !submitted) return (
+  const mySlot = resolveSlot()
+  const myPaymentStatus = mySlot === 1 ? team?.payment_status : mySlot === 2 ? team?.diver2_payment_status : null
+
+  if (myPaymentStatus === 'paid' && !submitted) return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
       <div className="max-w-sm w-full text-center">
         <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4">
@@ -318,8 +338,9 @@ export default function NationalsConfirm() {
       }).eq('id', session.user.id)
 
       const { error: updateErr } = await supabase.from('comp_teams').update({
-        diver2_member_id: session.user.id,
-        diver2_accepted_at: new Date().toISOString(),
+        ...(mySlot === 1
+          ? { diver1_member_id: session.user.id, diver1_email: session.user.email }
+          : { diver2_member_id: session.user.id, diver2_accepted_at: new Date().toISOString() }),
         nationals_event: updatedEvents,
         merch_d2,
       }).eq('id', teamId)
@@ -341,7 +362,7 @@ export default function NationalsConfirm() {
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
           body: JSON.stringify({
             type: 'nationals_entry',
-            diverSlot: '2',
+            diverSlot: String(mySlot || 2),
             successPath: '/nationals/confirm',
             amountCents: totalCents * 100,
             lineItems: buildLineItems(),
@@ -361,7 +382,7 @@ export default function NationalsConfirm() {
 
       // No fee (waived / TBC) — just confirm
       await supabase.from('comp_teams').update({
-        diver2_payment_status: 'paid',
+        ...(mySlot === 1 ? { payment_status: 'paid' } : { diver2_payment_status: 'paid' }),
         status: 'active',
       }).eq('id', teamId)
       setSubmitted(true)
