@@ -421,8 +421,11 @@ export default function CatfishCullPage() {
             {/* SNZ membership CTA */}
             <div className="bg-white border border-gray-200 rounded-2xl p-5 flex items-center justify-between gap-4">
               <div>
-                <p className="font-black text-gray-900 text-sm">SNZ Membership required</p>
-                <p className="text-xs text-gray-500 mt-0.5">Both divers must be active SNZ members to enter. $10/year.</p>
+                <p className="font-black text-gray-900 text-sm">SNZ Membership</p>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  Whoever enters the team needs an active SNZ membership ($10/year). Your teammates don't need one yet —
+                  we'll email them an invite to join and confirm their own details.
+                </p>
               </div>
               <button onClick={() => navigate('/membership')}
                 className="px-4 py-2 rounded-xl font-black text-white text-xs flex-shrink-0"
