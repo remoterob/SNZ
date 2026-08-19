@@ -434,10 +434,15 @@ export default function CatfishCullPage() {
               {[comp2027?.sponsor1_url, comp2027?.sponsor2_url, comp2027?.sponsor3_url].filter(Boolean).length > 0 && (
                 <div className="mt-5 pt-4 border-t border-gray-100">
                   <p className="text-xs font-bold tracking-widest uppercase text-gray-400 text-center mb-3">Proudly Sponsored By</p>
-                  <div className="flex items-center justify-center gap-6 sm:gap-8 flex-wrap">
+                  <div className="flex items-center justify-center gap-8 sm:gap-12 flex-wrap">
                     {[comp2027?.sponsor1_url, comp2027?.sponsor2_url, comp2027?.sponsor3_url].filter(Boolean).map((url, i) => (
+                      // 3x the old h-12. maxWidth is an inline style rather than a
+                      // Tailwind class because numeric max-w-* doesn't exist in v3 —
+                      // the previous max-w-32 silently did nothing. min(…,100%) keeps
+                      // a wide logo from overflowing on a phone.
                       <img key={i} src={url} alt={`Sponsor ${i + 1}`}
-                        className="h-12 max-w-32 object-contain opacity-80 hover:opacity-100 transition"
+                        className="h-36 w-auto object-contain opacity-90 hover:opacity-100 transition"
+                        style={{ maxWidth: 'min(24rem, 100%)' }}
                         onError={e => { e.currentTarget.style.display = 'none' }} />
                     ))}
                   </div>
