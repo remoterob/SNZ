@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { isEarlyBirdNow, perCompetitorCents, dollars, earlyBirdEnds } from '../lib/compFees'
 import { Clock, TrendingUp } from 'lucide-react'
 
 const SNZ_BLUE = '#2B6CB0'
@@ -298,8 +299,16 @@ export default function CatfishCullPage() {
   const [activeTab, setActiveTab] = useState('2027')
   const [comp2027, setComp2027] = useState(null)
 
+  // Entry pricing is read from the competition so the advertised price always
+  // matches what checkout actually charges, early bird included.
+  const earlyBird = isEarlyBirdNow(comp2027)
+  const perDiver = perCompetitorCents(comp2027)
+  const ebEnds = earlyBirdEnds(comp2027)
+
   useEffect(() => {
-    supabase.from('competitions').select('id, status').ilike('name', '%catfish%2027%').maybeSingle()
+    supabase.from('competitions')
+      .select('id, status, entry_fee_cents, early_bird_cutoff, category_fees, sponsor1_url, sponsor2_url, sponsor3_url')
+      .ilike('name', '%catfish%2027%').maybeSingle()
       .then(({ data }) => setComp2027(data))
   }, [])
 
@@ -360,7 +369,7 @@ export default function CatfishCullPage() {
                 {[
                   { icon: '📍', label: 'Location', value: 'Motuoapa, Lake Taupō' },
                   { icon: '📅', label: 'Date',     value: '13 February 2027' },
-                  { icon: '🎯', label: 'Entry',    value: comp2027?.status === 'active' ? '$50 per competitor' : 'Registration opening soon' },
+                  { icon: '🎯', label: 'Entry',    value: comp2027?.status === 'active' ? `${dollars(perDiver)} per competitor${earlyBird ? ' 🐦' : ''}` : 'Registration opening soon' },
                 ].map(item => (
                   <div key={item.label} className="bg-gray-50 rounded-xl p-4 text-center">
                     <p className="text-2xl mb-1">{item.icon}</p>
@@ -393,7 +402,10 @@ export default function CatfishCullPage() {
                 <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center justify-between gap-4">
                   <div>
                     <p className="text-sm font-black text-green-900">🐟 Entries are open</p>
-                    <p className="text-xs text-green-700 mt-1">$50 per competitor — pairs $100, trios $150.</p>
+                    <p className="text-xs text-green-700 mt-1">
+                      {dollars(perDiver)} per competitor — pairs {dollars(perDiver * 2)}, trios {dollars(perDiver * 3)}.
+                      {earlyBird && <span className="font-bold"> 🐦 Early bird{ebEnds ? ` until ${ebEnds}` : ''}.</span>}
+                    </p>
                   </div>
                   <button onClick={() => navigate('/catfish/register')}
                     className="px-5 py-2.5 rounded-xl font-black text-white text-sm flex-shrink-0"
@@ -416,6 +428,20 @@ export default function CatfishCullPage() {
                 <span className="text-xs text-gray-400">Live during the event</span>
               </div>
               <Leaderboard2027 compId={comp2027?.id} />
+
+              {/* Sponsors — shown with the board so they get seen on results day */}
+              {[comp2027?.sponsor1_url, comp2027?.sponsor2_url, comp2027?.sponsor3_url].filter(Boolean).length > 0 && (
+                <div className="mt-5 pt-4 border-t border-gray-100">
+                  <p className="text-xs font-bold tracking-widest uppercase text-gray-400 text-center mb-3">Proudly Sponsored By</p>
+                  <div className="flex items-center justify-center gap-6 sm:gap-8 flex-wrap">
+                    {[comp2027?.sponsor1_url, comp2027?.sponsor2_url, comp2027?.sponsor3_url].filter(Boolean).map((url, i) => (
+                      <img key={i} src={url} alt={`Sponsor ${i + 1}`}
+                        className="h-12 max-w-32 object-contain opacity-80 hover:opacity-100 transition"
+                        onError={e => { e.currentTarget.style.display = 'none' }} />
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* SNZ membership CTA */}
