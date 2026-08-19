@@ -388,7 +388,7 @@ export default function CatfishCullPage() {
                   <li>• Compete in pairs, towing a float with a dive flag</li>
                   <li>• Groups of 3 are welcome but cannot win the top prizes</li>
                   <li>• Only catfish score — no trout, no kōura, no eels</li>
-                  <li>• Competition area is the defined Motuoapa zone</li>
+                  <li>• Competition area is the entire lake — key exceptions shared at the briefing</li>
                   <li>• Water exit by 2:30pm — weigh-in from 3:00pm</li>
                   <li>• Additional prizes for junior pairs, heaviest and lightest catfish</li>
                 </ul>
