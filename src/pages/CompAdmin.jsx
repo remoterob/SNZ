@@ -7,6 +7,11 @@ import SocialCardExporter from '../components/SocialCardExporter'
 import TeamPhotoCapture from '../components/TeamPhotoCapture'
 
 const SNZ_BLUE = '#2B6CB0'
+// CatfishLeaderboardTab referenced SNZ_DARK without it ever being defined here,
+// which threw a ReferenceError and blanked the whole admin screen — but only
+// once the comp had at least one active team, since the tab returns early
+// before those rows render when the list is empty.
+const SNZ_DARK = '#1e3a5f'
 const SNZ_LOGO = import.meta.env.VITE_SNZ_LOGO_URL || null
 const CATEGORIES_ALL = ['Open','Mens','Womens','Mixed','Junior','Beginner','Advanced','Hard Out']
 
