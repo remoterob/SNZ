@@ -182,6 +182,116 @@ function Leaderboard2026() {
   )
 }
 
+// ── Live 2027 leaderboard ─────────────────────────────────────────────
+// 2027 results live on comp_teams (catfish_count / heaviest / lightest), unlike
+// 2026 which came from the older `leaderboard` table. Mirrors the 2026 layout so
+// the two read the same.
+function Leaderboard2027({ compId }) {
+  const [teams, setTeams] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [lastUpdated, setLastUpdated] = useState(new Date())
+
+  useEffect(() => {
+    if (!compId) return
+    let cancelled = false
+    const fetchTeams = async () => {
+      const { data } = await supabase
+        .from('comp_teams')
+        .select('id, team_name, team_photo_url, catfish_count, heaviest_fish_grams, lightest_fish_grams, result_status, status')
+        .eq('competition_id', compId)
+        .neq('status', 'pending_payment')
+      if (cancelled) return
+      setTeams(data || [])
+      setLastUpdated(new Date())
+      setLoading(false)
+    }
+    fetchTeams()
+    const interval = setInterval(fetchTeams, 30000)
+    return () => { cancelled = true; clearInterval(interval) }
+  }, [compId])
+
+  if (loading) return <div className="py-8 text-center text-gray-400 text-sm">Loading results…</div>
+
+  const scored = teams.filter(t => (t.catfish_count || 0) > 0)
+  if (scored.length === 0) {
+    return (
+      <div className="text-center py-8 text-gray-400">
+        <div className="text-3xl mb-2">⏳</div>
+        <p className="font-semibold text-gray-600 text-sm">Results appear here once weigh-in starts</p>
+        <p className="text-xs mt-1">{teams.length} team{teams.length === 1 ? '' : 's'} registered so far</p>
+      </div>
+    )
+  }
+
+  const eligible = scored.filter(t => t.result_status !== 'disqualified')
+  const ranked = [...scored].sort((a, b) => (b.catfish_count || 0) - (a.catfish_count || 0))
+  const heaviest = eligible.filter(t => t.heaviest_fish_grams).sort((a, b) => b.heaviest_fish_grams - a.heaviest_fish_grams)[0]
+  const lightest = eligible.filter(t => t.lightest_fish_grams).sort((a, b) => a.lightest_fish_grams - b.lightest_fish_grams)[0]
+  const totalCatfish = scored.reduce((s, t) => s + (t.catfish_count || 0), 0)
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-3 gap-3">
+        {[
+          { v: teams.length, l: 'Teams' },
+          { v: totalCatfish, l: 'Catfish Eradicated' },
+          { v: scored.length ? (totalCatfish / scored.length).toFixed(1) : '0', l: 'Average' },
+        ].map(s => (
+          <div key={s.l} className="bg-gray-50 rounded-xl p-3 text-center">
+            <p className="text-2xl font-black" style={{ color: SNZ_DARK }}>{s.v}</p>
+            <p className="text-xs text-gray-400">{s.l}</p>
+          </div>
+        ))}
+      </div>
+
+      {(heaviest || lightest) && (
+        <div className="grid grid-cols-2 gap-3">
+          {heaviest && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+              <p className="text-xs font-black text-amber-700 uppercase tracking-wide mb-1">⚖️ Heaviest</p>
+              <p className="text-xl font-black text-gray-900">{heaviest.heaviest_fish_grams}g</p>
+              <p className="text-xs text-gray-500 truncate">{heaviest.team_name}</p>
+            </div>
+          )}
+          {lightest && (
+            <div className="bg-green-50 border border-green-200 rounded-xl p-4">
+              <p className="text-xs font-black text-green-700 uppercase tracking-wide mb-1">🪶 Lightest</p>
+              <p className="text-xl font-black text-gray-900">{lightest.lightest_fish_grams}g</p>
+              <p className="text-xs text-gray-500 truncate">{lightest.team_name}</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className="space-y-2">
+        {ranked.map((t, i) => (
+          <div key={t.id} className="bg-white border border-gray-200 rounded-xl px-4 py-3 flex items-center gap-3">
+            <div className="text-lg font-black w-9 text-center flex-shrink-0" style={{ color: SNZ_DARK }}>
+              {t.result_status === 'disqualified' ? '–' : i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i + 1}`}
+            </div>
+            {t.team_photo_url
+              ? <img src={t.team_photo_url} alt={t.team_name} className="w-10 h-10 rounded-lg object-cover border border-gray-200 flex-shrink-0" />
+              : <div className="w-10 h-10 rounded-lg bg-gray-100 border border-gray-200 flex items-center justify-center text-base flex-shrink-0">👥</div>}
+            <div className="flex-1 min-w-0">
+              <p className="font-black text-gray-900 text-sm truncate">{t.team_name}</p>
+              {t.result_status === 'under_protest' && <p className="text-xs text-orange-600">Under protest</p>}
+              {t.result_status === 'disqualified' && <p className="text-xs text-red-500">Disqualified</p>}
+            </div>
+            <div className="text-right flex-shrink-0">
+              <p className="text-2xl font-black leading-none" style={{ color: SNZ_DARK }}>{t.catfish_count || 0}</p>
+              <p className="text-xs text-gray-400">catfish</p>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <p className="text-xs text-gray-400 text-center">
+        Auto-refreshes every 30 seconds · Last updated {lastUpdated.toLocaleTimeString('en-NZ', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+      </p>
+    </div>
+  )
+}
+
 // ── Main CatfishCullPage ──────────────────────────────────────────────────────
 export default function CatfishCullPage() {
   const navigate = useNavigate()
@@ -297,6 +407,15 @@ export default function CatfishCullPage() {
                   <p className="text-xs text-gray-600 mt-1">Make sure your SNZ membership is active so you're ready to enter the moment registrations open.</p>
                 </div>
               )}
+            </div>
+
+            {/* Live 2027 leaderboard */}
+            <div className="bg-white border border-gray-200 rounded-2xl p-5">
+              <div className="flex items-baseline justify-between gap-3 mb-3 flex-wrap">
+                <h2 className="text-lg font-black text-gray-900">🏆 2027 Leaderboard</h2>
+                <span className="text-xs text-gray-400">Live during the event</span>
+              </div>
+              <Leaderboard2027 compId={comp2027?.id} />
             </div>
 
             {/* SNZ membership CTA */}
