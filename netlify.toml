@@ -8,6 +8,17 @@
   function = "comp-seo"
   path = "/competitions/:id"
 
+# The two flagship events have their own landing pages rather than living at
+# /competitions/:id, so they need registering separately or bots get the empty
+# SPA shell.
+[[edge_functions]]
+  function = "comp-seo"
+  path = "/nationals"
+
+[[edge_functions]]
+  function = "comp-seo"
+  path = "/catfish"
+
 [[redirects]]
   from = "/sitemap.xml"
   to = "/.netlify/functions/sitemap"
