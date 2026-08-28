@@ -103,25 +103,37 @@ exports.handler = async (event) => {
         console.log(`Membership paid for member ${member_id} (session ${session.id})`)
 
       } else if ((type === 'competition_entry' || type === 'nationals_entry') && team_id) {
+        const { data: teamRow, error: teamFetchErr } = await supabase
+          .from('comp_teams')
+          .select('payment_status, diver2_email, diver2_payment_status, diver3_email, diver3_payment_status')
+          .eq('id', team_id).maybeSingle()
+        if (teamFetchErr) throw new Error(`comp_teams lookup failed: ${teamFetchErr.message}`)
+
+        const updates = {}
         if (diver_slot === '2' || diver_slot === '3') {
           // Partners pay their own share on the confirm page — track it in
           // their own column so it doesn't clobber diver 1's
           // stripe_session_id / paid_at / payment_intent (a team-level record).
-          await safeUpdate('comp_teams', {
-            [`diver${diver_slot}_payment_status`]: 'paid',
-            status: 'active',
-          }, 'id', team_id)
-          console.log(`${type} diver${diver_slot} paid for team ${team_id} (session ${session.id})`)
+          updates[`diver${diver_slot}_payment_status`] = 'paid'
         } else {
-          await safeUpdate('comp_teams', {
-            payment_status: 'paid',
-            status: 'active',
-            stripe_session_id: session.id,
-            stripe_payment_intent_id: paymentIntent,
-            paid_at: paidAt,
-          }, 'id', team_id)
-          console.log(`${type} paid for team ${team_id} (session ${session.id})`)
+          updates.payment_status = 'paid'
+          updates.stripe_session_id = session.id
+          updates.stripe_payment_intent_id = paymentIntent
+          updates.paid_at = paidAt
         }
+
+        // One diver paying doesn't speak for teammates who haven't confirmed
+        // and paid their own share yet — only flip the team to 'active' once
+        // every diver who actually has a seat (diver2/3 only count if the
+        // team entered them) has paid.
+        const merged = { ...teamRow, ...updates }
+        const d1Paid = merged.payment_status === 'paid'
+        const d2Ok = !merged.diver2_email || merged.diver2_payment_status === 'paid'
+        const d3Ok = !merged.diver3_email || merged.diver3_payment_status === 'paid'
+        updates.status = (d1Paid && d2Ok && d3Ok) ? 'active' : 'pending_teammates'
+
+        await safeUpdate('comp_teams', updates, 'id', team_id)
+        console.log(`${type} diver${diver_slot || 1} paid for team ${team_id} (session ${session.id}) — status=${updates.status}`)
 
       } else {
         // Unrecognised metadata — log loudly so it shows in function logs,
@@ -175,8 +187,14 @@ exports.handler = async (event) => {
             // competing. Only a Diver 1 refund (the team's primary payment)
             // withdraws the team.
             if (diver_slot === '2' || diver_slot === '3') {
+              // A refunded teammate can no longer count toward 'active' — drop
+              // a fully-active team back to pending so it doesn't read as
+              // fully entered when it no longer is.
+              const { data: teamForRefund } = await supabase
+                .from('comp_teams').select('status').eq('id', teamId).maybeSingle()
               await safeUpdate('comp_teams', {
                 [`diver${diver_slot}_payment_status`]: 'refunded',
+                ...(teamForRefund?.status === 'active' ? { status: 'pending_teammates' } : {}),
               }, 'id', teamId)
               console.log(`Refund synced: team ${teamId} diver${diver_slot} payment refunded (${intentId})`)
             } else {

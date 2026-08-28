@@ -35,6 +35,37 @@ function calcBulkBonus(bulkKg) {
   return Math.floor((parseFloat(bulkKg) || 0) * 10)
 }
 
+// Diver 2/3 only get their own comp_team_members row once they click their
+// invite and confirm — until then, fall back to their resolved member record
+// (diverN_member_id is set at registration for anyone found as an active
+// member, same as Nationals does) and only fall back further to a bare email
+// if we don't even have that, so the roster is never blank/short a name.
+function teamRosterLabel(team, members, pendingDivers = {}) {
+  const rows = members.filter(m => m.team_id === team.id)
+  const byEmail = {}
+  rows.forEach(m => { if (m.email) byEmail[m.email.toLowerCase()] = m })
+
+  const invited = [
+    { email: team.diver2_email, memberId: team.diver2_member_id },
+    { email: team.diver3_email, memberId: team.diver3_member_id },
+  ].filter(x => x.email)
+  const invitedEmails = invited.map(x => x.email.toLowerCase())
+
+  const confirmedNames = rows
+    .filter(m => !invitedEmails.includes((m.email || '').toLowerCase()))
+    .map(m => m.name)
+    .filter(Boolean)
+
+  const inviteeNames = invited.map(({ email, memberId }) => {
+    const matched = byEmail[email.toLowerCase()]
+    if (matched) return matched.name
+    const known = memberId && pendingDivers[memberId]
+    return known ? `${known.name} (pending payment)` : `${email} (pending)`
+  })
+
+  return [...confirmedNames, ...inviteeNames].join(' & ')
+}
+
 
 // ── Sponsor Bar ───────────────────────────────────────────────────────────────
 function SponsorBar({ comp }) {
@@ -524,6 +555,10 @@ export default function CompAdmin() {
   // Only paid/free teams appear in weigh-in and leaderboard
   const activeTeams = teams.filter(t => t.status !== 'pending_payment')
   const [members, setMembers] = useState([])
+  // diver2/diver3_member_id -> {name, email}, for teams where that teammate
+  // is a resolved active member but hasn't confirmed/paid yet (so has no
+  // comp_team_members row of their own).
+  const [pendingDivers, setPendingDivers] = useState({})
   const [weighins, setWeighins] = useState([])
   const [boats, setBoats] = useState([])
   const [showFishPicker, setShowFishPicker] = useState(false)
@@ -545,10 +580,24 @@ export default function CompAdmin() {
       ])
       if (c.data) setComp(c.data)
       setFish(f.data || [])
-      setTeams(t.data || [])
+      const teamRows = t.data || []
+      setTeams(teamRows)
       setMembers(m.data || [])
       setWeighins(w.data || [])
       setBoats(b.data || [])
+
+      const pendingMemberIds = [...new Set(
+        teamRows.flatMap(tm => [tm.diver2_member_id, tm.diver3_member_id]).filter(Boolean)
+      )]
+      if (pendingMemberIds.length > 0) {
+        const { data: pd } = await supabase.from('members')
+          .select('id, name, email').in('id', pendingMemberIds)
+        const map = {}
+        ;(pd || []).forEach(pm => { map[pm.id] = pm })
+        setPendingDivers(map)
+      } else {
+        setPendingDivers({})
+      }
       if (sessionStorage.getItem(`comp_admin_${id}`)) setAuthed(true)
     } catch(err) {
       console.error('fetchAll error:', err)
@@ -646,14 +695,14 @@ export default function CompAdmin() {
       <div className="max-w-5xl mx-auto p-4 sm:p-6">
         {tab === 'setup' && <SetupTab comp={comp} setComp={setComp} onSave={fetchAll} showToast={showToast} />}
         {tab === 'fish' && comp.scoring_mode !== 'catfish_count' && <FishTab fish={fish} comp={comp} onOpenPicker={() => setShowFishPicker(true)} onFishUpdated={fetchAll} />}
-        {tab === 'teams' && <TeamsTab teams={teams} members={members} weighins={weighins} comp={comp} onRefresh={fetchAll} showToast={showToast} />}
+        {tab === 'teams' && <TeamsTab teams={teams} members={members} pendingDivers={pendingDivers} weighins={weighins} comp={comp} onRefresh={fetchAll} showToast={showToast} />}
         {tab === 'boats' && <BoatsTab comp={comp} teams={activeTeams} members={members} boats={boats} onRefresh={fetchAll} showToast={showToast} />}
         {tab === 'checkin' && <CheckInTab comp={comp} teams={teams} members={members} boats={boats} onRefresh={fetchAll} showToast={showToast} />}
         {tab === 'weighin' && (comp.scoring_mode === 'catfish_count'
-          ? <CatfishWeighInTab comp={comp} teams={activeTeams} members={members} onRefresh={fetchAll} showToast={showToast} />
+          ? <CatfishWeighInTab comp={comp} teams={activeTeams} members={members} pendingDivers={pendingDivers} onRefresh={fetchAll} showToast={showToast} />
           : <WeighInTab comp={comp} teams={activeTeams} members={members} fish={fish} weighins={weighins} onRefresh={fetchAll} showToast={showToast} />)}
         {tab === 'leaderboard' && (comp.scoring_mode === 'catfish_count'
-          ? <CatfishLeaderboardTab teams={activeTeams} members={members} />
+          ? <CatfishLeaderboardTab teams={activeTeams} members={members} pendingDivers={pendingDivers} />
           : <AdminLeaderboard comp={comp} teams={activeTeams} weighins={weighins} fish={fish} />)}
         {tab === 'socials' && <SocialsTab comp={comp} teams={activeTeams} members={members} weighins={weighins} />}
       </div>
@@ -1621,7 +1670,7 @@ function TeamModal({ comp, team, members: existingMembers, onClose, onSaved, sho
 }
 
 // ── Teams Tab ─────────────────────────────────────────────────────────────────
-function TeamsTab({ teams, members, weighins, comp, onRefresh, showToast }) {
+function TeamsTab({ teams, members, pendingDivers, weighins, comp, onRefresh, showToast }) {
   const [editingTeam, setEditingTeam] = useState(null)  // team object or 'new'
   const [expandedTeam, setExpandedTeam] = useState(null)
 
@@ -1747,6 +1796,11 @@ function TeamsTab({ teams, members, weighins, comp, onRefresh, showToast }) {
               ⚠ {teams.filter(t => t.status === 'pending_payment').length} unpaid
             </span>
           )}
+          {teams.filter(t => t.status === 'pending_teammates').length > 0 && (
+            <span className="text-xs font-black px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-300">
+              ⏳ {teams.filter(t => t.status === 'pending_teammates').length} awaiting teammate
+            </span>
+          )}
         </div>
         <div className="flex gap-2 flex-wrap">
           <button onClick={() => setEditingTeam('new')}
@@ -1785,8 +1839,11 @@ function TeamsTab({ teams, members, weighins, comp, onRefresh, showToast }) {
                       {t.status === 'pending_payment' && (
                         <span className="text-xs font-black px-2 py-0.5 rounded-full bg-red-100 text-red-700 border border-red-300 uppercase tracking-wide">⚠ Unpaid</span>
                       )}
+                      {t.status === 'pending_teammates' && (
+                        <span className="text-xs font-black px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-300 uppercase tracking-wide">⏳ Awaiting teammate</span>
+                      )}
                     </div>
-                    <p className="text-xs text-gray-400 mt-0.5">{mems.map(m => m.name).join(' & ') || 'No members'}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">{teamRosterLabel(t, members, pendingDivers) || 'No members'}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
@@ -2077,7 +2134,7 @@ function WeighInTab({ comp, teams, members, fish, weighins: initialWeighins, onR
           <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50">
             <div>
               <h3 className="font-black text-gray-900">{selectedTeam.team_name}</h3>
-              <p className="text-xs text-gray-400">{members.filter(m => m.team_id === selectedTeam.id).map(m => m.name).join(' & ')}</p>
+              <p className="text-xs text-gray-400">{teamRosterLabel(selectedTeam, members, pendingDivers)}</p>
             </div>
             {savedTotal > 0 && <div className="text-2xl font-black" style={{ color: SNZ_BLUE }}>{savedTotal} pts</div>}
           </div>
@@ -2287,7 +2344,7 @@ function WeighInTab({ comp, teams, members, fish, weighins: initialWeighins, onR
 // ── Catfish Count Weigh-in Tab (scoring_mode='catfish_count') ────────────────
 // Simple count-based scoring — total catfish per team + one heaviest/lightest
 // single fish, unlike the fish-species points engine WeighInTab uses above.
-function CatfishWeighInTab({ comp, teams, members, onRefresh, showToast }) {
+function CatfishWeighInTab({ comp, teams, members, pendingDivers, onRefresh, showToast }) {
   const [drafts, setDrafts] = useState({})
   const [savingId, setSavingId] = useState(null)
 
@@ -2324,7 +2381,7 @@ function CatfishWeighInTab({ comp, teams, members, onRefresh, showToast }) {
   return (
     <div className="space-y-3">
       {teams.map(team => {
-        const roster = members.filter(m => m.team_id === team.id).map(m => m.name).filter(Boolean).join(' & ')
+        const roster = teamRosterLabel(team, members, pendingDivers)
         return (
           <div key={team.id} className="bg-white border border-gray-200 rounded-xl p-4">
             <div className="flex items-center justify-between mb-3">
@@ -2377,7 +2434,7 @@ function CatfishWeighInTab({ comp, teams, members, onRefresh, showToast }) {
 }
 
 // ── Catfish Count Leaderboard (scoring_mode='catfish_count') ─────────────────
-function CatfishLeaderboardTab({ teams, members }) {
+function CatfishLeaderboardTab({ teams, members, pendingDivers }) {
   const ranked = [...teams]
     .filter(t => t.result_status !== 'disqualified')
     .sort((a, b) => (b.catfish_count || 0) - (a.catfish_count || 0))
@@ -2408,7 +2465,7 @@ function CatfishLeaderboardTab({ teams, members }) {
       )}
       <div className="space-y-2">
         {ranked.map((team, i) => {
-          const roster = members.filter(m => m.team_id === team.id).map(m => m.name).filter(Boolean).join(' & ')
+          const roster = teamRosterLabel(team, members, pendingDivers)
           return (
             <div key={team.id} className="bg-white border border-gray-200 rounded-xl px-4 py-3 flex items-center gap-3">
               <div className="text-lg font-black w-8 text-center flex-shrink-0" style={{ color: SNZ_DARK }}>

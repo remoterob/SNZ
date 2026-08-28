@@ -87,6 +87,7 @@ function StatusBadge({ status }) {
   if (status === 'active') return <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700">✓ Active</span>
   if (status === 'pending_payment') return <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700">⚠ Payment required</span>
   if (status === 'pending_diver2') return <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">⏳ Awaiting partner</span>
+  if (status === 'pending_teammates') return <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">⏳ Awaiting teammate payment</span>
   if (status === 'withdrawn') return <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-600">Withdrawn</span>
   return <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">{status}</span>
 }
@@ -571,7 +572,16 @@ function RegistrationsTab({ teams, comp, loading, onRefresh }) {
     e.stopPropagation()
     setSaving(`${teamId}-${field}`)
     const update = { [field]: value }
-    if (field === 'payment_status' && value === 'paid') update.status = 'active'
+    // One diver's payment doesn't speak for a teammate who hasn't paid their
+    // own share yet — only flip to 'active' once everyone entered has paid.
+    if (field === 'payment_status' || field === 'diver2_payment_status' || field === 'diver3_payment_status') {
+      const team = teams.find(t => t.id === teamId) || {}
+      const merged = { ...team, ...update }
+      const d1Paid = merged.payment_status === 'paid'
+      const d2Ok = !merged.diver2_email || merged.diver2_payment_status === 'paid'
+      const d3Ok = !merged.diver3_email || merged.diver3_payment_status === 'paid'
+      update.status = (d1Paid && d2Ok && d3Ok) ? 'active' : 'pending_teammates'
+    }
     await supabase.from('comp_teams').update(update).eq('id', teamId)
     await onRefresh()
     setSaving(null)

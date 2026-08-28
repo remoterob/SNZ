@@ -71,22 +71,32 @@ exports.handler = async (event) => {
       console.log(`Membership verified+activated for member ${member_id} (session ${session.id})`)
 
     } else if ((type === 'competition_entry' || type === 'nationals_entry') && team_id) {
+      const { data: teamRow, error: teamFetchErr } = await supabase
+        .from('comp_teams')
+        .select('payment_status, diver2_email, diver2_payment_status, diver3_email, diver3_payment_status')
+        .eq('id', team_id).maybeSingle()
+      if (teamFetchErr) throw new Error(`comp_teams lookup failed: ${teamFetchErr.message}`)
+
+      const updates = {}
       if (diver_slot === '2' || diver_slot === '3') {
-        await safeUpdate('comp_teams', {
-          [`diver${diver_slot}_payment_status`]: 'paid',
-          status: 'active',
-        }, 'id', team_id)
-        console.log(`${type} diver${diver_slot} verified+activated for team ${team_id} (session ${session.id})`)
+        updates[`diver${diver_slot}_payment_status`] = 'paid'
       } else {
-        await safeUpdate('comp_teams', {
-          payment_status: 'paid',
-          status: 'active',
-          stripe_session_id: session.id,
-          stripe_payment_intent_id: paymentIntent,
-          paid_at: paidAt,
-        }, 'id', team_id)
-        console.log(`${type} verified+activated for team ${team_id} (session ${session.id})`)
+        updates.payment_status = 'paid'
+        updates.stripe_session_id = session.id
+        updates.stripe_payment_intent_id = paymentIntent
+        updates.paid_at = paidAt
       }
+
+      // Same completeness rule as stripe-webhook.js — one diver paying
+      // doesn't speak for teammates who haven't confirmed and paid yet.
+      const merged = { ...teamRow, ...updates }
+      const d1Paid = merged.payment_status === 'paid'
+      const d2Ok = !merged.diver2_email || merged.diver2_payment_status === 'paid'
+      const d3Ok = !merged.diver3_email || merged.diver3_payment_status === 'paid'
+      updates.status = (d1Paid && d2Ok && d3Ok) ? 'active' : 'pending_teammates'
+
+      await safeUpdate('comp_teams', updates, 'id', team_id)
+      console.log(`${type} diver${diver_slot || 1} verified+activated for team ${team_id} (session ${session.id}) — status=${updates.status}`)
 
     } else {
       console.error(`verify-checkout-session: unrecognised metadata on ${session.id}: type=${type}`)
