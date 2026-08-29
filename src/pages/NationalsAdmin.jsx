@@ -9,6 +9,9 @@ import SocialCardExporter from '../components/SocialCardExporter'
 import TeamPhotoCapture from '../components/TeamPhotoCapture'
 
 const SNZ_BLUE = '#2B6CB0'
+// A diver manually marked 'waived' (cash at the door, comped entry) counts
+// the same as 'paid' for team completeness.
+const PAID_STATUSES = ['paid', 'waived']
 const SNZ_DARK = '#1e3a5f'
 
 const EVENT_LABELS = {
@@ -328,6 +331,7 @@ function TeamModal({ team, compId, onClose, onSaved }) {
                 <option value="active">Active</option>
                 <option value="pending_payment">Pending payment</option>
                 <option value="pending_diver2">Awaiting partner</option>
+                <option value="pending_teammates">Awaiting teammate payment</option>
                 <option value="withdrawn">Withdrawn</option>
               </select>
             </div>
@@ -577,9 +581,9 @@ function RegistrationsTab({ teams, comp, loading, onRefresh }) {
     if (field === 'payment_status' || field === 'diver2_payment_status' || field === 'diver3_payment_status') {
       const team = teams.find(t => t.id === teamId) || {}
       const merged = { ...team, ...update }
-      const d1Paid = merged.payment_status === 'paid'
-      const d2Ok = !merged.diver2_email || merged.diver2_payment_status === 'paid'
-      const d3Ok = !merged.diver3_email || merged.diver3_payment_status === 'paid'
+      const d1Paid = PAID_STATUSES.includes(merged.payment_status)
+      const d2Ok = !merged.diver2_email || PAID_STATUSES.includes(merged.diver2_payment_status)
+      const d3Ok = !merged.diver3_email || PAID_STATUSES.includes(merged.diver3_payment_status)
       update.status = (d1Paid && d2Ok && d3Ok) ? 'active' : 'pending_teammates'
     }
     await supabase.from('comp_teams').update(update).eq('id', teamId)

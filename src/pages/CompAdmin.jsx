@@ -1306,6 +1306,32 @@ function FishTab({ fish, comp, onOpenPicker, onFishUpdated }) {
 const SKILL_LEVELS = ['Absolute beginner', 'Beginner', 'Intermediate', 'Experienced']
 const emptyMember = { name:'', email:'', phone:'', club:'', gender:'', dob:'', emergency_contact:'', emergency_phone:'', fit_to_dive:false, skill_level:'' }
 
+// A waived diver counts the same as a paid one for completeness purposes —
+// admin manually clearing their fee (cash at the door, comped entry, etc.)
+// should let the team become fully active, same as NationalsAdmin.jsx.
+const PAID_STATUSES = ['paid', 'waived']
+
+// Diver 2/3 only get their own comp_team_members row once they confirm their
+// own entry — until then, prefill the admin edit form from what's already
+// known (their resolved member record if they were found as an active member
+// at registration, else just their invited email) instead of a blank form.
+function resolveDiverPrefill(existingRow, email, memberId, pendingDivers) {
+  if (existingRow) return { ...existingRow }
+  const known = memberId && pendingDivers[memberId]
+  return {
+    ...emptyMember,
+    name: known?.name || '',
+    email: known?.email || email || '',
+    phone: known?.phone || '',
+    club: known?.club || '',
+    gender: known?.gender || '',
+    dob: known?.dob || '',
+    emergency_contact: known?.emergency_contact || '',
+    emergency_phone: known?.emergency_phone || '',
+    fit_to_dive: known?.fit_to_dive || false,
+  }
+}
+
 // ── Member Section (outside TeamModal to prevent remount on keystroke) ────────
 function MemberSection({ label, data, setField }) {
   return (
@@ -1437,15 +1463,17 @@ function TeamMerchFields({ label, merch, setMerch, merchFees, mealFee, shirtAllo
   )
 }
 
-function TeamModal({ comp, team, members: existingMembers, onClose, onSaved, showToast }) {
+function TeamModal({ comp, team, members: existingMembers, pendingDivers, onClose, onSaved, showToast }) {
   const isNew = !team
   const isIndividual = comp?.scoring_mode === 'fish_bingo_individual'
   const [teamName, setTeamName] = useState(team?.team_name || '')
   const [category, setCategory] = useState(team?.category || (comp.categories?.[0] || 'Open'))
   const [boatName, setBoatName] = useState(team?.boat_name || '')
   const [boatDetails, setBoatDetails] = useState(team?.boat_details || '')
-  const [p1, setP1] = useState(existingMembers?.[0] ? { ...existingMembers[0] } : { ...emptyMember })
-  const [p2, setP2] = useState(existingMembers?.[1] ? { ...existingMembers[1] } : { ...emptyMember })
+  const [p1, setP1] = useState(resolveDiverPrefill(existingMembers?.[0], team?.diver1_email, team?.diver1_member_id, pendingDivers || {}))
+  const [p2, setP2] = useState(resolveDiverPrefill(existingMembers?.[1], team?.diver2_email, team?.diver2_member_id, pendingDivers || {}))
+  const [payStatus1, setPayStatus1] = useState(team?.payment_status || 'pending')
+  const [payStatus2, setPayStatus2] = useState(team?.diver2_payment_status || 'pending')
   const [merch1, setMerch1] = useState(initTeamMerch(team?.merch_d1))
   const [merch2, setMerch2] = useState(initTeamMerch(team?.merch_d2))
   const merchFees = comp?.category_fees?.merch
@@ -1533,6 +1561,13 @@ function TeamModal({ comp, team, members: existingMembers, onClose, onSaved, sho
         return Object.keys(out).length > 0 ? out : null
       }
 
+      // Same completeness rule as the payment webhooks: a diver only counts
+      // as done once they're paid or explicitly waived, and diver2 only
+      // needs to count at all if the team actually has one.
+      const d1Done = PAID_STATUSES.includes(payStatus1)
+      const d2Done = !p2.email?.trim() || PAID_STATUSES.includes(payStatus2)
+      const d3Done = !team?.diver3_email || PAID_STATUSES.includes(team?.diver3_payment_status)
+
       let teamId = team?.id
       const teamPayload = {
         team_name: teamName.trim(), category,
@@ -1540,6 +1575,9 @@ function TeamModal({ comp, team, members: existingMembers, onClose, onSaved, sho
         diver1_member_id: diver1Id,
         diver2_member_id: diver2Id,
         diver2_email: p2.email?.trim().toLowerCase() || null,
+        payment_status: payStatus1,
+        diver2_payment_status: p2.email?.trim() ? payStatus2 : null,
+        status: (d1Done && d2Done && d3Done) ? 'active' : !d1Done ? 'pending_payment' : 'pending_teammates',
         merch_d1: buildMerchPayload(merch1),
         merch_d2: buildMerchPayload(merch2),
       }
@@ -1641,7 +1679,30 @@ function TeamModal({ comp, team, members: existingMembers, onClose, onSaved, sho
           </div>
 
           <MemberSection label={isIndividual ? 'Competitor' : 'Diver 1'} data={p1} setField={set1} />
+          <div>
+            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">{isIndividual ? 'Competitor' : 'Diver 1'} Payment</label>
+            <select value={payStatus1} onChange={e => setPayStatus1(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300">
+              <option value="pending">Pending</option>
+              <option value="paid">Paid</option>
+              <option value="refunded">Refunded</option>
+              <option value="waived">Waived</option>
+            </select>
+          </div>
           {!isIndividual && <MemberSection label="Diver 2" data={p2} setField={set2} />}
+          {!isIndividual && (
+            <div>
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Diver 2 Payment</label>
+              <select value={payStatus2} onChange={e => setPayStatus2(e.target.value)} disabled={!p2.email?.trim()}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300 disabled:opacity-40">
+                <option value="pending">Pending</option>
+                <option value="paid">Paid</option>
+                <option value="refunded">Refunded</option>
+                <option value="waived">Waived</option>
+              </select>
+              {!p2.email?.trim() && <p className="text-xs text-gray-400 mt-1">Add Diver 2's email above to set their payment status.</p>}
+            </div>
+          )}
 
           {(merchFees?.jacket || merchFees?.shirt || mealFee > 0) && (
             <div className="space-y-2">
@@ -1782,6 +1843,7 @@ function TeamsTab({ teams, members, pendingDivers, weighins, comp, onRefresh, sh
           comp={comp}
           team={editingTeam === 'new' ? null : editingTeam}
           members={editingTeam === 'new' ? [] : members.filter(m => m.team_id === editingTeam.id)}
+          pendingDivers={pendingDivers}
           onClose={() => setEditingTeam(null)}
           onSaved={() => { onRefresh(); setEditingTeam(null); showToast(editingTeam === 'new' ? 'Team added' : 'Team updated') }}
           showToast={showToast}

@@ -15,6 +15,9 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 )
 
+// Same "waived counts as done" rule as stripe-webhook.js
+const PAID_STATUSES = ['paid', 'waived']
+
 // Same migration-tolerant update as stripe-webhook.js
 async function safeUpdate(table, values, idColumn, idValue) {
   let { data, error } = await supabase.from(table).update(values)
@@ -90,9 +93,9 @@ exports.handler = async (event) => {
       // Same completeness rule as stripe-webhook.js — one diver paying
       // doesn't speak for teammates who haven't confirmed and paid yet.
       const merged = { ...teamRow, ...updates }
-      const d1Paid = merged.payment_status === 'paid'
-      const d2Ok = !merged.diver2_email || merged.diver2_payment_status === 'paid'
-      const d3Ok = !merged.diver3_email || merged.diver3_payment_status === 'paid'
+      const d1Paid = PAID_STATUSES.includes(merged.payment_status)
+      const d2Ok = !merged.diver2_email || PAID_STATUSES.includes(merged.diver2_payment_status)
+      const d3Ok = !merged.diver3_email || PAID_STATUSES.includes(merged.diver3_payment_status)
       updates.status = (d1Paid && d2Ok && d3Ok) ? 'active' : 'pending_teammates'
 
       await safeUpdate('comp_teams', updates, 'id', team_id)

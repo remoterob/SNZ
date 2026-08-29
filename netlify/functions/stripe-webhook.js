@@ -13,6 +13,11 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 )
 
+// A diver admin has manually waived (cash at the door, comped entry, etc. —
+// set via CompAdmin.jsx/NationalsAdmin.jsx) counts the same as paid for team
+// completeness, so a later teammate payment doesn't wrongly undo it.
+const PAID_STATUSES = ['paid', 'waived']
+
 // Update that tolerates a not-yet-applied migration: if a column in `values`
 // doesn't exist (PGRST204), drop it and retry so the payment still lands.
 async function safeUpdate(table, values, idColumn, idValue) {
@@ -127,9 +132,9 @@ exports.handler = async (event) => {
         // every diver who actually has a seat (diver2/3 only count if the
         // team entered them) has paid.
         const merged = { ...teamRow, ...updates }
-        const d1Paid = merged.payment_status === 'paid'
-        const d2Ok = !merged.diver2_email || merged.diver2_payment_status === 'paid'
-        const d3Ok = !merged.diver3_email || merged.diver3_payment_status === 'paid'
+        const d1Paid = PAID_STATUSES.includes(merged.payment_status)
+        const d2Ok = !merged.diver2_email || PAID_STATUSES.includes(merged.diver2_payment_status)
+        const d3Ok = !merged.diver3_email || PAID_STATUSES.includes(merged.diver3_payment_status)
         updates.status = (d1Paid && d2Ok && d3Ok) ? 'active' : 'pending_teammates'
 
         await safeUpdate('comp_teams', updates, 'id', team_id)
