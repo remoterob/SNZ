@@ -1543,7 +1543,7 @@ function WeighInPanel({ team, divId, day, fishList, allWeighins, compId, onSaved
           })}
 
           <div className="border border-gray-200 rounded-xl p-3">
-            <p className="text-sm font-semibold text-gray-700 mb-2">Bulk bin (other valid species)</p>
+            <p className="text-sm font-semibold text-gray-700 mb-2">Total weight (max for any one fish is 8kg)</p>
             <div className="flex items-center gap-2">
               <input type="number" min="0" step="0.1" value={bulkKg}
                 onChange={e => setBulkKg(e.target.value)} placeholder="0.0"
