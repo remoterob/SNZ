@@ -833,6 +833,7 @@ function SNZHub() {
   const navigate = useNavigate()
   const [stats, setStats] = useState({})
   const [bigFishCount, setBigFishCount] = useState(null)
+  const [mudgewayHolder, setMudgewayHolder] = useState(null)
   const [agmMeetings, setAgmMeetings] = useState([])
 
   useEffect(() => {
@@ -851,6 +852,16 @@ function SNZHub() {
       compsActive:  ca.count ?? 0,
       recipes:      rec.count ?? 0,
     }))
+  }, [])
+
+  // Current Mudgeway holder for the hub tile — read live rather than hardcoded,
+  // since the whole point of the module is that custody changes hands.
+  useEffect(() => {
+    supabase.from('mudgeway_holder_history')
+      .select('held_from, clubs(name)')
+      .is('held_until', null)
+      .maybeSingle()
+      .then(({ data }) => setMudgewayHolder(data || null))
   }, [])
 
   useEffect(() => {
@@ -915,6 +926,16 @@ function SNZHub() {
       icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={SNZ_BLUE} strokeWidth="1.8" strokeLinecap="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2z"/></svg>,
       status: 'live',
       summary: 'Registrations open now',
+    },
+    {
+      title: 'Mudgeway Trophy',
+      desc: 'The inter-club challenge trophy. Any affiliated club can challenge the current holder — the holder sets the date, venue and fish list, and has to be beaten on the day to give it up.',
+      onClick: () => navigate('/mudgeway'),
+      icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={SNZ_BLUE} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M8 21h8"/><path d="M12 17v4"/><path d="M7 4h10v5a5 5 0 0 1-10 0V4z"/><path d="M17 5h2a2 2 0 0 1 0 4h-2"/><path d="M7 5H5a2 2 0 0 0 0 4h2"/><path d="m12 8.5.7 1.5 1.6.2-1.2 1.1.3 1.6-1.4-.8-1.4.8.3-1.6L9.7 10l1.6-.2z"/></svg>,
+      status: 'live',
+      summary: mudgewayHolder?.clubs?.name
+        ? `Held by ${mudgewayHolder.clubs.name} since ${new Date(mudgewayHolder.held_from).toLocaleDateString('en-NZ', { month: 'short', year: 'numeric' })}`
+        : 'Current holder, challenge queue and history',
     },
     {
       title: 'Big Fish',
