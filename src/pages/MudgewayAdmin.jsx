@@ -61,6 +61,12 @@ function FishListPicker({ event, existing, onClose, onSaved, toast }) {
       min_weight_g_override: i.min_weight_g_override ?? '',
     }))
   )
+  // Adding a species the master library doesn't have yet (local names, etc.)
+  const [showAdd, setShowAdd] = useState(false)
+  const [newName, setNewName] = useState('')
+  const [newPhoto, setNewPhoto] = useState(null)
+  const [newPreview, setNewPreview] = useState(null)
+  const [adding, setAdding] = useState(false)
 
   useEffect(() => {
     supabase.from('comp_species_library').select('*').eq('active', true)
@@ -107,6 +113,41 @@ function FishListPicker({ event, existing, onClose, onSaved, toast }) {
       onSaved(); onClose()
     } catch (e) { toast(e.message, 'error') }
     finally { setSaving(false) }
+  }
+
+  // New species go into the shared SNZ library so they can be reused next
+  // season and by other comps — the library is the master list the picker
+  // reads. `active` can hide one later without losing the record.
+  const addSpecies = async () => {
+    const name = newName.trim()
+    if (!name) return
+    const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+    if (library.some(s => s.name.toLowerCase() === name.toLowerCase() || s.slug === slug)) {
+      toast(`"${name}" is already on the species list.`, 'error'); return
+    }
+    setAdding(true)
+    try {
+      let photoUrl = null
+      if (newPhoto) {
+        const ext = newPhoto.name.split('.').pop().toLowerCase().replace('heic', 'jpg')
+        const path = `species/custom-${slug}-${Date.now()}.${ext}`
+        const { error: upErr } = await supabase.storage.from('snz-media')
+          .upload(path, newPhoto, { contentType: newPhoto.type })
+        if (upErr) throw upErr
+        const { data } = supabase.storage.from('snz-media').getPublicUrl(path)
+        photoUrl = data.publicUrl
+      }
+      const { data: row, error } = await supabase.from('comp_species_library')
+        .insert({ name, slug, photo_url: photoUrl, active: true, sort_order: 1000 })
+        .select('*').single()
+      if (error) throw error
+
+      setLibrary(l => [...l, row])
+      setSelected(s => [...s, { name, max_count: '', min_weight_g_override: '' }])
+      setNewName(''); setNewPhoto(null); setNewPreview(null); setShowAdd(false)
+      toast(`"${name}" added and selected`)
+    } catch (e) { toast(e.message, 'error') }
+    finally { setAdding(false) }
   }
 
   const filtered = library.filter(s => s.name.toLowerCase().includes(search.toLowerCase()))
@@ -167,6 +208,56 @@ function FishListPicker({ event, existing, onClose, onSaved, toast }) {
                 })}
               </div>
           }
+
+          {/* Add a species the master list doesn't have */}
+          {!showAdd ? (
+            <button type="button" onClick={() => setShowAdd(true)}
+              className="w-full mb-4 py-2.5 rounded-xl border-2 border-dashed border-gray-300 text-sm font-bold text-gray-500 hover:border-gray-400 transition">
+              + Add a species that isn’t on the list
+            </button>
+          ) : (
+            <div className="mb-4 border-2 border-blue-200 bg-blue-50/50 rounded-xl p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-black text-gray-900">New species</h3>
+                <button type="button" onClick={() => { setShowAdd(false); setNewName(''); setNewPhoto(null); setNewPreview(null) }}
+                  className="text-gray-400 hover:text-gray-600 text-lg font-bold">✕</button>
+              </div>
+              <div className="flex gap-3 items-start">
+                <label className="cursor-pointer flex-shrink-0">
+                  <div className="w-24 h-24 rounded-xl border-2 border-dashed border-gray-300 bg-white flex items-center justify-center overflow-hidden">
+                    {newPreview
+                      ? <img src={newPreview} alt="" className="w-full h-full object-cover" />
+                      : <span className="text-3xl text-gray-300">🐟</span>}
+                  </div>
+                  <span className="block text-center text-xs font-bold text-gray-500 mt-1">
+                    {newPreview ? 'Change' : 'Add photo'}
+                  </span>
+                  <input type="file" accept="image/*" className="hidden"
+                    onChange={e => {
+                      const f = e.target.files?.[0]
+                      if (!f) return
+                      setNewPhoto(f); setNewPreview(URL.createObjectURL(f))
+                    }} />
+                </label>
+                <div className="flex-1 space-y-2">
+                  <input value={newName} onChange={e => setNewName(e.target.value)}
+                    placeholder="Species name, e.g. Blue Moki"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" />
+                  <p className="text-xs text-gray-500 leading-relaxed">
+                    Added to the shared SNZ species library, so it’s available next season and to
+                    other competitions. A photo is optional but makes it easier to pick at the
+                    weigh station.
+                  </p>
+                  <button type="button" onClick={addSpecies} disabled={adding || !newName.trim()}
+                    className="px-4 py-2 rounded-lg text-sm font-bold text-white disabled:opacity-40"
+                    style={{ background: SNZ_BLUE }}>
+                    {adding ? 'Adding…' : 'Add & select'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="flex gap-3">
             <button type="button" onClick={onClose}
               className="flex-1 py-2.5 rounded-xl border border-gray-300 text-sm font-bold text-gray-600">Cancel</button>
