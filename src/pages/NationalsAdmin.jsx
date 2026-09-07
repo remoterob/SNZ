@@ -5,6 +5,7 @@ import CompCopilotFAB from './CompCopilotFAB'
 import { teamLeaderboard, openTeamLeaderboard, photographyLeaderboard, finSwimLeaderboard, superDiverLeaderboard, medalFor } from '../lib/nationalsScoring'
 import { toCSV, downloadCSV } from '../lib/csvExport'
 import CheckInRollCall, { NATIONALS_CHECKIN_EVENTS, teamInNationalsEvent } from '../components/CheckInRollCall'
+import SponsorBar, { SponsorUploadSlot } from '../components/SponsorBar'
 import SocialCardExporter from '../components/SocialCardExporter'
 import TeamPhotoCapture from '../components/TeamPhotoCapture'
 
@@ -895,6 +896,9 @@ function SetupTab({ comp, onRefresh }) {
         early_bird_cutoff: comp.early_bird_cutoff ? comp.early_bird_cutoff.slice(0, 10) : '',
         club_name: comp.club_name || 'Spearfishing New Zealand',
         status: comp.status || 'open',
+        sponsor1_url: comp.sponsor1_url || null,
+        sponsor2_url: comp.sponsor2_url || null,
+        sponsor3_url: comp.sponsor3_url || null,
       })
       const existing = comp.category_fees || {}
       const merged = defaultFees()
@@ -906,7 +910,7 @@ function SetupTab({ comp, onRefresh }) {
       setFees(merged)
       setEventDates(comp.event_dates || {})
     } else {
-      setForm({ name: 'SNZ Nationals 2027', date_start: '2027-01-19', registration_cutoff: '', early_bird_cutoff: '', club_name: 'Spearfishing New Zealand', status: 'upcoming' })
+      setForm({ name: 'SNZ Nationals 2027', date_start: '2027-01-19', registration_cutoff: '', early_bird_cutoff: '', club_name: 'Spearfishing New Zealand', status: 'upcoming', sponsor1_url: null, sponsor2_url: null, sponsor3_url: null })
       setFees(defaultFees())
       setEventDates({})
     }
@@ -946,6 +950,9 @@ function SetupTab({ comp, onRefresh }) {
       registration_cutoff: form.registration_cutoff || null,
       early_bird_cutoff: form.early_bird_cutoff || null,
       status: form.status, category_fees, event_dates,
+      sponsor1_url: form.sponsor1_url || null,
+      sponsor2_url: form.sponsor2_url || null,
+      sponsor3_url: form.sponsor3_url || null,
       scoring_mode: 'standard', public_leaderboard: false,
     }
     try {
@@ -996,6 +1003,27 @@ function SetupTab({ comp, onRefresh }) {
             <option value="completed">Completed</option>
           </select>
         </div>
+      </div>
+
+      <div className="bg-white border border-gray-200 rounded-2xl p-5 space-y-4">
+        <div>
+          <h3 className="font-black text-gray-900">Sponsors</h3>
+          <p className="text-xs text-gray-400 mt-0.5">
+            Up to 3 logos, shown under “Proudly Sponsored By” at the bottom of the registration and
+            results screens. Transparent PNG or white-background images work best.
+          </p>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {[['sponsor1_url', 'Sponsor 1'], ['sponsor2_url', 'Sponsor 2'], ['sponsor3_url', 'Sponsor 3']].map(([key, label]) => (
+            <SponsorUploadSlot key={key} label={label} fieldKey={key} url={form[key]} compId={comp?.id}
+              onUploaded={url => set(key)(url)}
+              onRemoved={() => set(key)(null)}
+              showToast={(m, t) => t === 'error' ? setSaveError(m) : null} />
+          ))}
+        </div>
+        {form.sponsor1_url || form.sponsor2_url || form.sponsor3_url ? (
+          <p className="text-xs text-amber-600 font-semibold">Remember to Save — uploads aren’t live until you do.</p>
+        ) : null}
       </div>
 
       <div className="bg-white border border-gray-200 rounded-2xl p-5 space-y-4">

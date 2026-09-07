@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import {
   teamLeaderboard, openTeamLeaderboard, photographyLeaderboard, finSwimLeaderboard, superDiverLeaderboard, medalFor,
 } from '../lib/nationalsScoring'
+import SponsorBar from '../components/SponsorBar'
 
 const SNZ_BLUE = '#2B6CB0'
 const SNZ_DARK = '#1e3a5f'
@@ -273,6 +274,8 @@ export default function NationalsLeaderboard() {
           <Board board={board} teams={data.teams} weighins={data.weighins} />
         )}
       </div>
+
+      <SponsorBar comp={data?.comp} className="mt-8" />
     </div>
   )
 }

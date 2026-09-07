@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useMemberSession, MemberAuthGate } from '../components/MemberAuthGate'
+import SponsorBar from '../components/SponsorBar'
 
 const SNZ_BLUE = '#2B6CB0'
 const SNZ_DARK = '#1e3a5f'
@@ -537,6 +538,8 @@ export default function NationalsRegisterIndividual() {
           You'll be redirected to Stripe to complete your entry fee payment.
         </p>
       </div>
+
+      <SponsorBar comp={comp} className="mt-8" />
     </div>
   )
 }
