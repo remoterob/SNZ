@@ -28,6 +28,41 @@ const PHASES = [
   { id: 'post', label: 'Post-event', verb: 'Back',       blurb: 'Head count — everyone accounted for' },
 ]
 
+const MAX_EVENT_DAYS = 7
+
+/**
+ * Days an event runs, from competitions.event_dates: { start, end }.
+ * Most events have a start only and run for one day; the Nationals Open spans
+ * two, so each day needs its own pre/post roll call.
+ */
+export function eventDayList(eventDates, eventId) {
+  const d = eventDates?.[eventId]
+  const single = [{ day: 1, date: d?.start || null }]
+  if (!d?.start || !d?.end) return single
+  const start = new Date(`${d.start}T00:00:00`)
+  const end = new Date(`${d.end}T00:00:00`)
+  if (isNaN(start) || isNaN(end) || end <= start) return single
+  const days = []
+  for (let i = 0; i < MAX_EVENT_DAYS; i++) {
+    const cur = new Date(start)
+    cur.setDate(start.getDate() + i)
+    if (cur > end) break
+    // Format from local parts, not toISOString() — NZDT is UTC+13 in January,
+    // so going via UTC would roll every date back a day.
+    const mm = String(cur.getMonth() + 1).padStart(2, '0')
+    const dd = String(cur.getDate()).padStart(2, '0')
+    days.push({ day: i + 1, date: `${cur.getFullYear()}-${mm}-${dd}` })
+  }
+  return days.length ? days : single
+}
+
+const dayLabel = (d) => {
+  if (!d.date) return `Day ${d.day}`
+  const dt = new Date(`${d.date}T00:00:00`)
+  if (isNaN(dt)) return `Day ${d.day}`
+  return `Day ${d.day} · ${dt.toLocaleDateString('en-NZ', { weekday: 'short', day: 'numeric', month: 'short' })}`
+}
+
 /**
  * Team-level roll call. One tap per team per (event, phase).
  *
@@ -40,22 +75,33 @@ export default function CheckInRollCall({
   teams,
   members,
   events = [{ id: 'main', label: 'Check-in' }],
+  eventDates,
   teamsForEvent,
   showToast,
   renderTeamExtra,
 }) {
   const [eventKey, setEventKey] = useState(events[0]?.id || 'main')
   const [phase, setPhase] = useState('pre')
+  const [day, setDay] = useState(1)
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
   const [busyTeamId, setBusyTeamId] = useState(null)
+
+  const days = useMemo(() => eventDayList(eventDates, eventKey), [eventDates, eventKey])
+  const isMultiDay = days.length > 1
+
+  // A day that exists for one event may not for the next — snap back to day 1
+  // rather than leaving the roll call pointed at a day this event doesn't have.
+  useEffect(() => {
+    if (!days.some(d => d.day === day)) setDay(1)
+  }, [days, day])
 
   const load = useCallback(async () => {
     if (!competitionId) return
     setLoading(true)
     const { data, error } = await supabase
       .from('comp_checkins')
-      .select('id, team_id, event_key, phase, checked_in_at')
+      .select('id, team_id, event_key, phase, day, checked_in_at')
       .eq('competition_id', competitionId)
     if (error) showToast?.(error.message, 'error')
     setRows(data || [])
@@ -64,22 +110,24 @@ export default function CheckInRollCall({
 
   useEffect(() => { load() }, [load])
 
-  // team_id -> row, for the currently selected event + phase
+  // team_id -> row, for the currently selected event + phase + day
   const current = useMemo(() => {
     const m = new Map()
     for (const r of rows) {
-      if (r.event_key === eventKey && r.phase === phase) m.set(r.team_id, r)
+      if (r.event_key === eventKey && r.phase === phase && (r.day ?? 1) === day) m.set(r.team_id, r)
     }
     return m
-  }, [rows, eventKey, phase])
+  }, [rows, eventKey, phase, day])
 
-  // How many teams are already checked in for the *other* phase — lets the
-  // post-event list show who actually went out.
+  // Who went out on *this* day — lets the post-event list show only the teams
+  // that actually checked in that morning.
   const preSet = useMemo(() => {
     const s = new Set()
-    for (const r of rows) if (r.event_key === eventKey && r.phase === 'pre') s.add(r.team_id)
+    for (const r of rows) {
+      if (r.event_key === eventKey && r.phase === 'pre' && (r.day ?? 1) === day) s.add(r.team_id)
+    }
     return s
-  }, [rows, eventKey])
+  }, [rows, eventKey, day])
 
   const visibleTeams = useMemo(() => {
     const base = teamsForEvent ? teams.filter(t => teamsForEvent(t, eventKey)) : teams
@@ -102,15 +150,15 @@ export default function CheckInRollCall({
         setRows(rs => rs.filter(r => r.id !== existing.id))
       } else {
         const { data, error } = await supabase.from('comp_checkins')
-          .insert({ competition_id: competitionId, team_id: team.id, event_key: eventKey, phase })
-          .select('id, team_id, event_key, phase, checked_in_at')
+          .insert({ competition_id: competitionId, team_id: team.id, event_key: eventKey, phase, day })
+          .select('id, team_id, event_key, phase, day, checked_in_at')
           .single()
         if (error) throw error
         setRows(rs => [...rs, data])
       }
       // Keep the legacy comp_teams.checked_in flag in step for the main
       // pre-event check-in — CheckInDisplay and comp-copilot still read it.
-      if (eventKey === 'main' && phase === 'pre') {
+      if (eventKey === 'main' && phase === 'pre' && day === 1) {
         await supabase.from('comp_teams').update(
           existing ? { checked_in: false, checked_in_at: null }
                    : { checked_in: true, checked_in_at: new Date().toISOString() }
@@ -129,8 +177,8 @@ export default function CheckInRollCall({
     if (!remaining.length) return
     if (!window.confirm(`Check in all ${remaining.length} remaining team${remaining.length > 1 ? 's' : ''}?`)) return
     const { data, error } = await supabase.from('comp_checkins')
-      .insert(remaining.map(t => ({ competition_id: competitionId, team_id: t.id, event_key: eventKey, phase })))
-      .select('id, team_id, event_key, phase, checked_in_at')
+      .insert(remaining.map(t => ({ competition_id: competitionId, team_id: t.id, event_key: eventKey, phase, day })))
+      .select('id, team_id, event_key, phase, day, checked_in_at')
     if (error) { showToast?.(error.message, 'error'); return }
     setRows(rs => [...rs, ...(data || [])])
     showToast?.(`${remaining.length} team${remaining.length > 1 ? 's' : ''} checked in`)
@@ -161,7 +209,11 @@ export default function CheckInRollCall({
         <div className="flex gap-1.5 flex-wrap">
           {events.map(ev => {
             const n = (teamsForEvent ? teams.filter(t => teamsForEvent(t, ev.id)) : teams).length
-            const done = rows.filter(r => r.event_key === ev.id && r.phase === phase).length
+            // Count against the day currently selected where that event has one,
+            // so a multi-day event's tally matches the list underneath it.
+            const evDays = eventDayList(eventDates, ev.id)
+            const evDay = evDays.some(d => d.day === day) ? day : 1
+            const done = rows.filter(r => r.event_key === ev.id && r.phase === phase && (r.day ?? 1) === evDay).length
             return (
               <button key={ev.id} onClick={() => setEventKey(ev.id)}
                 className={`px-3 py-1.5 rounded-full text-xs font-bold border transition ${
@@ -172,6 +224,36 @@ export default function CheckInRollCall({
               </button>
             )
           })}
+        </div>
+      )}
+
+      {/* Day selector — only for events that run more than one day */}
+      {isMultiDay && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
+          <p className="text-xs font-bold text-amber-800 uppercase tracking-wider mb-2">
+            {events.find(e => e.id === eventKey)?.label || 'This event'} runs {days.length} days — check in each day separately
+          </p>
+          <div className="flex gap-2 flex-wrap">
+            {days.map(d => {
+              const dPre = rows.filter(r => r.event_key === eventKey && r.phase === 'pre' && (r.day ?? 1) === d.day).length
+              const dPost = rows.filter(r => r.event_key === eventKey && r.phase === 'post' && (r.day ?? 1) === d.day).length
+              const out = dPre - dPost
+              return (
+                <button key={d.day} onClick={() => setDay(d.day)}
+                  className={`px-3 py-2 rounded-lg text-xs font-bold border-2 transition ${
+                    day === d.day ? 'text-white border-transparent' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
+                  }`}
+                  style={day === d.day ? { background: SNZ_BLUE } : {}}>
+                  {dayLabel(d)}
+                  {out > 0 && (
+                    <span className={`ml-2 px-1.5 py-0.5 rounded-full ${day === d.day ? 'bg-white/25' : 'bg-amber-100 text-amber-700'}`}>
+                      {out} out
+                    </span>
+                  )}
+                </button>
+              )
+            })}
+          </div>
         </div>
       )}
 

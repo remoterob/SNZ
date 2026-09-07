@@ -2296,6 +2296,7 @@ export default function NationalsAdmin() {
             competitionId={comp.id}
             teams={teams.filter(t => !t.withdrawn_at)}
             events={NATIONALS_CHECKIN_EVENTS}
+            eventDates={comp.event_dates}
             teamsForEvent={teamInNationalsEvent}
           />
         )}
