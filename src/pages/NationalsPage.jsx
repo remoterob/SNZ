@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useMemberSession } from '../components/MemberAuthGate'
 import CompCopilotFAB from './CompCopilotFAB'
+import SponsorBar from '../components/SponsorBar'
 
 const SNZ_BLUE = '#2B6CB0'
 const SNZ_DARK = '#1e3a5f'
@@ -160,7 +161,7 @@ export default function NationalsPage() {
   useEffect(() => {
     supabase
       .from('competitions')
-      .select('id, name, status, registration_cutoff, early_bird_cutoff, event_dates, category_fees')
+      .select('id, name, status, registration_cutoff, early_bird_cutoff, event_dates, category_fees, sponsor1_url, sponsor2_url, sponsor3_url')
       .ilike('name', '%nationals%2027%')
       .maybeSingle()
       .then(({ data }) => {
@@ -541,6 +542,8 @@ export default function NationalsPage() {
         )}
 
       </div>
+
+      <SponsorBar comp={nationals} className="mt-8" />
       <CompCopilotFAB competitionId={nationals?.id} competitionName={nationals?.name || 'SNZ Nationals 2027'} mode="competitor" />
     </div>
   )
