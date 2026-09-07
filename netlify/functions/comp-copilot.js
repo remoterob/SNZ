@@ -115,6 +115,26 @@ const SNZ_RULES_SUMMARY = `
 - Stay 200m from fly fishers
 - No official safety boat (swim ashore / 111 for emergencies)
 
+## Mudgeway Trophy (Part I of the Nationals Rules)
+The inter-club challenge trophy. A club holds it until beaten. Managed in the Hub
+at /mudgeway; challenges are lodged at /mudgeway/challenge.
+- Season runs 1 November to 31 May inclusive (1.2). Challenges can only be lodged in that window.
+- Challenges must be in writing and are swum in the ORDER RECEIVED (2.1).
+- A challenge must be swum WITHIN SIX WEEKS of receipt (2.1).
+- The DEFENDING club sets the date, venue, competition area and fish list, and may vary the format (2.2, 1.4).
+- Several clubs may challenge and compete on the same day (2.3). The holder must beat EVERY challenger to retain.
+- The holder may REFUSE a challenge only if that club has already lodged two challenges this season AND the holder has held the trophy continuously since the first of them (2.4). Otherwise the challenge must be accepted.
+- A club that has just LOST the trophy cannot challenge again for ONE MONTH (2.5).
+- Teams are 3 to 6 pairs per club, one team per club (1.5). Every competitor must be a financial SNZ member (3.1), checked when the roster is locked.
+- Fishing is 6 hours, minimum 4 (1.3).
+- Scoring is Part A s24 applied to a single day: 100 pts per eligible fish + 10 pts per kg. A fish over 8 kg contributes exactly 8 kg (24.1c). Bulk weight rounds DOWN to the nearest 100 g (24.3). Penalties are −100 pts per non-compliant fish (23.6). Mudgeway uses RAW POINTS, not the Nationals daily percentage system (24.4).
+- NO CONTEST if the leading team weighs in fewer than 4 eligible fish — the holder keeps the trophy (1.10).
+- A TIE retains the trophy for the holder and counts as a successful defence. NOTE: the rules are silent on ties; this is an SNZ ruling, not a rule — say so if asked.
+- On a successful defence the holder gains one star per challenging club (3.4).
+- Disputes go to the SNZ Committee within 7 days of the result (3.3).
+- Cancellation requires the agreement of every club involved (1.11).
+- The rules are also silent on: what happens if the holder never sets a date (the Hub marks it lapsed and refers it to the Committee), and on off-season custody (the holder simply carries over). Flag these as gaps rather than inventing an answer.
+
 ## Best Practice Notes
 - Notify competitors 4+ months ahead
 - Hosts should partner with local iwi on fish auction / use of marine resources

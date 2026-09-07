@@ -30,6 +30,9 @@ export const NATIONALS_ADMIN_PASSWORD = import.meta.env.VITE_NATIONALS_ADMIN_PAS
 // admin is per-competition (/competitions/:id/admin), so this is checked
 // against the catfish comp alone — it must not open other clubs' comps.
 export const CATFISH_ADMIN_PASSWORD = import.meta.env.VITE_CATFISH_ADMIN_PASSWORD || null
+// Scoped password: unlocks Mudgeway Trophy admin only (/admin/mudgeway), not
+// the rest of /admin/*.
+export const MUDGEWAY_ADMIN_PASSWORD = import.meta.env.VITE_MUDGEWAY_ADMIN_PASSWORD || null
 
 export const isAdmin = () => {
   return sessionStorage.getItem('isAdmin') === 'true'
@@ -45,6 +48,11 @@ export const isNationalsAdmin = () => {
   return isAdmin() || sessionStorage.getItem('isNationalsAdmin') === 'true'
 }
 
+// Same deal for the Mudgeway Trophy.
+export const isMudgewayAdmin = () => {
+  return isAdmin() || sessionStorage.getItem('isMudgewayAdmin') === 'true'
+}
+
 export const setAdminSession = (password) => {
   if (password === ADMIN_PASSWORD) {
     sessionStorage.setItem('isAdmin', 'true')
@@ -58,6 +66,10 @@ export const setAdminSession = (password) => {
     sessionStorage.setItem('isNationalsAdmin', 'true')
     return true
   }
+  if (MUDGEWAY_ADMIN_PASSWORD && password === MUDGEWAY_ADMIN_PASSWORD) {
+    sessionStorage.setItem('isMudgewayAdmin', 'true')
+    return true
+  }
   return false
 }
 
@@ -65,4 +77,5 @@ export const clearAdminSession = () => {
   sessionStorage.removeItem('isAdmin')
   sessionStorage.removeItem('isBingoAdmin')
   sessionStorage.removeItem('isNationalsAdmin')
+  sessionStorage.removeItem('isMudgewayAdmin')
 }

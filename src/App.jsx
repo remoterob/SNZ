@@ -23,6 +23,7 @@ import NationalsPage from './pages/NationalsPage'
 import MudgewayPage from './pages/MudgewayPage'
 import MudgewayChallenge from './pages/MudgewayChallenge'
 import MudgewayRespond from './pages/MudgewayRespond'
+import MudgewayAdmin from './pages/MudgewayAdmin'
 import NationalsAdmin from './pages/NationalsAdmin'
 import NationalsRegister from './pages/NationalsRegister'
 import NationalsRegisterIndividual from './pages/NationalsRegisterIndividual'
@@ -1155,6 +1156,7 @@ export default function App() {
       <Route path="/mudgeway"               element={<MudgewayPage />} />
       <Route path="/mudgeway/challenge"      element={<MudgewayChallenge />} />
       <Route path="/mudgeway/challenge/:id/respond" element={<MudgewayRespond />} />
+      <Route path="/admin/mudgeway"          element={<MudgewayAdmin />} />
       <Route path="/nationals/admin"         element={<ProtectedNationalsRoute><NationalsAdmin /></ProtectedNationalsRoute>} />
       <Route path="/nationals/register"      element={<NationalsRegister />} />
       <Route path="/nationals/register/individual" element={<NationalsRegisterIndividual />} />

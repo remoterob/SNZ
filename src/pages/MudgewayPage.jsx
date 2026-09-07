@@ -29,6 +29,7 @@ export default function MudgewayPage() {
   const [photos, setPhotos] = useState([])
   const [stars, setStars] = useState(0)
   const [queue, setQueue] = useState([])
+  const [results, setResults] = useState([])
   const [lightbox, setLightbox] = useState(null)
   const [loading, setLoading] = useState(true)
 
@@ -65,6 +66,14 @@ export default function MudgewayPage() {
         .in('status', ['submitted', 'scheduled', 'contested'])
         .order('submitted_at')
       setQueue(q || [])
+
+      // Completed events with a confirmed result, newest first.
+      const { data: ev } = await supabase
+        .from('mudgeway_events')
+        .select('id, event_date, venue, mudgeway_results(team_id, fish_count, total_points, outcome, confirmed_at, mudgeway_teams(clubs(name)))')
+        .order('event_date', { ascending: false })
+        .limit(10)
+      setResults((ev || []).filter(e => (e.mudgeway_results || []).some(r => r.confirmed_at)))
 
       setLoading(false)
     })()
@@ -223,6 +232,55 @@ export default function MudgewayPage() {
               </p>
             </div>
 
+            {/* Recent results — with the rule 3.3 dispute window */}
+            {results.length > 0 && (
+              <div>
+                <h2 className="text-sm font-black tracking-widest uppercase text-gray-400 mb-3">Results</h2>
+                <div className="space-y-2">
+                  {results.map(ev => {
+                    const confirmedAt = ev.mudgeway_results?.[0]?.confirmed_at
+                    const closes = confirmedAt ? new Date(new Date(confirmedAt).getTime() + 7 * 86400000) : null
+                    const open = closes && new Date() < closes
+                    return (
+                      <div key={ev.id} className="bg-white border border-gray-200 rounded-xl p-4">
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                          <div>
+                            <p className="text-sm font-black text-gray-900">{ev.venue || 'Mudgeway event'}</p>
+                            <p className="text-xs text-gray-400">{fmtDate(ev.event_date)}</p>
+                          </div>
+                          {open && (
+                            <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200">
+                              Disputes close {fmtDate(closes)}
+                            </span>
+                          )}
+                        </div>
+                        <div className="mt-2 space-y-1">
+                          {(ev.mudgeway_results || []).slice().sort((a, b) => b.total_points - a.total_points).map(r => (
+                            <div key={r.team_id} className="flex items-center gap-2 text-xs">
+                              <span className="flex-1 font-semibold text-gray-700">
+                                {r.mudgeway_teams?.clubs?.name || 'Team'}
+                              </span>
+                              <span className="text-gray-500">{r.fish_count} fish</span>
+                              <span className="font-black tabular-nums" style={{ color: SNZ_BLUE }}>{r.total_points} pts</span>
+                              {r.outcome && (
+                                <span className={`font-bold px-1.5 py-0.5 rounded-full ${
+                                  r.outcome === 'won' ? 'bg-green-100 text-green-700'
+                                  : r.outcome === 'retained' ? 'bg-blue-100 text-blue-700'
+                                  : r.outcome === 'no_contest' ? 'bg-amber-100 text-amber-700'
+                                  : 'bg-gray-100 text-gray-500'}`}>
+                                  {r.outcome.replace('_', ' ')}
+                                </span>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
             {/* Rules summary */}
             <div className="bg-blue-50 border border-blue-200 rounded-xl p-5">
               <h2 className="text-sm font-black text-blue-900 mb-2">How the challenge works</h2>
@@ -238,6 +296,13 @@ export default function MudgewayPage() {
               <p className="text-xs text-blue-700 mt-3">
                 Full rules are in Part I of the SNZ Nationals Rules.
               </p>
+            </div>
+
+            <div className="text-center pt-2">
+              <button onClick={() => navigate('/admin/mudgeway')}
+                className="text-xs font-bold text-gray-400 hover:text-gray-600 underline">
+                Mudgeway admin
+              </button>
             </div>
           </>
         )}
