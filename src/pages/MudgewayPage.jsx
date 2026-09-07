@@ -81,13 +81,18 @@ export default function MudgewayPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div style={{ background: SNZ_DARK }} className="px-6 py-3 flex items-center border-b border-blue-900">
-        <button onClick={() => navigate('/')}
-          className="flex items-center gap-1.5 text-white font-bold text-sm bg-white/15 hover:bg-white/25 px-3 py-1.5 rounded-lg transition">
-          ← Home
+      {/* Header — matches NationalsPage / CatfishCullPage */}
+      <div style={{ background: SNZ_DARK }} className="px-6 py-3 flex items-center justify-between border-b border-blue-900">
+        <div className="flex items-center gap-3">
+          <button onClick={() => navigate('/')}
+            className="flex items-center gap-1.5 text-white font-bold text-sm bg-white/15 hover:bg-white/25 px-3 py-1.5 rounded-lg transition">
+            ← SNZ Hub
+          </button>
+        </div>
+        <button onClick={() => navigate('/admin/mudgeway')}
+          className="text-xs font-bold text-white bg-white/15 hover:bg-white/25 px-3 py-1.5 rounded-lg transition">
+          ⚙ Admin
         </button>
-        <span className="text-white/50 mx-2">/</span>
-        <span className="text-white font-bold text-sm">Mudgeway Trophy</span>
       </div>
 
       <div className="max-w-3xl mx-auto px-4 py-6 space-y-6">
@@ -296,13 +301,6 @@ export default function MudgewayPage() {
               <p className="text-xs text-blue-700 mt-3">
                 Full rules are in Part I of the SNZ Nationals Rules.
               </p>
-            </div>
-
-            <div className="text-center pt-2">
-              <button onClick={() => navigate('/admin/mudgeway')}
-                className="text-xs font-bold text-gray-400 hover:text-gray-600 underline">
-                Mudgeway admin
-              </button>
             </div>
           </>
         )}
