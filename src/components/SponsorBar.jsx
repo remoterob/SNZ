@@ -29,6 +29,31 @@ export default function SponsorBar({ comp, className = '' }) {
 }
 
 /**
+ * "Proudly hosted by <club>" — the club running the event, which is a different
+ * relationship from sponsorship, so it gets its own band above the sponsors
+ * with a single larger logo rather than a row of small ones.
+ *
+ * Renders nothing unless there is a host name to show. The logo is optional —
+ * a club without one still gets the credit line.
+ */
+export function HostedBy({ comp, className = '' }) {
+  const name = comp?.host_club_name || comp?.club_name
+  if (!name) return null
+  const logo = comp?.host_club_logo_url
+  return (
+    <div className={`bg-white border-t border-gray-100 px-6 pt-6 pb-5 ${className}`}>
+      <div className="max-w-5xl mx-auto flex flex-col items-center">
+        <p className="text-xs font-bold tracking-widest uppercase text-gray-400 mb-3">Proudly Hosted By</p>
+        {logo && (
+          <img src={logo} alt={name} className="h-20 max-w-[220px] object-contain mb-2.5" />
+        )}
+        <p className="text-base font-black text-gray-800 text-center">{name}</p>
+      </div>
+    </div>
+  )
+}
+
+/**
  * One upload slot. Uploading writes the file to storage and hands the public URL
  * back via onUploaded — the parent form is responsible for persisting it.
  * Removing clears the column immediately, since the file is already gone.

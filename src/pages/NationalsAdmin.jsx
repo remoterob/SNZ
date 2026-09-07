@@ -896,6 +896,8 @@ function SetupTab({ comp, onRefresh }) {
         early_bird_cutoff: comp.early_bird_cutoff ? comp.early_bird_cutoff.slice(0, 10) : '',
         club_name: comp.club_name || 'Spearfishing New Zealand',
         status: comp.status || 'open',
+        host_club_name: comp.host_club_name || '',
+        host_club_logo_url: comp.host_club_logo_url || null,
         sponsor1_url: comp.sponsor1_url || null,
         sponsor2_url: comp.sponsor2_url || null,
         sponsor3_url: comp.sponsor3_url || null,
@@ -910,7 +912,7 @@ function SetupTab({ comp, onRefresh }) {
       setFees(merged)
       setEventDates(comp.event_dates || {})
     } else {
-      setForm({ name: 'SNZ Nationals 2027', date_start: '2027-01-19', registration_cutoff: '', early_bird_cutoff: '', club_name: 'Spearfishing New Zealand', status: 'upcoming', sponsor1_url: null, sponsor2_url: null, sponsor3_url: null })
+      setForm({ name: 'SNZ Nationals 2027', date_start: '2027-01-19', registration_cutoff: '', early_bird_cutoff: '', club_name: 'Spearfishing New Zealand', status: 'upcoming', host_club_name: '', host_club_logo_url: null, sponsor1_url: null, sponsor2_url: null, sponsor3_url: null })
       setFees(defaultFees())
       setEventDates({})
     }
@@ -950,6 +952,8 @@ function SetupTab({ comp, onRefresh }) {
       registration_cutoff: form.registration_cutoff || null,
       early_bird_cutoff: form.early_bird_cutoff || null,
       status: form.status, category_fees, event_dates,
+      host_club_name: form.host_club_name?.trim() || null,
+      host_club_logo_url: form.host_club_logo_url || null,
       sponsor1_url: form.sponsor1_url || null,
       sponsor2_url: form.sponsor2_url || null,
       sponsor3_url: form.sponsor3_url || null,
@@ -1003,6 +1007,37 @@ function SetupTab({ comp, onRefresh }) {
             <option value="completed">Completed</option>
           </select>
         </div>
+      </div>
+
+      <div className="bg-white border border-gray-200 rounded-2xl p-5 space-y-4">
+        <div>
+          <h3 className="font-black text-gray-900">Host club</h3>
+          <p className="text-xs text-gray-400 mt-0.5">
+            Shown as “Proudly Hosted By” above the sponsors. Set per year — next year’s Nationals
+            carries its own host, so this doesn’t need clearing when it changes hands.
+          </p>
+        </div>
+        <div>
+          <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">
+            Host club name
+          </label>
+          <input value={form.host_club_name || ''} onChange={e => set('host_club_name')(e.target.value)}
+            placeholder={form.club_name || 'e.g. Bluefins'}
+            className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" />
+          <p className="text-xs text-gray-400 mt-1">
+            Leave blank to use the organiser name above{form.club_name ? ` (“${form.club_name}”)` : ''}.
+          </p>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <SponsorUploadSlot label="Host Logo" fieldKey="host_club_logo_url"
+            url={form.host_club_logo_url} compId={comp?.id}
+            onUploaded={url => set('host_club_logo_url')(url)}
+            onRemoved={() => set('host_club_logo_url')(null)}
+            showToast={(m, t) => t === 'error' ? setSaveError(m) : null} />
+        </div>
+        {form.host_club_logo_url && (
+          <p className="text-xs text-amber-600 font-semibold">Remember to Save — uploads aren’t live until you do.</p>
+        )}
       </div>
 
       <div className="bg-white border border-gray-200 rounded-2xl p-5 space-y-4">

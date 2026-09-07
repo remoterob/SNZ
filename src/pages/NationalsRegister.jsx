@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useMemberSession, MemberAuthGate } from '../components/MemberAuthGate'
-import SponsorBar from '../components/SponsorBar'
+import SponsorBar, { HostedBy } from '../components/SponsorBar'
 
 const SNZ_BLUE = '#2B6CB0'
 const SNZ_DARK = '#1e3a5f'
@@ -71,7 +71,7 @@ export default function NationalsRegister() {
     const fetchComp = async () => {
       const { data } = await supabase
         .from('competitions')
-        .select('id, name, status, registration_cutoff, early_bird_cutoff, category_fees, sponsor1_url, sponsor2_url, sponsor3_url')
+        .select('id, name, status, registration_cutoff, early_bird_cutoff, category_fees, host_club_name, host_club_logo_url, sponsor1_url, sponsor2_url, sponsor3_url')
         .ilike('name', '%nationals%2027%')
         .maybeSingle()
       setComp(data)
@@ -1018,7 +1018,8 @@ export default function NationalsRegister() {
         <p className="text-xs text-gray-400 text-center">Tairua, Coromandel · 19–24 January 2027</p>
       </div>
 
-      <SponsorBar comp={comp} className="mt-8" />
+      <HostedBy comp={comp} className="mt-8" />
+      <SponsorBar comp={comp} />
     </div>
   )
 }

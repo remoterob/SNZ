@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useMemberSession, MemberAuthGate } from '../components/MemberAuthGate'
-import SponsorBar from '../components/SponsorBar'
+import SponsorBar, { HostedBy } from '../components/SponsorBar'
 
 const SNZ_BLUE = '#2B6CB0'
 const SNZ_DARK = '#1e3a5f'
@@ -539,7 +539,8 @@ export default function NationalsRegisterIndividual() {
         </p>
       </div>
 
-      <SponsorBar comp={comp} className="mt-8" />
+      <HostedBy comp={comp} className="mt-8" />
+      <SponsorBar comp={comp} />
     </div>
   )
 }

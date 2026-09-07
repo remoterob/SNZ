@@ -21,7 +21,7 @@ exports.handler = async () => {
   try {
     const { data: comp } = await supabase
       .from('competitions')
-      .select('id, name, status, event_dates, sponsor1_url, sponsor2_url, sponsor3_url')
+      .select('id, name, status, event_dates, host_club_name, host_club_logo_url, sponsor1_url, sponsor2_url, sponsor3_url')
       .ilike('name', '%nationals%2027%')
       .maybeSingle()
     if (!comp) return json(404, { error: 'Nationals competition not found' })
@@ -58,6 +58,8 @@ exports.handler = async () => {
     return json(200, {
       comp: {
         name: comp.name, status: comp.status, event_dates: comp.event_dates || {},
+        host_club_name: comp.host_club_name || null,
+        host_club_logo_url: comp.host_club_logo_url || null,
         sponsor1_url: comp.sponsor1_url || null,
         sponsor2_url: comp.sponsor2_url || null,
         sponsor3_url: comp.sponsor3_url || null,
