@@ -1,4 +1,8 @@
 User-agent: *
 Allow: /
 
+# Unlisted while the near-miss findings are being written up — reachable by
+# direct link for those we share it with, but kept out of search results.
+Disallow: /near-miss/results
+
 Sitemap: https://spearfishingnz.netlify.app/sitemap.xml

@@ -58,6 +58,17 @@ export default function NearMissResults() {
           </p>
         </div>
 
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+          <p className="text-sm font-black text-amber-900 mb-1">Provisional — not yet published</p>
+          <p className="text-xs text-amber-800 leading-relaxed">
+            The survey has closed and these figures are still being worked through. Reports haven’t
+            been checked for duplicates yet, and because people chose to take part rather than being
+            sampled, the numbers describe the divers who reported — not all New Zealand divers.
+            Please treat them as provisional and don’t circulate them further until SNZ publishes
+            the findings.
+          </p>
+        </div>
+
         {error && <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-700">{error}</div>}
         {!data && !error && <p className="text-gray-400 text-sm">Loading…</p>}
 

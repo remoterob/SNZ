@@ -38,10 +38,6 @@ export default function NearMissThanks() {
             className="w-full py-2.5 rounded-xl font-bold text-sm border-2 border-gray-200 text-gray-600 hover:border-gray-300 transition">
             {copied ? '✓ Link copied' : '🔗 Copy link to share'}
           </button>
-          <button onClick={() => navigate('/near-miss/results')}
-            className="w-full py-2.5 rounded-xl font-bold text-sm text-gray-500 hover:text-gray-700 transition">
-            View aggregate results →
-          </button>
         </div>
       </div>
     </div>
