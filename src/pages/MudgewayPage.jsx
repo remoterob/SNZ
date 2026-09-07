@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { medalFor } from '../lib/nationalsScoring'
 
 const SNZ_BLUE = '#2B6CB0'
 const SNZ_DARK = '#1e3a5f'
@@ -70,7 +71,7 @@ export default function MudgewayPage() {
       // Completed events with a confirmed result, newest first.
       const { data: ev } = await supabase
         .from('mudgeway_events')
-        .select('id, event_date, venue, mudgeway_results(team_id, fish_count, total_points, outcome, confirmed_at, mudgeway_teams(clubs(name)))')
+        .select('id, event_date, venue, mudgeway_results(team_id, fish_count, bulk_weight_g, total_points, outcome, confirmed_at, mudgeway_teams(clubs(name)))')
         .order('event_date', { ascending: false })
         .limit(10)
       setResults((ev || []).filter(e => (e.mudgeway_results || []).some(r => r.confirmed_at)))
@@ -259,25 +260,52 @@ export default function MudgewayPage() {
                             </span>
                           )}
                         </div>
-                        <div className="mt-2 space-y-1">
-                          {(ev.mudgeway_results || []).slice().sort((a, b) => b.total_points - a.total_points).map(r => (
-                            <div key={r.team_id} className="flex items-center gap-2 text-xs">
-                              <span className="flex-1 font-semibold text-gray-700">
-                                {r.mudgeway_teams?.clubs?.name || 'Team'}
-                              </span>
-                              <span className="text-gray-500">{r.fish_count} fish</span>
-                              <span className="font-black tabular-nums" style={{ color: SNZ_BLUE }}>{r.total_points} pts</span>
-                              {r.outcome && (
-                                <span className={`font-bold px-1.5 py-0.5 rounded-full ${
-                                  r.outcome === 'won' ? 'bg-green-100 text-green-700'
-                                  : r.outcome === 'retained' ? 'bg-blue-100 text-blue-700'
-                                  : r.outcome === 'no_contest' ? 'bg-amber-100 text-amber-700'
-                                  : 'bg-gray-100 text-gray-500'}`}>
-                                  {r.outcome.replace('_', ' ')}
-                                </span>
-                              )}
-                            </div>
-                          ))}
+                        {/* Ranked rows, same shape as the Nationals leaderboard */}
+                        <div className="mt-3 -mx-4 border-t border-gray-100">
+                          {(ev.mudgeway_results || [])
+                            .slice()
+                            .sort((a, b) => b.total_points - a.total_points)
+                            .map((r, i, arr) => {
+                              const noContest = r.outcome === 'no_contest'
+                              // Shared points share a placing (rule 24.7).
+                              const rank = noContest ? null
+                                : arr.filter(o => o.total_points > r.total_points).length + 1
+                              const top = rank === 1 && !noContest
+                              return (
+                                <div key={r.team_id}
+                                  className={`px-4 py-2.5 flex items-center gap-3 border-b border-gray-50 last:border-0 ${top ? 'bg-amber-50' : ''}`}>
+                                  <span className="w-9 text-center font-black text-base flex-shrink-0">
+                                    {rank ? medalFor(rank) : <span className="text-gray-300 text-sm">–</span>}
+                                  </span>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="font-bold text-gray-900 text-sm truncate">
+                                      {r.mudgeway_teams?.clubs?.name || 'Team'}
+                                    </p>
+                                    {r.outcome && (
+                                      <p className={`text-xs font-semibold ${
+                                        r.outcome === 'won' ? 'text-green-600'
+                                        : r.outcome === 'retained' ? 'text-blue-600'
+                                        : r.outcome === 'no_contest' ? 'text-amber-600'
+                                        : 'text-gray-400'}`}>
+                                        {r.outcome === 'won' ? 'Won the trophy'
+                                          : r.outcome === 'retained' ? 'Retained the trophy'
+                                          : r.outcome === 'no_contest' ? 'No contest'
+                                          : 'Did not win'}
+                                      </p>
+                                    )}
+                                  </div>
+                                  <div className="text-right flex-shrink-0">
+                                    <p className="text-base font-black tabular-nums" style={{ color: SNZ_BLUE }}>
+                                      {r.total_points}
+                                    </p>
+                                    <p className="text-xs text-gray-400">
+                                      {r.fish_count} fish
+                                      {r.bulk_weight_g > 0 && ` · ${(r.bulk_weight_g / 1000).toFixed(1)} kg`}
+                                    </p>
+                                  </div>
+                                </div>
+                              )
+                            })}
                         </div>
                       </div>
                     )

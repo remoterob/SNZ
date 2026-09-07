@@ -45,6 +45,143 @@ function Gate({ onOk }) {
   )
 }
 
+// ── Fish list picker — same shape as the Nationals fish list ────────────────
+// Mudgeway scores 100 pts per fish + 10 pts/kg for every species (rule 24.1),
+// so unlike Nationals there are no per-species points. What the defender does
+// control is the allowable count and any per-species minimum weight.
+function FishListPicker({ event, existing, onClose, onSaved, toast }) {
+  const [library, setLibrary] = useState([])
+  const [libLoading, setLibLoading] = useState(true)
+  const [search, setSearch] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [selected, setSelected] = useState(() =>
+    (existing || []).map(i => ({
+      name: i.species_name,
+      max_count: i.max_count ?? '',
+      min_weight_g_override: i.min_weight_g_override ?? '',
+    }))
+  )
+
+  useEffect(() => {
+    supabase.from('comp_species_library').select('*').eq('active', true)
+      .order('sort_order').order('name')
+      .then(({ data }) => { setLibrary(data || []); setLibLoading(false) })
+  }, [])
+
+  const isOn = (name) => selected.some(s => s.name === name)
+  const toggle = (name) => setSelected(s =>
+    s.some(x => x.name === name) ? s.filter(x => x.name !== name)
+                                 : [...s, { name, max_count: '', min_weight_g_override: '' }])
+  const setField = (name, k, v) =>
+    setSelected(s => s.map(x => x.name === name ? { ...x, [k]: v } : x))
+
+  const save = async () => {
+    setSaving(true)
+    try {
+      let listId = null
+      const { data: existingList } = await supabase
+        .from('mudgeway_fish_lists').select('id').eq('event_id', event.id).maybeSingle()
+      if (existingList) {
+        listId = existingList.id
+        const { error } = await supabase.from('mudgeway_fish_list_items').delete().eq('fish_list_id', listId)
+        if (error) throw error
+      } else {
+        const { data, error } = await supabase.from('mudgeway_fish_lists')
+          .insert({ event_id: event.id, name: `${event.venue || 'Mudgeway'} fish list` })
+          .select('id').single()
+        if (error) throw error
+        listId = data.id
+      }
+      if (selected.length > 0) {
+        const { error } = await supabase.from('mudgeway_fish_list_items').insert(
+          selected.map(s => ({
+            fish_list_id: listId,
+            species_name: s.name,
+            max_count: s.max_count === '' ? null : Number(s.max_count),
+            min_weight_g_override: s.min_weight_g_override === '' ? null : Number(s.min_weight_g_override),
+          }))
+        )
+        if (error) throw error
+      }
+      toast(`Fish list saved — ${selected.length} species`)
+      onSaved(); onClose()
+    } catch (e) { toast(e.message, 'error') }
+    finally { setSaving(false) }
+  }
+
+  const filtered = library.filter(s => s.name.toLowerCase().includes(search.toLowerCase()))
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto"
+      style={{ background: 'rgba(0,0,0,0.6)' }}
+      onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="bg-white rounded-2xl w-full max-w-2xl my-8 shadow-2xl" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+          <h2 className="font-black text-gray-900">Fish List ({selected.length} selected)</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl font-bold">✕</button>
+        </div>
+        <div className="p-6">
+          <p className="text-xs text-gray-400 mb-3">
+            Every species scores the same under rule 24.1 (100 pts + 10 pts/kg). Set an allowable
+            count to make extras a −100 penalty under rule 23.6, and a minimum weight to override the
+            event default of {event.min_fish_weight_g} g.
+          </p>
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search species…"
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-blue-300" />
+          {libLoading
+            ? <div className="text-center py-8 text-gray-400">Loading species…</div>
+            : <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-80 overflow-y-auto mb-4 pr-1">
+                {filtered.map(s => {
+                  const on = isOn(s.name)
+                  const cur = selected.find(x => x.name === s.name)
+                  return (
+                    <div key={s.id} className={`relative rounded-xl border-2 overflow-hidden transition ${on ? 'border-blue-500' : 'border-gray-200 hover:border-gray-300'}`}>
+                      <button type="button" onClick={() => toggle(s.name)} className="w-full text-left">
+                        {s.photo_url
+                          ? <img src={s.photo_url} alt={s.name} className="w-full h-24 object-cover" />
+                          : <div className="w-full h-24 bg-gray-100 flex items-center justify-center text-4xl">🐟</div>}
+                        <div className="p-1.5 text-xs font-semibold leading-tight">{s.name}</div>
+                      </button>
+                      {on && (
+                        <div className="px-2 pb-2 space-y-1" onClick={e => e.stopPropagation()}>
+                          <div className="flex items-center gap-1">
+                            <span className="text-xs text-gray-400">max</span>
+                            <input type="number" min="1" placeholder="∞" value={cur?.max_count ?? ''}
+                              onChange={e => setField(s.name, 'max_count', e.target.value)}
+                              className="w-12 border border-gray-300 rounded px-1 py-0.5 text-xs text-center" />
+                            <span className="text-xs text-gray-400">allowed</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <span className="text-xs text-gray-400">min</span>
+                            <input type="number" min="0" step="50" placeholder={event.min_fish_weight_g}
+                              value={cur?.min_weight_g_override ?? ''}
+                              onChange={e => setField(s.name, 'min_weight_g_override', e.target.value)}
+                              className="w-16 border border-gray-300 rounded px-1 py-0.5 text-xs text-center" />
+                            <span className="text-xs text-gray-400">g</span>
+                          </div>
+                        </div>
+                      )}
+                      {on && <div className="absolute top-1 right-1 w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-bold">✓</div>}
+                    </div>
+                  )
+                })}
+              </div>
+          }
+          <div className="flex gap-3">
+            <button type="button" onClick={onClose}
+              className="flex-1 py-2.5 rounded-xl border border-gray-300 text-sm font-bold text-gray-600">Cancel</button>
+            <button type="button" onClick={save} disabled={saving}
+              className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white disabled:opacity-50"
+              style={{ background: SNZ_BLUE }}>
+              {saving ? 'Saving…' : `Save Fish List (${selected.length})`}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Weigh-in for one event ───────────────────────────────────────────────────
 function WeighIn({ event, onBack, toast }) {
   const [teams, setTeams] = useState([])
@@ -54,6 +191,8 @@ function WeighIn({ event, onBack, toast }) {
   const [confirmed, setConfirmed] = useState(false)
   const [draft, setDraft] = useState({ team_id: '', species_name: '', weight_g: '', penalty_flag: false, penalty_reason: '' })
   const [cd, setCd] = useState({})   // team_id -> { adjustment, note, disqualified }
+  const [showPicker, setShowPicker] = useState(false)
+  const [ev, setEv] = useState(event)
 
   const load = useCallback(async () => {
     const [{ data: t }, { data: fl }, { data: w }, { data: res }] = await Promise.all([
@@ -66,6 +205,8 @@ function WeighIn({ event, onBack, toast }) {
     setFishList(fl?.mudgeway_fish_list_items || [])
     setRows(w || [])
     setConfirmed((res || []).some(r => r.confirmed_at))
+    const { data: fresh } = await supabase.from('mudgeway_events').select('*').eq('id', event.id).maybeSingle()
+    if (fresh) setEv(fresh)
   }, [event.id])
 
   useEffect(() => { load() }, [load])
@@ -166,6 +307,57 @@ function WeighIn({ event, onBack, toast }) {
         <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-sm text-green-800 font-semibold">
           The result for this event has been confirmed.
         </div>
+      )}
+
+      {/* Fish list — rules 1.4 / 26.1 */}
+      <div className="bg-white border border-gray-200 rounded-xl p-5">
+        <div className="flex items-center justify-between gap-2 flex-wrap mb-2">
+          <div>
+            <h3 className="font-black text-gray-900 text-sm">Fish list</h3>
+            <p className="text-xs text-gray-400">
+              {fishList.length > 0
+                ? `${fishList.length} species${ev.published_at ? ' · published and locked' : ' · not published yet'}`
+                : 'No species set — the event can’t be published until there is at least one.'}
+            </p>
+          </div>
+          {!ev.published_at && !confirmed && (
+            <button onClick={() => setShowPicker(true)}
+              className="text-xs font-bold px-3 py-1.5 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50">
+              {fishList.length > 0 ? 'Edit fish list' : '+ Build fish list'}
+            </button>
+          )}
+        </div>
+
+        {fishList.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 mb-3">
+            {fishList.map(f => (
+              <span key={f.species_name} className="text-xs font-semibold px-2 py-1 rounded-lg bg-gray-50 border border-gray-200 text-gray-700">
+                {f.species_name}
+                {f.max_count != null && <span className="text-gray-400"> ×{f.max_count}</span>}
+                {f.min_weight_g_override != null && <span className="text-gray-400"> ≥{f.min_weight_g_override}g</span>}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {!ev.published_at && (
+          <button
+            onClick={async () => {
+              if (!window.confirm('Publish this event? The fish list and format variations lock, and challengers can then confirm their rosters.')) return
+              const { data, error } = await supabase.rpc('publish_mudgeway_event', { p_event_id: ev.id, p_actor: null })
+              if (error) return toast(error.message, 'error')
+              if (!data?.ok) return toast(data?.error || 'Could not publish', 'error')
+              toast('Event published — fish list locked'); load()
+            }}
+            className="w-full py-2.5 rounded-xl font-black text-white text-sm" style={{ background: SNZ_BLUE }}>
+            Publish event
+          </button>
+        )}
+      </div>
+
+      {showPicker && (
+        <FishListPicker event={ev} existing={fishList} toast={toast}
+          onClose={() => setShowPicker(false)} onSaved={load} />
       )}
 
       {/* Add fish */}
