@@ -154,10 +154,14 @@ export default function MudgewayPage() {
               {queue.length === 0 ? (
                 <div className="bg-white border border-gray-200 rounded-xl p-5 text-center">
                   <p className="text-sm text-gray-500 font-semibold">No challenges lodged.</p>
-                  <p className="text-xs text-gray-400 mt-1">
-                    Challenges may be lodged between 1 November and 31 May. Online lodgement is coming
-                    soon — until then, contact the SNZ secretary.
+                  <p className="text-xs text-gray-400 mt-1 mb-3">
+                    Challenges may be lodged between 1 November and 31 May.
                   </p>
+                  <button onClick={() => navigate('/mudgeway/challenge')}
+                    className="px-5 py-2.5 rounded-xl font-black text-white text-sm"
+                    style={{ background: SNZ_BLUE }}>
+                    Challenge for the Trophy →
+                  </button>
                 </div>
               ) : (
                 <div className="space-y-2">
@@ -168,9 +172,20 @@ export default function MudgewayPage() {
                       </span>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-bold text-gray-900">Challenge #{c.id}</p>
-                        <p className="text-xs text-gray-400">Lodged {fmtDate(c.submitted_at)}</p>
+                        <p className="text-xs text-gray-400">
+                          Lodged {fmtDate(c.submitted_at)} · to be swum by {fmtDate(c.respond_by)}
+                          {new Date() > new Date(c.respond_by) && (
+                            <span className="text-red-600 font-bold"> · overdue</span>
+                          )}
+                        </p>
                       </div>
                       <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">{c.status}</span>
+                      {c.status === 'submitted' && (
+                        <button onClick={() => navigate(`/mudgeway/challenge/${c.id}/respond`)}
+                          className="text-xs font-bold px-2.5 py-1 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 whitespace-nowrap">
+                          Respond
+                        </button>
+                      )}
                     </div>
                   ))}
                 </div>
