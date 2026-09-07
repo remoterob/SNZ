@@ -907,14 +907,6 @@ function SNZHub() {
         : null,
     },
     {
-      title: 'Vessel Near-Miss Survey',
-      desc: 'Our national survey of vessel near-misses is now closed. Thanks to everyone who reported one — we are collating the insights and will share them with members and with the agencies who can act on them shortly.',
-      onClick: () => navigate('/near-miss'),
-      icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={SNZ_BLUE} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>,
-      status: 'wrapped',
-      summary: 'Survey closed · Insights coming soon',
-    },
-    {
       title: 'Catfish Cull',
       desc: 'Rosemergy Catfish Cull · Motuoapa, Lake Taupō · 13 Feb 2027. Registration, 2026 results, event info and admin.',
       onClick: () => navigate('/catfish'),
@@ -1005,6 +997,14 @@ function SNZHub() {
         if (next) return `Next: ${next.kind} · ${new Date(next.meeting_date).toLocaleDateString('en-NZ', { day: 'numeric', month: 'long', year: 'numeric' })}`
         return 'No meetings currently booked'
       })(),
+    },
+    {
+      title: 'Vessel Near-Miss Survey',
+      desc: 'Our national survey of vessel near-misses is now closed. Thanks to everyone who reported one — we are collating the insights and will share them with members and with the agencies who can act on them shortly.',
+      onClick: () => navigate('/near-miss'),
+      icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={SNZ_BLUE} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>,
+      status: 'wrapped',
+      summary: 'Survey closed · Insights coming soon',
     },
   ]
 
