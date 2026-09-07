@@ -6,6 +6,10 @@ const SNZ_BLUE = '#2B6CB0'
 const SNZ_DARK = '#1e3a5f'
 const DRAFT_KEY = 'snz_near_miss_draft'
 
+// Survey closed to new submissions while the results are written up.
+// Flip to false to reopen — the form underneath is untouched.
+const SURVEY_CLOSED = true
+
 // ── Option sets — exact values from snz-near-miss-brief.md ──────────────────
 const TIME_BAND = [
   { value: 'last_month', label: 'Within the last month' },
@@ -227,6 +231,55 @@ function FieldError({ error }) {
   return <p className="text-xs text-red-600 mt-1.5" role="alert">{error}</p>
 }
 
+function SurveyClosed({ navigate }) {
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <div style={{ background: SNZ_DARK }} className="px-6 py-3 flex items-center justify-between border-b border-blue-900">
+        <div className="flex items-center gap-3">
+          <button onClick={() => navigate('/')}
+            className="flex items-center gap-1.5 text-white font-bold text-sm bg-white/15 hover:bg-white/25 px-3 py-1.5 rounded-lg transition">
+            ← SNZ Hub
+          </button>
+          <span className="text-white/50 mx-2">/</span>
+          <span className="text-white font-bold text-sm">Vessel Near-Miss Survey</span>
+        </div>
+      </div>
+
+      <div className="max-w-lg mx-auto px-4 py-12">
+        <div className="bg-white border border-gray-200 rounded-2xl p-8 text-center space-y-4">
+          <div className="text-5xl">📋</div>
+          <h1 className="text-2xl font-black text-gray-900">The survey has closed</h1>
+          <p className="text-gray-600 text-sm leading-relaxed">
+            Thank you to everyone who took the time to report a near miss. The response was far
+            greater than we expected, and it gives us the clearest national picture we've had of
+            how often divers are being put at risk by vessels.
+          </p>
+          <p className="text-gray-600 text-sm leading-relaxed">
+            We're collating the insights now and will share them with members, and with the
+            harbourmasters and agencies who can act on them, shortly.
+          </p>
+
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-left">
+            <p className="text-sm font-black text-amber-900 mb-1">Had a near miss since?</p>
+            <p className="text-xs text-amber-800">
+              Please still report it to your regional harbourmaster or Maritime NZ at the time — that
+              is what puts it on the official record. If you'd like SNZ to know about it as well,
+              email{' '}
+              <a href="mailto:secretary@spearfishingnz.co.nz" className="underline font-semibold">
+                secretary@spearfishingnz.co.nz</a>.
+            </p>
+          </div>
+
+          <button onClick={() => navigate('/')}
+            className="w-full py-3 rounded-xl font-black text-white text-sm" style={{ background: SNZ_BLUE }}>
+            Back to the SNZ Hub
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function NearMissReport() {
   const navigate = useNavigate()
   const { session, member } = useMemberSession()
@@ -362,6 +415,9 @@ export default function NearMissReport() {
       setSubmitting(false)
     }
   }
+
+  // Closed check sits after every hook so hook order never changes.
+  if (SURVEY_CLOSED) return <SurveyClosed navigate={navigate} />
 
   const showNotReportedReasons = form.reported_to.includes('not_reported')
   const showReportOutcome = form.reported_to.some(r => FORMAL_REPORT_CHANNELS.includes(r))
