@@ -961,8 +961,8 @@ function SNZHub() {
       desc: 'Claim species you\'ve speared, earn points, and compete on the leaderboard. Complete bonus rows for extra points. SNZ members only.',
       onClick: () => navigate('/bingo'),
       icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={SNZ_BLUE} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><line x1="6.5" y1="6.5" x2="6.5" y2="6.51"/><line x1="17.5" y1="6.5" x2="17.5" y2="6.51"/><path d="m15.5 15.5 3 3m0-3-3 3"/></svg>,
-      status: 'wrapped',
-      summary: 'Season wrapped · Back in October 2026',
+      status: 'soon',
+      summary: 'Starts 1 Oct 2026 · Register now',
     },
     {
       title: 'Other Competitions',
