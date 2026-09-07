@@ -20,6 +20,7 @@ import CompetitionDetail from './pages/CompetitionDetail'
 import CompRegister from './pages/CompRegister'
 import CompAdmin from './pages/CompAdmin'
 import NationalsPage from './pages/NationalsPage'
+import MudgewayPage from './pages/MudgewayPage'
 import NationalsAdmin from './pages/NationalsAdmin'
 import NationalsRegister from './pages/NationalsRegister'
 import NationalsRegisterIndividual from './pages/NationalsRegisterIndividual'
@@ -1128,6 +1129,7 @@ export default function App() {
       <Route path="/membership/*"           element={<MembershipRouter />} />
       <Route path="/membership/invited"       element={<MembershipRouter />} />
       <Route path="/nationals"              element={<NationalsPage />} />
+      <Route path="/mudgeway"               element={<MudgewayPage />} />
       <Route path="/nationals/admin"         element={<ProtectedNationalsRoute><NationalsAdmin /></ProtectedNationalsRoute>} />
       <Route path="/nationals/register"      element={<NationalsRegister />} />
       <Route path="/nationals/register/individual" element={<NationalsRegisterIndividual />} />
