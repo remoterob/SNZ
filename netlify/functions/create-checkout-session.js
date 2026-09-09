@@ -275,6 +275,11 @@ exports.handler = async (event) => {
       customer_email: memberEmail || undefined,
       success_url: successUrl,
       cancel_url: cancelUrl,
+      // Comp entries/extras only — not membership. Codes themselves (with
+      // max_redemptions: 1 for one-time-use) are created in the Stripe
+      // Dashboard as restricted Promotion Codes; Stripe enforces redemption
+      // limits itself, nothing to track here.
+      allow_promotion_codes: !isMembership,
     })
 
     return {
