@@ -169,14 +169,9 @@ export default function MudgewayPage() {
               {queue.length === 0 ? (
                 <div className="bg-white border border-gray-200 rounded-xl p-5 text-center">
                   <p className="text-sm text-gray-500 font-semibold">No challenges lodged.</p>
-                  <p className="text-xs text-gray-400 mt-1 mb-3">
+                  <p className="text-xs text-gray-400 mt-1">
                     Challenges may be lodged between 1 November and 31 May.
                   </p>
-                  <button onClick={() => navigate('/mudgeway/challenge')}
-                    className="px-5 py-2.5 rounded-xl font-black text-white text-sm"
-                    style={{ background: SNZ_BLUE }}>
-                    Challenge for the Trophy →
-                  </button>
                 </div>
               ) : (
                 <div className="space-y-2">
@@ -205,6 +200,11 @@ export default function MudgewayPage() {
                   ))}
                 </div>
               )}
+              <button onClick={() => navigate('/mudgeway/challenge')}
+                className="mt-3 px-5 py-2.5 rounded-xl font-black text-white text-sm"
+                style={{ background: SNZ_BLUE }}>
+                Challenge for the Trophy →
+              </button>
             </div>
 
             {/* Holder history */}
