@@ -63,7 +63,7 @@ export default function MudgewayPage() {
       // Live challenges only — refused/cancelled/completed are history.
       const { data: q } = await supabase
         .from('mudgeway_challenges')
-        .select('id, submitted_at, respond_by, status, challenger_club_id, defender_club_id')
+        .select('id, submitted_at, respond_by, status, message, challenger_club_id, defender_club_id, challenger:challenger_club_id(name), defender:defender_club_id(name)')
         .in('status', ['submitted', 'scheduled', 'contested'])
         .order('submitted_at')
       setQueue(q || [])
@@ -181,13 +181,20 @@ export default function MudgewayPage() {
                         {i + 1}
                       </span>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-bold text-gray-900">Challenge #{c.id}</p>
+                        <p className="text-sm font-bold text-gray-900">
+                          {c.challenger?.name || 'Unknown club'} <span className="text-gray-400 font-normal">vs</span> {c.defender?.name || 'Unknown club'}
+                        </p>
                         <p className="text-xs text-gray-400">
                           Lodged {fmtDate(c.submitted_at)} · to be swum by {fmtDate(c.respond_by)}
                           {new Date() > new Date(c.respond_by) && (
                             <span className="text-red-600 font-bold"> · overdue</span>
                           )}
                         </p>
+                        {c.message && (
+                          <p className={`text-xs mt-1 ${/^example/i.test(c.message) ? 'font-bold text-amber-700' : 'text-gray-500 italic'}`}>
+                            {/^example/i.test(c.message) ? '⚠️ ' : ''}{c.message}
+                          </p>
+                        )}
                       </div>
                       <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">{c.status}</span>
                       {c.status === 'submitted' && (
