@@ -16,6 +16,21 @@ const REGIONS = [
 
 const EXPERIENCE_LEVELS = ['Beginner', 'Intermediate', 'Experienced', 'Elite']
 
+// Club names for the "Club" field's suggestion list. Sourced from the same
+// `clubs` register the mudgeway trophy uses, so both stay in sync — free
+// text is still allowed for a club that isn't registered yet.
+function useClubOptions() {
+  const [clubs, setClubs] = useState([])
+  useEffect(() => {
+    let cancelled = false
+    supabase.from('clubs').select('name').eq('active', true).order('name').then(({ data }) => {
+      if (!cancelled) setClubs((data || []).map(c => c.name))
+    })
+    return () => { cancelled = true }
+  }, [])
+  return clubs
+}
+
 // ── Fee whitelist ─────────────────────────────────────────────────────────────
 // Case-insensitive check against member_whitelist — pre-existing members get
 // their $10 fee waived. Used by every path that creates a members row
@@ -143,6 +158,7 @@ function MemberSignup({ navigate }) {
   const [wasWhitelisted, setWasWhitelisted] = useState(false)
   const [emailExists, setEmailExists] = useState(false)
   const [checkingEmail, setCheckingEmail] = useState(false)
+  const clubOptions = useClubOptions()
   const set = k => v => setProfile(p => ({ ...p, [k]: v }))
 
   const checkEmail = async (val) => {
@@ -390,8 +406,12 @@ function MemberSignup({ navigate }) {
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Club</label>
                 <input value={profile.club} onChange={e => set('club')(e.target.value)}
+                  list="club-options"
                   className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
                   placeholder="Club name" />
+                <datalist id="club-options">
+                  {clubOptions.map(c => <option key={c} value={c} />)}
+                </datalist>
               </div>
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Gender</label>
@@ -1940,6 +1960,7 @@ function MemberDashboard({ session, navigate, onSignOut }) {
   const [saving, setSaving] = useState(false)
   const [toast, setToast] = useState(null)
   const { checkout, loading: checkoutLoading, error: checkoutError } = useStripeCheckout()
+  const clubOptions = useClubOptions()
   const set = k => v => setForm(f => ({ ...f, [k]: v }))
   const showToast = (msg, type='success') => { setToast({msg,type}); setTimeout(()=>setToast(null),3000) }
 
@@ -2084,11 +2105,15 @@ function MemberDashboard({ session, navigate, onSignOut }) {
                 <label className="block text-xs font-semibold text-gray-400 mb-1">{lbl}</label>
                 {editing
                   ? <input type={type} value={form[k]||''} onChange={e => set(k)(e.target.value)}
+                      list={k==='club' ? 'club-options' : undefined}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" />
                   : <p className="text-sm font-semibold text-gray-900">{member?.[k] || <span className="text-gray-300">—</span>}</p>
                 }
               </div>
             ))}
+            <datalist id="club-options">
+              {clubOptions.map(c => <option key={c} value={c} />)}
+            </datalist>
             <div>
               <label className="block text-xs font-semibold text-gray-400 mb-1">Gender</label>
               {editing
