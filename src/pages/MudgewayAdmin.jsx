@@ -720,6 +720,169 @@ function Committee({ toast, onChanged }) {
   )
 }
 
+// ── Photos ───────────────────────────────────────────────────────────────────
+// Gallery shown on the public /mudgeway page. Photos are stored per-event in
+// the schema, but the public page just renders them as one flat gallery in
+// sort_order — so this admin does the same rather than grouping by event.
+function Photos({ events, toast }) {
+  const [photos, setPhotos] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [eventId, setEventId] = useState('')
+  const [file, setFile] = useState(null)
+  const [preview, setPreview] = useState(null)
+  const [caption, setCaption] = useState('')
+  const [credit, setCredit] = useState('')
+  const [uploading, setUploading] = useState(false)
+
+  const load = useCallback(async () => {
+    const { data } = await supabase.from('mudgeway_event_photos')
+      .select('*, mudgeway_events(event_date, venue)')
+      .order('sort_order')
+    setPhotos(data || [])
+    setLoading(false)
+  }, [])
+  useEffect(() => { load() }, [load])
+
+  useEffect(() => {
+    if (!eventId && events.length > 0) setEventId(String(events[0].id))
+  }, [events, eventId])
+
+  const addPhoto = async () => {
+    if (!file || !eventId) return
+    setUploading(true)
+    try {
+      const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace('heic', 'jpg')
+      const path = `mudgeway/events/${eventId}/${Date.now()}.${ext}`
+      const { error: upErr } = await supabase.storage.from('snz-media')
+        .upload(path, file, { contentType: file.type })
+      if (upErr) throw upErr
+      const { data: pub } = supabase.storage.from('snz-media').getPublicUrl(path)
+      const nextSort = (photos[photos.length - 1]?.sort_order ?? -1) + 1
+      const { error } = await supabase.from('mudgeway_event_photos').insert({
+        event_id: Number(eventId),
+        url: pub.publicUrl,
+        caption: caption.trim() || null,
+        credit: credit.trim() || null,
+        sort_order: nextSort,
+      })
+      if (error) throw error
+      setFile(null); setPreview(null); setCaption(''); setCredit('')
+      toast('Photo added')
+      load()
+    } catch (e) { toast(e.message, 'error') }
+    finally { setUploading(false) }
+  }
+
+  const removePhoto = async (p) => {
+    if (!window.confirm('Remove this photo from the Mudgeway gallery?')) return
+    try {
+      const marker = '/snz-media/'
+      const idx = p.url.indexOf(marker)
+      if (idx !== -1) await supabase.storage.from('snz-media').remove([p.url.slice(idx + marker.length)])
+    } catch { /* best-effort — the DB row is what actually controls the gallery */ }
+    const { error } = await supabase.from('mudgeway_event_photos').delete().eq('id', p.id)
+    if (error) return toast(error.message, 'error')
+    toast('Photo removed'); load()
+  }
+
+  const move = async (p, dir) => {
+    const idx = photos.findIndex(x => x.id === p.id)
+    const other = photos[idx + dir]
+    if (!other) return
+    await Promise.all([
+      supabase.from('mudgeway_event_photos').update({ sort_order: other.sort_order }).eq('id', p.id),
+      supabase.from('mudgeway_event_photos').update({ sort_order: p.sort_order }).eq('id', other.id),
+    ])
+    load()
+  }
+
+  const saveField = async (p, field, value) => {
+    await supabase.from('mudgeway_event_photos').update({ [field]: value || null }).eq('id', p.id)
+  }
+
+  return (
+    <div className="space-y-5">
+      <div className="bg-white border border-gray-200 rounded-xl p-5">
+        <h3 className="font-black text-gray-900 mb-1">Add a photo</h3>
+        <p className="text-xs text-gray-400 mb-3">
+          Shown in the gallery on the public Mudgeway page, newest additions last unless reordered below.
+        </p>
+        <div className="flex gap-3 items-start flex-wrap">
+          <label className="cursor-pointer flex-shrink-0">
+            <div className="w-28 h-28 rounded-xl border-2 border-dashed border-gray-300 bg-white flex items-center justify-center overflow-hidden">
+              {preview
+                ? <img src={preview} alt="" className="w-full h-full object-cover" />
+                : <span className="text-3xl text-gray-300">📷</span>}
+            </div>
+            <span className="block text-center text-xs font-bold text-gray-500 mt-1">
+              {preview ? 'Change' : 'Choose photo'}
+            </span>
+            <input type="file" accept="image/*" className="hidden"
+              onChange={e => {
+                const f = e.target.files?.[0]
+                if (!f) return
+                setFile(f); setPreview(URL.createObjectURL(f))
+              }} />
+          </label>
+          <div className="flex-1 min-w-[220px] space-y-2">
+            <select value={eventId} onChange={e => setEventId(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+              <option value="">Which event is this from?…</option>
+              {events.map(e => (
+                <option key={e.id} value={e.id}>{fmt(e.event_date)} — {e.venue || 'Untitled event'}</option>
+              ))}
+            </select>
+            <input value={caption} onChange={e => setCaption(e.target.value)} placeholder="Caption (optional)"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+            <input value={credit} onChange={e => setCredit(e.target.value)} placeholder="Photo credit (optional)"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+            <button onClick={addPhoto} disabled={uploading || !file || !eventId}
+              className="px-4 py-2 rounded-lg text-sm font-bold text-white disabled:opacity-40"
+              style={{ background: SNZ_BLUE }}>
+              {uploading ? 'Uploading…' : 'Add photo'}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        {loading ? (
+          <p className="text-sm text-gray-400 text-center py-8">Loading…</p>
+        ) : photos.length === 0 ? (
+          <p className="text-sm text-gray-400 text-center py-8">No photos in the gallery yet.</p>
+        ) : (
+          photos.map((p, i) => (
+            <div key={p.id} className="bg-white border border-gray-200 rounded-xl p-3 flex gap-3">
+              <img src={p.url} alt={p.caption || ''} className="w-20 h-20 rounded-lg object-cover flex-shrink-0" />
+              <div className="flex-1 min-w-0 space-y-1.5">
+                <p className="text-xs text-gray-400">
+                  {fmt(p.mudgeway_events?.event_date)} · {p.mudgeway_events?.venue || 'Untitled event'}
+                </p>
+                <input defaultValue={p.caption || ''} placeholder="Caption"
+                  onBlur={e => saveField(p, 'caption', e.target.value)}
+                  className="w-full border border-gray-200 rounded-lg px-2 py-1 text-xs" />
+                <input defaultValue={p.credit || ''} placeholder="Credit"
+                  onBlur={e => saveField(p, 'credit', e.target.value)}
+                  className="w-full border border-gray-200 rounded-lg px-2 py-1 text-xs" />
+              </div>
+              <div className="flex flex-col items-center justify-between flex-shrink-0">
+                <div className="flex flex-col gap-1">
+                  <button onClick={() => move(p, -1)} disabled={i === 0}
+                    className="w-6 h-6 rounded border border-gray-300 text-gray-500 text-xs font-bold disabled:opacity-30 hover:bg-gray-50">↑</button>
+                  <button onClick={() => move(p, 1)} disabled={i === photos.length - 1}
+                    className="w-6 h-6 rounded border border-gray-300 text-gray-500 text-xs font-bold disabled:opacity-30 hover:bg-gray-50">↓</button>
+                </div>
+                <button onClick={() => removePhoto(p)}
+                  className="text-xs font-bold text-red-500 hover:text-red-700">Remove</button>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ── Disputes ─────────────────────────────────────────────────────────────────
 function Disputes({ toast }) {
   const [rows, setRows] = useState([])
@@ -816,7 +979,7 @@ export default function MudgewayAdmin() {
       <div className="max-w-3xl mx-auto px-4 py-6">
         {!selected && (
           <div className="flex gap-1.5 mb-5 flex-wrap">
-            {[['events', 'Events & weigh-in'], ['committee', 'Committee'], ['disputes', 'Disputes']].map(([k, l]) => (
+            {[['events', 'Events & weigh-in'], ['photos', 'Photos'], ['committee', 'Committee'], ['disputes', 'Disputes']].map(([k, l]) => (
               <button key={k} onClick={() => setTab(k)}
                 className={`px-3 py-1.5 rounded-lg text-sm font-bold border transition ${tab === k ? 'text-white border-transparent' : 'bg-white border-gray-200 text-gray-600'}`}
                 style={tab === k ? { background: SNZ_BLUE } : {}}>
@@ -850,7 +1013,8 @@ export default function MudgewayAdmin() {
               })}
               {events.length === 0 && <p className="text-sm text-gray-400 text-center py-8">No events scheduled yet.</p>}
             </div>
-          ) : tab === 'committee' ? <Committee toast={toast} onChanged={loadEvents} />
+          ) : tab === 'photos' ? <Photos events={events} toast={toast} />
+          : tab === 'committee' ? <Committee toast={toast} onChanged={loadEvents} />
           : <Disputes toast={toast} />}
       </div>
     </div>
