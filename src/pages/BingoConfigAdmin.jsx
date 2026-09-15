@@ -6,9 +6,10 @@ import { RuleBody } from './bingo/BingoRulesPage'
 const SNZ_BLUE = '#2B6CB0'
 
 const STATUS_OPTIONS = [
-  { value: 'upcoming', label: 'Upcoming', desc: 'Not open yet — claims disabled' },
-  { value: 'active',   label: 'Active',   desc: 'Claims open' },
-  { value: 'closed',   label: 'Closed',   desc: 'Season over — claims disabled' },
+  { value: null,       label: 'Auto (by dates)', desc: 'Opens/closes itself at the comp start/end dates below' },
+  { value: 'upcoming', label: 'Upcoming', desc: 'Force not open yet — claims disabled regardless of dates' },
+  { value: 'active',   label: 'Active',   desc: 'Force open — claims allowed regardless of dates' },
+  { value: 'closed',   label: 'Closed',   desc: 'Force closed — claims disabled regardless of dates' },
 ]
 
 // datetime-local inputs want 'YYYY-MM-DDTHH:mm' in local time.
@@ -35,7 +36,7 @@ export default function BingoConfigAdmin() {
     setConfig(data)
     setForm(data ? {
       season: data.season || '',
-      status: data.status || 'upcoming',
+      status: data.status ?? null,
       comp_start: toInputValue(data.comp_start),
       comp_end: toInputValue(data.comp_end),
       rules_sections: data.rules_sections?.length ? [...data.rules_sections] : [],
@@ -126,16 +127,20 @@ export default function BingoConfigAdmin() {
 
           <div>
             <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Status</label>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {STATUS_OPTIONS.map(o => (
-                <button key={o.value} type="button" onClick={() => set('status')(o.value)}
+                <button key={o.label} type="button" onClick={() => set('status')(o.value)}
                   className={`text-left p-3 rounded-xl border-2 transition ${form.status === o.value ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'}`}>
                   <p className={`text-sm font-black ${form.status === o.value ? 'text-blue-700' : 'text-gray-700'}`}>{o.label}</p>
                   <p className="text-xs text-gray-400 mt-0.5">{o.desc}</p>
                 </button>
               ))}
             </div>
-            <p className="text-xs text-gray-400 mt-2">This is the real switch — it overrides the dates below for whether claiming is open.</p>
+            <p className="text-xs text-gray-400 mt-2">
+              {form.status
+                ? 'Manual override is on — it ignores the dates below until you switch back to Auto.'
+                : 'Auto mode — claims open and close by themselves at the dates below. Nothing to flip on launch day.'}
+            </p>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

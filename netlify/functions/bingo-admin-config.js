@@ -39,7 +39,9 @@ exports.handler = async (event) => {
 
   const { id, season, comp_start, comp_end, status, rules_sections } = body
   if (!id) return json(400, { error: 'id is required' })
-  if (status !== undefined && !['upcoming', 'active', 'closed'].includes(status)) {
+  // null/'' = no manual override — claims open/close automatically from
+  // comp_start/comp_end instead (see bingo-claim.mjs + BingoApp.jsx).
+  if (status !== undefined && status !== null && status !== '' && !['upcoming', 'active', 'closed'].includes(status)) {
     return json(400, { error: 'Invalid status' })
   }
   if (rules_sections !== undefined && !Array.isArray(rules_sections)) {
@@ -50,7 +52,7 @@ exports.handler = async (event) => {
   if (season !== undefined)      updates.season = season
   if (comp_start !== undefined)  updates.comp_start = comp_start
   if (comp_end !== undefined)    updates.comp_end = comp_end
-  if (status !== undefined)      updates.status = status
+  if (status !== undefined)      updates.status = status === '' ? null : status
   if (rules_sections !== undefined) updates.rules_sections = rules_sections
 
   try {
