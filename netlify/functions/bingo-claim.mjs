@@ -76,6 +76,24 @@ export async function handler(event) {
         ? false
         : !!(body.first_time ?? body.firstTime)
 
+      // Comp window check — mirrors the client's gate (admin status override,
+      // else comp_start/comp_end), enforced server-side since RLS alone
+      // doesn't know about dates.
+      const { data: cfg } = await client
+        .from('bingo_comp_config')
+        .select('status, comp_start, comp_end')
+        .eq('season', comp_season)
+        .maybeSingle()
+      if (cfg) {
+        const windowOpen = cfg.status
+          ? cfg.status === 'active'
+          : (() => {
+              const now = new Date()
+              return now >= new Date(cfg.comp_start) && now <= new Date(cfg.comp_end)
+            })()
+        if (!windowOpen) return bad(403, { error: 'Claims are not open for this competition right now.' })
+      }
+
       // Must be registered for this season before claiming
       const { data: reg } = await client
         .from('bingo_registrations')

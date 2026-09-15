@@ -1,40 +1,21 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
-import { useMemberSession, MemberAuthGate } from '../../components/MemberAuthGate'
+import { useMemberSession } from '../../components/MemberAuthGate'
 import { pointsMapFromSpecies, buildInfoMap, scoreForClaims } from '../../lib/bingo/helpers'
+import { notify } from '../../utils/toasts'
 
 import BingoPlayPage from './BingoPlayPage'
 import BingoBonusesPage from './BingoBonusesPage'
 import BingoLeaderboardPage from './BingoLeaderboardPage'
 import BingoLatestCatchesPage from './BingoLatestCatchesPage'
 import BingoRulesPage from './BingoRulesPage'
-import { BingoRegistrationBanner } from './BingoRegistration'
+import { BingoRegistrationBanner, saveRegistration, PENDING_REG_KEY } from './BingoRegistration'
 
 const SNZ_BLUE = '#2B6CB0'
 const SNZ_DARK = '#1e3a5f'
 
 // ── Shared closed-season UI ───────────────────────────────────────────────────
-
-function SeasonClosedHero() {
-  return (
-    <div style={{ background: `linear-gradient(135deg, ${SNZ_DARK} 0%, ${SNZ_BLUE} 100%)` }}
-      className="px-6 py-12 text-center">
-      <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/15 text-white text-xs font-bold mb-4 tracking-wide uppercase">
-        🏁 Season Closed
-      </div>
-      <h1 className="text-3xl sm:text-4xl font-black text-white mb-3 leading-tight">
-        Fish Bingo 2025–26
-      </h1>
-      <p className="text-blue-100 text-base leading-relaxed max-w-md mx-auto mb-2">
-        That's a wrap on this season — thanks to everyone who got out there and speared something worth bragging about.
-      </p>
-      <p className="text-white font-black text-lg mt-4">
-        🤿 Coming back bigger than ever later this season
-      </p>
-    </div>
-  )
-}
 
 function SeasonClosedBanner() {
   return (
@@ -164,6 +145,30 @@ export default function BingoApp() {
 
   useEffect(() => { reloadRegistration() }, [reloadRegistration])
 
+  // Applies a registration started while signed out (see BingoRegistrationBanner)
+  // once the diver has a session and isn't already registered for this season.
+  useEffect(() => {
+    if (!userId || !compCfg?.season || !regReady || registration) return
+    let pending
+    try {
+      const raw = sessionStorage.getItem(PENDING_REG_KEY)
+      if (!raw) return
+      pending = JSON.parse(raw)
+    } catch { return }
+    if (pending?.season !== compCfg.season) return
+    ;(async () => {
+      try {
+        await saveRegistration({ me, compCfg, region: pending.region, experience: pending.experience, isNew: true })
+        sessionStorage.removeItem(PENDING_REG_KEY)
+        notify('You\'re registered for Fish Bingo!', 'success')
+        await reloadRegistration()
+      } catch (e) {
+        notify(String(e.message || e), 'error')
+      }
+    })()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId, compCfg?.season, regReady, registration])
+
   // ── Derived ───────────────────────────────────────────────────────────────
   const pMap    = useMemo(() => pointsMapFromSpecies(species || []), [species])
   const infoMap = useMemo(() => buildInfoMap(species || []),         [species])
@@ -196,53 +201,9 @@ export default function BingoApp() {
     )
   }
 
-  if (!session) {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <div style={{ background: SNZ_BLUE }} className="px-4 sm:px-6 py-3 flex items-center justify-between gap-2 border-b border-blue-700">
-          <button onClick={() => navigate('/')}
-            className="flex items-center gap-1.5 text-white font-bold text-sm bg-white/15 hover:bg-white/25 px-3 py-1.5 rounded-lg transition whitespace-nowrap">
-            ← SNZ Hub
-          </button>
-          <button onClick={() => navigate('/bingo/admin')}
-            className="text-xs font-bold text-white bg-white/15 hover:bg-white/25 px-3 py-1.5 rounded-lg transition whitespace-nowrap">
-            ⚙ Admin
-          </button>
-        </div>
-        <SeasonClosedHero />
-        <div className="max-w-sm mx-auto px-6 py-8">
-          <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Sign in to view your results</p>
-          <MemberAuthGate message="Sign in with your SNZ membership." />
-        </div>
-      </div>
-    )
-  }
-
-  if (!isActiveMember) {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <div style={{ background: SNZ_BLUE }} className="px-4 sm:px-6 py-3 flex items-center justify-between gap-2 border-b border-blue-700">
-          <button onClick={() => navigate('/')}
-            className="flex items-center gap-1.5 text-white font-bold text-sm bg-white/15 hover:bg-white/25 px-3 py-1.5 rounded-lg transition whitespace-nowrap">
-            ← SNZ Hub
-          </button>
-          <button onClick={() => navigate('/bingo/admin')}
-            className="text-xs font-bold text-white bg-white/15 hover:bg-white/25 px-3 py-1.5 rounded-lg transition whitespace-nowrap">
-            ⚙ Admin
-          </button>
-        </div>
-        <div className="max-w-sm mx-auto px-6 py-12 text-center">
-          <h1 className="text-2xl font-black text-gray-900 mb-2">Active Membership Required</h1>
-          <p className="text-gray-500 text-sm mb-6">Fish Bingo is only available to active SNZ members. Complete your membership to play.</p>
-          <button onClick={() => navigate('/membership')}
-            className="px-5 py-2.5 rounded-xl font-bold text-sm text-white transition hover:opacity-90"
-            style={{ background: SNZ_BLUE }}>
-            Complete Membership
-          </button>
-        </div>
-      </div>
-    )
-  }
+  // Anyone can browse (leaderboard, catches, rules, bonuses) and start a
+  // registration. Claiming a catch itself still requires an active SNZ
+  // membership + being within the comp window — gated per-action below.
 
   // ── Game shell ────────────────────────────────────────────────────────────
   const isRegistered = !!registration
@@ -295,6 +256,19 @@ export default function BingoApp() {
       ) : (
         <div className="max-w-3xl mx-auto px-4 py-6">
           {seasonClosed && tab === 'play' && <SeasonClosedBanner />}
+          {session && !isActiveMember && (tab === 'play' || tab === 'bonuses') && (
+            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-4 flex items-center justify-between gap-3 flex-wrap">
+              <div>
+                <p className="font-black text-gray-900 text-sm">Active Membership Required</p>
+                <p className="text-xs text-gray-600 mt-0.5">You can register and browse, but claiming catches needs an active SNZ membership.</p>
+              </div>
+              <button onClick={() => navigate('/membership')}
+                className="px-4 py-2 rounded-lg font-bold text-xs text-white transition hover:opacity-90 flex-shrink-0"
+                style={{ background: SNZ_BLUE }}>
+                Complete Membership
+              </button>
+            </div>
+          )}
           {compCfg && regReady && !isRegistered && (
             <BingoRegistrationBanner me={me} member={member} compCfg={compCfg}
               onRegistered={reloadRegistration} setTab={changeTab} />
