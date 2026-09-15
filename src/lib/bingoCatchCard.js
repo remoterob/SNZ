@@ -4,7 +4,6 @@
 // Facebook.
 
 const SNZ_LOGO = import.meta.env.VITE_SNZ_LOGO_URL || null
-const SNZ_BLUE = '#2B6CB0'
 
 const loadImage = (src) => new Promise((resolve, reject) => {
   const i = new Image()
@@ -50,8 +49,8 @@ export async function generateCatchCard({
 
   const pad = 44
 
-  // SNZ watermark — top-right corner, on a solid (opaque) pill so it reads
-  // as a clean brand mark rather than a faded overlay.
+  // SNZ watermark — top-right corner, on a solid white pill so the (dark)
+  // logo reads crisp and clean rather than washed out against the photo.
   if (SNZ_LOGO) {
     try {
       const logo = await loadImage(SNZ_LOGO)
@@ -59,7 +58,7 @@ export async function generateCatchCard({
       const logoW = Math.round(logo.width * (logoH / logo.height))
       const lx = canvas.width - pad - logoW
       const ly = pad
-      ctx.fillStyle = SNZ_BLUE
+      ctx.fillStyle = '#ffffff'
       if (ctx.roundRect) {
         ctx.beginPath()
         ctx.roundRect(lx - 16, ly - 12, logoW + 32, logoH + 24, 12)
