@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom'
 import { supabase, isAdmin, isBingoAdmin, setAdminSession, isNationalsAdmin } from './lib/supabase'
 import { useAnalytics } from './lib/useAnalytics'
@@ -875,6 +875,24 @@ function SNZHub() {
       .then(({ data }) => setAgmMeetings(data || []))
   }, [])
 
+  // Fish Bingo season config for the hub tile — read live rather than
+  // hardcoded, so the badge/summary flip from "register now" to "live" to
+  // "wrapped" on their own as the season progresses. No deploy needed.
+  const [bingoCfg, setBingoCfg] = useState(null)
+  useEffect(() => {
+    supabase.from('bingo_comp_config').select('season, status, comp_start, comp_end')
+      .eq('is_active', true).maybeSingle()
+      .then(({ data }) => setBingoCfg(data || null))
+  }, [])
+  const bingoWindow = useMemo(() => {
+    if (!bingoCfg) return null
+    if (bingoCfg.status) return bingoCfg.status === 'active' ? 'open' : bingoCfg.status === 'upcoming' ? 'before' : 'after'
+    const now = new Date()
+    if (now < new Date(bingoCfg.comp_start)) return 'before'
+    if (now > new Date(bingoCfg.comp_end)) return 'after'
+    return 'open'
+  }, [bingoCfg])
+
   useEffect(() => {
     supabase.from('bigfish_comps').select('id').eq('is_active', true).maybeSingle()
       .then(async ({ data: comp }) => {
@@ -951,11 +969,17 @@ function SNZHub() {
     },
     {
       title: 'Fish Bingo',
-      desc: 'Claim species you\'ve speared, earn points, and compete on the leaderboard. Complete bonus rows for extra points. SNZ members only.',
+      desc: 'Claim species you\'ve speared, earn points, and compete on the leaderboard. Complete bonus rows for extra points. Open to browse and register now — active SNZ members can claim.',
       onClick: () => navigate('/bingo'),
       icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={SNZ_BLUE} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><line x1="6.5" y1="6.5" x2="6.5" y2="6.51"/><line x1="17.5" y1="6.5" x2="17.5" y2="6.51"/><path d="m15.5 15.5 3 3m0-3-3 3"/></svg>,
-      status: 'soon',
-      summary: 'Starts 1 Oct 2026 · Register now',
+      status: bingoWindow === 'after' ? 'wrapped' : 'live',
+      summary: bingoWindow === 'open'
+        ? '● Live now — claim your catches!'
+        : bingoWindow === 'after'
+          ? 'Season wrapped — check the leaderboard'
+          : bingoCfg?.comp_start
+            ? `Register now · claiming opens ${new Date(bingoCfg.comp_start).toLocaleDateString('en-NZ', { day: 'numeric', month: 'short' })}`
+            : 'Register now',
     },
     {
       title: 'Other Competitions',
