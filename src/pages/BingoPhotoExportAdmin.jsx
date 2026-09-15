@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase, clearAdminSession } from '../lib/supabase'
 import { generateCatchCard, catchCardFilename } from '../lib/bingoCatchCard'
 import { downloadDataUrl, downloadBlob, buildZip } from '../lib/teamCard'
+import { pointsMapFromSpecies, pointsForSlug, isBonusSlug } from '../lib/bingo/helpers'
 
 const SNZ_BLUE = '#2B6CB0'
 
@@ -20,7 +21,7 @@ export default function BingoPhotoExportAdmin() {
   const [season, setSeason] = useState('')
   const [rangeDays, setRangeDays] = useState(7)     // number of days, or 'all'
   const [claims, setClaims] = useState(null)        // null = loading
-  const [species, setSpecies] = useState({})        // slug -> name
+  const [species, setSpecies] = useState([])        // [{ slug, name, points }]
   const [members, setMembers] = useState({})        // id -> { name, club }
 
   const [previews, setPreviews] = useState({})      // claim id -> dataURL
@@ -42,11 +43,13 @@ export default function BingoPhotoExportAdmin() {
       })
   }, [])
 
-  // Species names, for the subtitle line.
+  // Species names + points, for the subtitle and score lines.
   useEffect(() => {
-    supabase.from('bingo_species').select('slug, name')
-      .then(({ data }) => setSpecies(Object.fromEntries((data || []).map(s => [s.slug, s.name]))))
+    supabase.from('bingo_species').select('slug, name, points')
+      .then(({ data }) => setSpecies(data || []))
   }, [])
+  const speciesNames = useMemo(() => Object.fromEntries(species.map(s => [s.slug, s.name])), [species])
+  const pMap = useMemo(() => pointsMapFromSpecies(species), [species])
 
   // Claims with photos for the selected season + date range, newest first.
   // Filtered server-side (not fetched-then-filtered) since this table only
@@ -57,7 +60,7 @@ export default function BingoPhotoExportAdmin() {
     setSelected(new Set())
     setPreviews({})
     let query = supabase.from('bingo_claims')
-      .select('id, user_id, species_slug, photo_url, created_at')
+      .select('id, user_id, species_slug, photo_url, first_time, created_at')
       .eq('comp_season', season)
       .not('photo_url', 'is', null)
     if (rangeDays !== 'all') {
@@ -78,15 +81,20 @@ export default function BingoPhotoExportAdmin() {
 
   const cards = useMemo(() => (claims || []).map(c => {
     const m = members[c.user_id] || {}
+    const bonus = isBonusSlug(c.species_slug)
+    const doublePoints = !bonus && !!c.first_time
+    const points = pointsForSlug(c.species_slug, pMap) * (doublePoints ? 2 : 1)
     return {
       key: c.id,
       heroUrl: c.photo_url,
       diverName: m.name || 'Diver',
       club: m.club || '',
-      speciesName: species[c.species_slug] || c.species_slug,
+      speciesName: speciesNames[c.species_slug] || c.species_slug,
+      points,
+      doublePoints,
       createdAt: c.created_at,
     }
-  }), [claims, members, species])
+  }), [claims, members, speciesNames, pMap])
 
   const toggle = (key) => setSelected(s => {
     const n = new Set(s)
@@ -105,6 +113,8 @@ export default function BingoPhotoExportAdmin() {
         diverName: card.diverName,
         club: card.club,
         speciesName: card.speciesName,
+        points: card.points,
+        doublePoints: card.doublePoints,
         tagLine: season ? `Fish Bingo ${season}` : 'Fish Bingo',
       })
       setPreviews(p => ({ ...p, [card.key]: dataUrl }))
@@ -241,6 +251,9 @@ export default function BingoPhotoExportAdmin() {
                       <div className="flex-1 min-w-0">
                         <p className="font-bold text-gray-900 text-sm truncate">{card.diverName}</p>
                         <p className="text-xs text-gray-400 truncate">{[card.club, card.speciesName].filter(Boolean).join(' · ')}</p>
+                        <p className="text-xs font-bold truncate" style={{ color: SNZ_BLUE }}>
+                          {card.points} pts{card.doublePoints ? ' · 2× First Time!' : ''}
+                        </p>
                       </div>
                       <button onClick={() => downloadOne(card)} disabled={isGenerating || !!bulk}
                         className="px-3 py-1.5 rounded-lg text-xs font-bold border border-gray-300 text-gray-600 hover:bg-gray-50 disabled:opacity-40 flex-shrink-0">

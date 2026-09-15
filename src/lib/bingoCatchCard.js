@@ -1,8 +1,10 @@
 // Social share card for a single Fish Bingo catch photo — SNZ logo watermark
-// in the top-right corner, diver name + club stamped at the bottom. Used by
-// BingoPhotoExportAdmin so admins can grab ready-to-post images for Facebook.
+// in the top-right corner, diver name + club + score stamped at the bottom.
+// Used by BingoPhotoExportAdmin so admins can grab ready-to-post images for
+// Facebook.
 
 const SNZ_LOGO = import.meta.env.VITE_SNZ_LOGO_URL || null
+const SNZ_BLUE = '#2B6CB0'
 
 const loadImage = (src) => new Promise((resolve, reject) => {
   const i = new Image()
@@ -15,14 +17,16 @@ const loadImage = (src) => new Promise((resolve, reject) => {
 /**
  * Draws a 1080×1080 card and returns a JPEG data URL.
  *
- * photoUrl    — the claim's catch photo (required)
- * diverName   — headline
- * club        — subtitle, paired with speciesName
- * speciesName — subtitle, paired with club
- * tagLine     — small grey line under the name (e.g. "Fish Bingo 2026-27")
+ * photoUrl     — the claim's catch photo (required)
+ * diverName    — headline
+ * club         — subtitle, paired with speciesName
+ * speciesName  — subtitle, paired with club
+ * points       — total points for this claim (already doubled if applicable)
+ * doublePoints — true if first-time/pole-spear double points applied
+ * tagLine      — small grey line under the subtitle (e.g. "Fish Bingo 2026-27")
  */
 export async function generateCatchCard({
-  photoUrl, diverName = 'Diver', club = '', speciesName = '', tagLine = '',
+  photoUrl, diverName = 'Diver', club = '', speciesName = '', points = null, doublePoints = false, tagLine = '',
 }) {
   if (!photoUrl) throw new Error('No photo for this claim')
 
@@ -46,19 +50,19 @@ export async function generateCatchCard({
 
   const pad = 44
 
-  // SNZ watermark — top-right corner, on a translucent pill so it stays
-  // legible over any photo.
+  // SNZ watermark — top-right corner, on a solid (opaque) pill so it reads
+  // as a clean brand mark rather than a faded overlay.
   if (SNZ_LOGO) {
     try {
       const logo = await loadImage(SNZ_LOGO)
-      const logoH = 135 // 90 * 1.5
+      const logoH = 90
       const logoW = Math.round(logo.width * (logoH / logo.height))
       const lx = canvas.width - pad - logoW
       const ly = pad
-      ctx.fillStyle = 'rgba(0,0,0,0.35)'
+      ctx.fillStyle = SNZ_BLUE
       if (ctx.roundRect) {
         ctx.beginPath()
-        ctx.roundRect(lx - 16, ly - 12, logoW + 32, logoH + 24, 16)
+        ctx.roundRect(lx - 16, ly - 12, logoW + 32, logoH + 24, 12)
         ctx.fill()
       } else {
         ctx.fillRect(lx - 16, ly - 12, logoW + 32, logoH + 24)
@@ -67,12 +71,12 @@ export async function generateCatchCard({
     } catch (_) { /* logo is decorative — never fail the card for it */ }
   }
 
-  // Bottom gradient so name/club stay legible over any photo
-  const overlayH = 260
+  // Bottom gradient so name/club/score stay legible over any photo
+  const overlayH = 320
   const grad = ctx.createLinearGradient(0, canvas.height - overlayH, 0, canvas.height)
   grad.addColorStop(0, 'rgba(0,0,0,0)')
-  grad.addColorStop(0.35, 'rgba(0,0,0,0.65)')
-  grad.addColorStop(1, 'rgba(0,0,0,0.9)')
+  grad.addColorStop(0.3, 'rgba(0,0,0,0.65)')
+  grad.addColorStop(1, 'rgba(0,0,0,0.93)')
   ctx.fillStyle = grad
   ctx.fillRect(0, canvas.height - overlayH, canvas.width, overlayH)
 
@@ -88,19 +92,27 @@ export async function generateCatchCard({
   const nameFont = 'bold 54px system-ui, sans-serif'
   ctx.fillStyle = '#ffffff'
   ctx.font = nameFont
-  ctx.fillText(truncate(diverName, nameFont), pad, canvas.height - 150)
+  ctx.fillText(truncate(diverName, nameFont), pad, canvas.height - 178)
 
   const subtitle = [club, speciesName].filter(Boolean).join(' · ')
   const subFont = 'bold 32px system-ui, sans-serif'
   ctx.fillStyle = 'rgba(255,255,255,0.85)'
   ctx.font = subFont
-  ctx.fillText(truncate(subtitle, subFont), pad, canvas.height - 96)
+  ctx.fillText(truncate(subtitle, subFont), pad, canvas.height - 120)
 
   if (tagLine) {
     const tagFont = '26px system-ui, sans-serif'
     ctx.fillStyle = 'rgba(255,255,255,0.55)'
     ctx.font = tagFont
-    ctx.fillText(truncate(tagLine, tagFont), pad, canvas.height - 50)
+    ctx.fillText(truncate(tagLine, tagFont), pad, canvas.height - 76)
+  }
+
+  if (points != null) {
+    const scoreLine = `${points} pts${doublePoints ? ' · 2× First Time!' : ''}`
+    const scoreFont = 'bold 44px system-ui, sans-serif'
+    ctx.fillStyle = '#F6E05E'
+    ctx.font = scoreFont
+    ctx.fillText(truncate(scoreLine, scoreFont), pad, canvas.height - 34)
   }
 
   return canvas.toDataURL('image/jpeg', 0.92)
