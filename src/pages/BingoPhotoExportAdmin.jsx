@@ -6,11 +6,19 @@ import { downloadDataUrl, downloadBlob, buildZip } from '../lib/teamCard'
 
 const SNZ_BLUE = '#2B6CB0'
 
+const RANGE_OPTIONS = [
+  { value: 7,     label: 'Last 7 days' },
+  { value: 30,    label: 'Last 30 days' },
+  { value: 90,    label: 'Last 90 days' },
+  { value: 'all', label: 'All time' },
+]
+
 export default function BingoPhotoExportAdmin() {
   const navigate = useNavigate()
 
   const [seasons, setSeasons] = useState([])       // [{ season, is_active }]
   const [season, setSeason] = useState('')
+  const [rangeDays, setRangeDays] = useState(7)     // number of days, or 'all'
   const [claims, setClaims] = useState(null)        // null = loading
   const [species, setSpecies] = useState({})        // slug -> name
   const [members, setMembers] = useState({})        // id -> { name, club }
@@ -40,17 +48,23 @@ export default function BingoPhotoExportAdmin() {
       .then(({ data }) => setSpecies(Object.fromEntries((data || []).map(s => [s.slug, s.name]))))
   }, [])
 
-  // Claims with photos for the selected season, newest first.
+  // Claims with photos for the selected season + date range, newest first.
+  // Filtered server-side (not fetched-then-filtered) since this table only
+  // grows — pulling every photo ever uploaded on each load doesn't scale.
   useEffect(() => {
     if (!season) return
     setClaims(null)
     setSelected(new Set())
     setPreviews({})
-    supabase.from('bingo_claims')
+    let query = supabase.from('bingo_claims')
       .select('id, user_id, species_slug, photo_url, created_at')
       .eq('comp_season', season)
       .not('photo_url', 'is', null)
-      .order('created_at', { ascending: false })
+    if (rangeDays !== 'all') {
+      const cutoff = new Date(Date.now() - rangeDays * 24 * 60 * 60 * 1000).toISOString()
+      query = query.gte('created_at', cutoff)
+    }
+    query.order('created_at', { ascending: false })
       .then(async ({ data }) => {
         const rows = data || []
         setClaims(rows)
@@ -60,7 +74,7 @@ export default function BingoPhotoExportAdmin() {
           setMembers(Object.fromEntries((mem || []).map(m => [m.id, m])))
         }
       })
-  }, [season])
+  }, [season, rangeDays])
 
   const cards = useMemo(() => (claims || []).map(c => {
     const m = members[c.user_id] || {}
@@ -146,14 +160,22 @@ export default function BingoPhotoExportAdmin() {
             <h1 className="text-2xl font-black text-gray-900">Catch Photo Export</h1>
             <p className="text-sm text-gray-400 mt-0.5">Every uploaded catch photo, stamped with the SNZ logo and the diver's name and club — ready to post.</p>
           </div>
-          {seasons.length > 0 && (
-            <select value={season} onChange={e => setSeason(e.target.value)}
+          <div className="flex items-center gap-2 flex-wrap">
+            <select value={rangeDays} onChange={e => setRangeDays(e.target.value === 'all' ? 'all' : Number(e.target.value))}
               className="border border-gray-300 rounded-lg px-3 py-2 text-sm font-bold text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-300 bg-white">
-              {seasons.map(s => (
-                <option key={s.season} value={s.season}>{s.season}{s.is_active ? ' (active)' : ''}</option>
+              {RANGE_OPTIONS.map(o => (
+                <option key={o.value} value={o.value}>{o.label}</option>
               ))}
             </select>
-          )}
+            {seasons.length > 0 && (
+              <select value={season} onChange={e => setSeason(e.target.value)}
+                className="border border-gray-300 rounded-lg px-3 py-2 text-sm font-bold text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-300 bg-white">
+                {seasons.map(s => (
+                  <option key={s.season} value={s.season}>{s.season}{s.is_active ? ' (active)' : ''}</option>
+                ))}
+              </select>
+            )}
+          </div>
         </div>
 
         {error && (
@@ -164,8 +186,12 @@ export default function BingoPhotoExportAdmin() {
           <div className="text-center py-16 text-gray-400 text-sm">Loading…</div>
         ) : cards.length === 0 ? (
           <div className="text-center py-16 bg-gray-50 rounded-xl text-gray-400">
-            <p className="font-semibold text-gray-500 mb-1">No photos yet</p>
-            <p className="text-sm">Nothing uploaded for {season || 'this season'} yet.</p>
+            <p className="font-semibold text-gray-500 mb-1">No photos</p>
+            <p className="text-sm">
+              Nothing uploaded for {season || 'this season'}
+              {rangeDays !== 'all' ? ` in the last ${rangeDays} days` : ''}.
+              {rangeDays !== 'all' && ' Try widening the date range above.'}
+            </p>
           </div>
         ) : (
           <>

@@ -1,5 +1,5 @@
-// Social share card for a single Fish Bingo catch photo — SNZ logo banner
-// across the top, diver name + club stamped at the bottom. Used by
+// Social share card for a single Fish Bingo catch photo — SNZ logo watermark
+// in the top-right corner, diver name + club stamped at the bottom. Used by
 // BingoPhotoExportAdmin so admins can grab ready-to-post images for Facebook.
 
 const SNZ_LOGO = import.meta.env.VITE_SNZ_LOGO_URL || null
@@ -44,21 +44,25 @@ export async function generateCatchCard({
   const w = img.width * scale, h = img.height * scale
   ctx.drawImage(img, (canvas.width - w) / 2, (canvas.height - h) / 2, w, h)
 
-  // Top banner — dark fade so the logo stays legible over any photo
-  const bannerH = 170
-  const bannerGrad = ctx.createLinearGradient(0, 0, 0, bannerH)
-  bannerGrad.addColorStop(0, 'rgba(0,0,0,0.72)')
-  bannerGrad.addColorStop(1, 'rgba(0,0,0,0)')
-  ctx.fillStyle = bannerGrad
-  ctx.fillRect(0, 0, canvas.width, bannerH)
+  const pad = 44
 
+  // SNZ watermark — top-right corner, on a translucent pill so it stays
+  // legible over any photo.
   if (SNZ_LOGO) {
     try {
       const logo = await loadImage(SNZ_LOGO)
-      const logoH = 90
+      const logoH = 135 // 90 * 1.5
       const logoW = Math.round(logo.width * (logoH / logo.height))
-      const lx = (canvas.width - logoW) / 2
-      const ly = 32
+      const lx = canvas.width - pad - logoW
+      const ly = pad
+      ctx.fillStyle = 'rgba(0,0,0,0.35)'
+      if (ctx.roundRect) {
+        ctx.beginPath()
+        ctx.roundRect(lx - 16, ly - 12, logoW + 32, logoH + 24, 16)
+        ctx.fill()
+      } else {
+        ctx.fillRect(lx - 16, ly - 12, logoW + 32, logoH + 24)
+      }
       ctx.drawImage(logo, lx, ly, logoW, logoH)
     } catch (_) { /* logo is decorative — never fail the card for it */ }
   }
@@ -72,7 +76,6 @@ export async function generateCatchCard({
   ctx.fillStyle = grad
   ctx.fillRect(0, canvas.height - overlayH, canvas.width, overlayH)
 
-  const pad = 44
   const maxW = canvas.width - pad * 2
   const truncate = (text, font) => {
     ctx.font = font
