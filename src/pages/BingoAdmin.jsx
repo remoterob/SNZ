@@ -25,6 +25,12 @@ export default function BingoAdmin() {
       icon: '⭐',
       path: '/bingo/admin/bonuses',
     },
+    {
+      title: 'Photo Export',
+      desc: 'Every uploaded catch photo, stamped with the SNZ logo and the diver\'s name and club. Select the ones you want and download them ready to post.',
+      icon: '📸',
+      path: '/bingo/admin/photos',
+    },
   ]
 
   return (
