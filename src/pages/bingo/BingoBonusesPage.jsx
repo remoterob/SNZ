@@ -22,6 +22,8 @@ function resolveSlugByName(speciesArray, name) {
 }
 
 function getCurrentMonth() { return new Date().getMonth() + 1 }
+const monthName = (m) => m ? new Date(2000, m - 1, 1).toLocaleString('en-NZ', { month: 'long' }) : ''
+const monthShort = (m) => m ? new Date(2000, m - 1, 1).toLocaleString('en-NZ', { month: 'short' }) : ''
 
 export default function BingoBonusesPage({ species, myClaims, compCfg, signedIn, token }) {
   const [bonuses, setBonuses] = useState([])
@@ -36,6 +38,9 @@ export default function BingoBonusesPage({ species, myClaims, compCfg, signedIn,
   }, [refreshKey])
 
   const claimedSpecies = useMemo(() => new Set((myClaims || []).map(c => c.species_slug)), [myClaims])
+  // Species slug -> claim, so the monthly row can check *when* a species was
+  // claimed, not just whether it was ever claimed.
+  const claimsBySlug = useMemo(() => new Map((myClaims || []).map(c => [c.species_slug, c])), [myClaims])
 
   const onChanged = () => setRefreshKey(k => k + 1)
 
@@ -51,12 +56,13 @@ export default function BingoBonusesPage({ species, myClaims, compCfg, signedIn,
     <div className="space-y-4">
       {monthRow && (
         <div className="bg-white border border-gray-200 rounded-2xl p-4 sm:p-5">
-          <div className="flex items-baseline justify-between gap-3 mb-2 flex-wrap">
+          <div className="flex items-baseline justify-between gap-3 mb-1 flex-wrap">
             <h3 className="font-black text-gray-900">Row of the Month</h3>
             <span className="text-xs text-gray-400">{monthRow.title} · +{monthRow.points} pts</span>
           </div>
-          <BonusGroup group={monthRow} species={species} claimedSpecies={claimedSpecies}
-            signedIn={signedIn} token={token} compCfg={compCfg} onChanged={onChanged} />
+          <p className="text-xs text-gray-400 mb-2">Species must be claimed in {monthName(month)} to count — an earlier claim won't unlock this row.</p>
+          <BonusGroup group={monthRow} species={species} claimedSpecies={claimedSpecies} claimsBySlug={claimsBySlug}
+            requiredMonth={month} signedIn={signedIn} token={token} compCfg={compCfg} onChanged={onChanged} />
         </div>
       )}
 
@@ -69,7 +75,7 @@ export default function BingoBonusesPage({ species, myClaims, compCfg, signedIn,
               <span className="text-xs text-gray-400">+{g.points} pts</span>
             </div>
             {g.description && <p className="text-xs text-gray-500 mt-1">{g.description}</p>}
-            <BonusGroup group={g} species={species} claimedSpecies={claimedSpecies}
+            <BonusGroup group={g} species={species} claimedSpecies={claimedSpecies} claimsBySlug={claimsBySlug}
               signedIn={signedIn} token={token} compCfg={compCfg} onChanged={onChanged} />
           </div>
         ))}
@@ -78,16 +84,24 @@ export default function BingoBonusesPage({ species, myClaims, compCfg, signedIn,
   )
 }
 
-function BonusGroup({ group, species, claimedSpecies, signedIn, token, compCfg, onChanged }) {
+// requiredMonth is only ever passed for the monthly "Row of the Month" —
+// evergreen callers omit it, which keeps their eligibility exactly as it was
+// (claimed = claimed, any time this season).
+function BonusGroup({ group, species, claimedSpecies, claimsBySlug, requiredMonth, signedIn, token, compCfg, onChanged }) {
   const items = (group.species || []).map(name => {
     const slug = resolveSlugByName(species, name)
-    const sp   = slug ? species.find(s => s.slug === slug) : null
-    const has  = slug ? claimedSpecies.has(slug) : false
-    return { name, slug, sp, has }
+    const sp = slug ? species.find(s => s.slug === slug) : null
+    const claim = slug ? claimsBySlug.get(slug) : null
+    const claimedMonth = claim ? new Date(claim.created_at).getMonth() + 1 : null
+    const inMonth = requiredMonth == null || claimedMonth === requiredMonth
+    const has = !!claim && inMonth
+    const wrongMonth = !!claim && !inMonth
+    return { name, slug, sp, has, wrongMonth, claimedMonth }
   })
 
   const required   = items.filter(i => !!i.slug).map(i => i.slug)
   const claimed    = items.filter(i => i.has).length
+  const wrongMonthCount = items.filter(i => i.wrongMonth).length
   const allMet     = required.length > 0 && claimed === required.length
   const bonusClaimed = claimedSpecies.has(group.slug)
 
@@ -121,8 +135,9 @@ function BonusGroup({ group, species, claimedSpecies, signedIn, token, compCfg, 
   return (
     <div>
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-3">
-        {items.map(({ name, sp, has }) => (
-          <div key={name} className="flex items-center gap-2 bg-gray-50 border border-gray-100 rounded-lg p-1.5">
+        {items.map(({ name, sp, has, wrongMonth, claimedMonth }) => (
+          <div key={name}
+            className={`flex items-center gap-2 border rounded-lg p-1.5 ${wrongMonth ? 'bg-amber-50 border-amber-200' : 'bg-gray-50 border-gray-100'}`}>
             {sp ? (
               <img src={imgFor(sp) || ''} alt={name}
                 className="w-9 h-9 object-cover rounded-md border border-gray-200 flex-shrink-0"
@@ -131,12 +146,21 @@ function BonusGroup({ group, species, claimedSpecies, signedIn, token, compCfg, 
               <div className="w-9 h-9 flex items-center justify-center text-xs text-gray-400 border border-gray-200 rounded-md flex-shrink-0">?</div>
             )}
             <span className="text-xs text-gray-700 truncate flex-1 min-w-0">{name}</span>
-            {has && <span className="text-green-600 font-black text-sm flex-shrink-0">✓</span>}
+            {has && <span className="text-green-600 font-black text-sm flex-shrink-0" title="Counts toward this bonus">✓</span>}
+            {wrongMonth && (
+              <span className="text-amber-500 font-black text-xs flex-shrink-0"
+                title={`Claimed in ${monthShort(claimedMonth)} — must be claimed in ${monthShort(requiredMonth)} to count`}>
+                ⏳
+              </span>
+            )}
           </div>
         ))}
       </div>
       <div className="flex items-center justify-between gap-3 mt-3">
-        <p className="text-xs text-gray-400">{claimed} / {items.length} claimed</p>
+        <p className="text-xs text-gray-400">
+          {claimed} / {items.length} claimed
+          {wrongMonthCount > 0 ? ` · ${wrongMonthCount} claimed in an earlier month` : ''}
+        </p>
         <div className="flex gap-2">
           {bonusClaimed ? (
             <>
