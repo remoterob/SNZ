@@ -3,14 +3,13 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useMemberSession } from '../../components/MemberAuthGate'
 import { pointsMapFromSpecies, buildInfoMap, scoreForClaims } from '../../lib/bingo/helpers'
-import { notify } from '../../utils/toasts'
 
 import BingoPlayPage from './BingoPlayPage'
 import BingoBonusesPage from './BingoBonusesPage'
 import BingoLeaderboardPage from './BingoLeaderboardPage'
 import BingoLatestCatchesPage from './BingoLatestCatchesPage'
 import BingoRulesPage from './BingoRulesPage'
-import { BingoRegistrationBanner, saveRegistration, PENDING_REG_KEY } from './BingoRegistration'
+import { BingoRegistrationBanner } from './BingoRegistration'
 
 const SNZ_BLUE = '#2B6CB0'
 const SNZ_DARK = '#1e3a5f'
@@ -144,30 +143,6 @@ export default function BingoApp() {
   }, [userId, compCfg?.season])
 
   useEffect(() => { reloadRegistration() }, [reloadRegistration])
-
-  // Applies a registration started while signed out (see BingoRegistrationBanner)
-  // once the diver has a session and isn't already registered for this season.
-  useEffect(() => {
-    if (!userId || !compCfg?.season || !regReady || registration) return
-    let pending
-    try {
-      const raw = sessionStorage.getItem(PENDING_REG_KEY)
-      if (!raw) return
-      pending = JSON.parse(raw)
-    } catch { return }
-    if (pending?.season !== compCfg.season) return
-    ;(async () => {
-      try {
-        await saveRegistration({ me, compCfg, region: pending.region, experience: pending.experience, isNew: true })
-        sessionStorage.removeItem(PENDING_REG_KEY)
-        notify('You\'re registered for Fish Bingo!', 'success')
-        await reloadRegistration()
-      } catch (e) {
-        notify(String(e.message || e), 'error')
-      }
-    })()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId, compCfg?.season, regReady, registration])
 
   // ── Derived ───────────────────────────────────────────────────────────────
   const pMap    = useMemo(() => pointsMapFromSpecies(species || []), [species])

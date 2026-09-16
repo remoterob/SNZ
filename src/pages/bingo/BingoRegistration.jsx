@@ -6,14 +6,10 @@ import { MemberAuthGate } from '../../components/MemberAuthGate'
 
 const SNZ_BLUE = '#2B6CB0'
 
-// Answers collected while browsing signed out, applied automatically once the
-// diver signs in or finishes creating their SNZ membership and lands back here.
-export const PENDING_REG_KEY = 'bingo_pending_registration'
-
 // Upserts the registration row and keeps the member's profile fields in sync,
 // since region/experience originate there (and other parts of the app read
 // them off `members`).
-export async function saveRegistration({ me, compCfg, region, experience, isNew }) {
+async function saveRegistration({ me, compCfg, region, experience, isNew }) {
   const payload = { user_id: me.id, comp_season: compCfg.season, region, experience }
   if (isNew) payload.rules_accepted_at = new Date().toISOString()
 
@@ -50,27 +46,19 @@ function RegistrationFields({ region, setRegion, experience, setExperience }) {
 }
 
 // Mandatory, shown until the diver has registered for the active season.
-// Works signed out too: answers are collected up front, then stashed under
-// PENDING_REG_KEY and applied automatically once the diver signs in or signs
-// up (BingoApp watches for this on mount/session-change).
+// Signed-out visitors get a sign-in/sign-up prompt instead of the form —
+// registration itself always requires a session, so there's no point
+// collecting answers before then.
 export function BingoRegistrationBanner({ me, member, compCfg, onRegistered, setTab }) {
   const [region, setRegion] = useState(member?.region || '')
   const [experience, setExperience] = useState(member?.experience || '')
   const [accepted, setAccepted] = useState(false)
   const [submitting, setSubmitting] = useState(false)
-  const [showAuth, setShowAuth] = useState(false)
 
   const canSubmit = !!(region && experience && accepted) && !submitting
 
   const submit = async () => {
-    if (!canSubmit) return
-    if (!me) {
-      try {
-        sessionStorage.setItem(PENDING_REG_KEY, JSON.stringify({ season: compCfg?.season, region, experience }))
-      } catch {}
-      setShowAuth(true)
-      return
-    }
+    if (!canSubmit || !me) return
     setSubmitting(true)
     try {
       await saveRegistration({ me, compCfg, region, experience, isNew: true })
@@ -83,21 +71,15 @@ export function BingoRegistrationBanner({ me, member, compCfg, onRegistered, set
     }
   }
 
-  if (showAuth) {
+  if (!me) {
     return (
       <div className="bg-white border-2 border-blue-200 rounded-2xl overflow-hidden mb-4">
         <div className="px-4 sm:px-5 py-3 border-b border-blue-100" style={{ background: '#eff6ff' }}>
-          <p className="font-black text-gray-900 text-sm">🎣 Almost there</p>
-          <p className="text-xs text-gray-600 mt-0.5">
-            Sign in or create your SNZ membership to finish registering for Fish Bingo — your answers are saved.
-          </p>
+          <p className="font-black text-gray-900 text-sm">🎣 Register for Fish Bingo{compCfg?.season ? ` ${compCfg.season}` : ''}</p>
+          <p className="text-xs text-gray-600 mt-0.5">Sign in or join SNZ to register — it only takes a minute.</p>
         </div>
         <div className="p-4 sm:p-5">
-          <MemberAuthGate message="Finish signing in to complete your Fish Bingo registration." />
-          <button type="button" onClick={() => setShowAuth(false)}
-            className="w-full mt-3 text-xs font-semibold text-gray-400 hover:text-gray-600">
-            ← Back to edit your answers
-          </button>
+          <MemberAuthGate message="Sign in with your SNZ membership to register for Fish Bingo." />
         </div>
       </div>
     )
@@ -107,11 +89,7 @@ export function BingoRegistrationBanner({ me, member, compCfg, onRegistered, set
     <div className="bg-white border-2 border-blue-200 rounded-2xl overflow-hidden mb-4">
       <div className="px-4 sm:px-5 py-3 border-b border-blue-100" style={{ background: '#eff6ff' }}>
         <p className="font-black text-gray-900 text-sm">🎣 Register for Fish Bingo{compCfg?.season ? ` ${compCfg.season}` : ''}</p>
-        <p className="text-xs text-gray-600 mt-0.5">
-          {me
-            ? 'Answer a few quick questions to unlock claims — you only need to do this once.'
-            : 'Answer a few quick questions now — you\'ll sign in or join SNZ to confirm your spot.'}
-        </p>
+        <p className="text-xs text-gray-600 mt-0.5">Answer a few quick questions to unlock claims — you only need to do this once.</p>
       </div>
       <div className="p-4 sm:p-5 space-y-4">
         <RegistrationFields region={region} setRegion={setRegion} experience={experience} setExperience={setExperience} />
@@ -128,7 +106,7 @@ export function BingoRegistrationBanner({ me, member, compCfg, onRegistered, set
         <button onClick={submit} disabled={!canSubmit}
           className="w-full py-2.5 rounded-xl font-bold text-white text-sm disabled:opacity-40 transition"
           style={{ background: SNZ_BLUE }}>
-          {submitting ? 'Registering…' : me ? 'Register' : 'Continue'}
+          {submitting ? 'Registering…' : 'Register'}
         </button>
       </div>
     </div>
