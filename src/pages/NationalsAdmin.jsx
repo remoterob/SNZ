@@ -1239,6 +1239,8 @@ function DerivedDivLeaderboard({ divId, label, teams, allWeighins }) {
 }
 
 // ── Fish Lists Tab ────────────────────────────────────────────────────────────
+const clampCount = v => Math.max(1, Math.min(10, parseInt(v) || 1))
+
 function NationalsSpeciesPickerModal({ comp, division, existingFish, onClose, onSaved }) {
   const [library, setLibrary] = useState([])
   const [libLoading, setLibLoading] = useState(true)
@@ -1261,8 +1263,12 @@ function NationalsSpeciesPickerModal({ comp, division, existingFish, onClose, on
   }, [])
 
   const isSelected = slug => selected.find(x => x.slug === slug)
-  const getCount = slug => selected.find(x => x.slug === slug)?.count || 1
-  const setCount = (slug, n) => setSelected(s => s.map(x => x.slug === slug ? { ...x, count: Math.max(1, Math.min(10, n || 1)) } : x))
+  // Held as the raw field text while editing (may be '') and only clamped on
+  // blur. Clamping on every keystroke re-filled the box the instant it was
+  // cleared, so on a touch keyboard the number could never be replaced.
+  const getCount = slug => selected.find(x => x.slug === slug)?.count ?? 1
+  const setCount = (slug, v) => setSelected(s => s.map(x => x.slug === slug ? { ...x, count: v } : x))
+  const commitCount = slug => setSelected(s => s.map(x => x.slug === slug ? { ...x, count: clampCount(x.count) } : x))
 
   const toggle = slug => {
     setSelected(s => {
@@ -1289,11 +1295,15 @@ function NationalsSpeciesPickerModal({ comp, division, existingFish, onClose, on
         const lib = library.find(s => s.slug === slug)
         if (!lib) continue
         const cfg = fishSettings[slug] || { weighSep: true, points: 100, maxKg: 8 }
+        // Fields hold raw text while focused, so coerce here too in case Save
+        // is hit without the input blurring first.
+        const n = clampCount(count)
         rows.push({
           competition_id: comp.id, division,
           species_name: lib.name, species_slug: slug, photo_url: lib.photo_url || null,
-          points: cfg.points, max_weight_kg: cfg.maxKg, weigh_separately: cfg.weighSep,
-          allow_multiples: count > 1, max_count: count, sort_order: order++,
+          points: parseInt(cfg.points) || 100, max_weight_kg: parseFloat(cfg.maxKg) || 8,
+          weigh_separately: cfg.weighSep,
+          allow_multiples: n > 1, max_count: n, sort_order: order++,
         })
       }
       if (rows.length > 0) {
@@ -1341,18 +1351,21 @@ function NationalsSpeciesPickerModal({ comp, division, existingFish, onClose, on
                           </label>
                           <div className="flex items-center gap-1">
                             <input type="number" min="0" value={getSetting(s.slug, 'points', 100)}
-                              onChange={e => setSetting(s.slug, 'points', parseInt(e.target.value) || 100)}
+                              onChange={e => setSetting(s.slug, 'points', e.target.value)}
+                              onBlur={e => setSetting(s.slug, 'points', parseInt(e.target.value) || 100)}
                               className="w-14 border border-gray-300 rounded px-1 py-0.5 text-xs text-center" />
                             <span className="text-xs text-gray-400">pts</span>
                             <input type="number" min="0" step="0.5" value={getSetting(s.slug, 'maxKg', 8)}
-                              onChange={e => setSetting(s.slug, 'maxKg', parseFloat(e.target.value) || 8)}
+                              onChange={e => setSetting(s.slug, 'maxKg', e.target.value)}
+                              onBlur={e => setSetting(s.slug, 'maxKg', parseFloat(e.target.value) || 8)}
                               className="w-12 border border-gray-300 rounded px-1 py-0.5 text-xs text-center" />
                             <span className="text-xs text-gray-400">kg</span>
                           </div>
                           <div className="flex items-center gap-1">
                             <span className="text-xs text-gray-500">×</span>
                             <input type="number" min="1" max="10" value={getCount(s.slug)}
-                              onChange={e => setCount(s.slug, parseInt(e.target.value))}
+                              onChange={e => setCount(s.slug, e.target.value)}
+                              onBlur={() => commitCount(s.slug)}
                               className="w-12 border border-gray-300 rounded px-1 py-0.5 text-xs font-bold text-center" />
                             <span className="text-xs text-gray-400">allowed (weigh each in)</span>
                           </div>
