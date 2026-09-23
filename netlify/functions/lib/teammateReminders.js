@@ -71,13 +71,26 @@ async function confirmLinkFor(email, teamId, slot, isExistingMember) {
   return confirmUrl
 }
 
+// The logo is served as a PNG from the site's own PWA icon set rather than
+// VITE_SNZ_LOGO_URL — that one is an AVIF, which Outlook and several other
+// mail clients can't decode at all and would render as a broken image. The
+// PNG is opaque white, so it sits on its own white bar above the navy band
+// instead of inside it. Width/height attributes are set as well as the inline
+// style because Outlook ignores CSS sizing on images.
 const shell = (heading, inner) => `
 <!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
 <body style="margin:0;padding:0;background:#f8fafc;font-family:Arial,sans-serif;">
   <div style="max-width:560px;margin:32px auto;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
-    <div style="background:#1e3a5f;padding:28px 32px;">
+    <div style="background:#ffffff;padding:24px 32px 18px;text-align:center;">
+      <a href="https://spearfishingnz.co.nz" style="text-decoration:none;border:0;">
+        <img src="${ORIGIN}/icons/icon-192.png" width="76" height="76"
+             alt="Spearfishing New Zealand"
+             style="display:block;margin:0 auto;border:0;outline:none;text-decoration:none;width:76px;height:76px;">
+      </a>
+    </div>
+    <div style="background:#1e3a5f;padding:24px 32px;">
       <p style="margin:0;color:#ffffff;font-size:11px;font-weight:bold;letter-spacing:2px;text-transform:uppercase;">Spearfishing New Zealand</p>
       <h1 style="margin:8px 0 0;color:#ffffff;font-size:22px;font-weight:900;">${heading}</h1>
     </div>
