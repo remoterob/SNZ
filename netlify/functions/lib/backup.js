@@ -3,6 +3,7 @@
 // Lives in lib/ so Netlify doesn't deploy it as a function of its own.
 
 const { createClient } = require('@supabase/supabase-js')
+const { sendTeammateReminders } = require('./teammateReminders')
 
 const supabase = createClient(
   process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL,
@@ -218,7 +219,18 @@ async function runBackup() {
     console.error('Submission alert failed (backup still succeeded):', err)
   }
 
-  return { memberCount, teamCount, ...alerts }
+  // Chase teams where one diver has paid and their partner hasn't. Runs daily
+  // but only emails a given team once every 7 days — see teammateReminders.js.
+  // Isolated for the same reason as the alert above.
+  let reminders = { due: 0, sent: 0, failed: 0 }
+  try {
+    const r = await sendTeammateReminders({ now })
+    reminders = { due: r.due, sent: r.sent, failed: r.failed }
+  } catch (err) {
+    console.error('Teammate reminders failed (backup still succeeded):', err)
+  }
+
+  return { memberCount, teamCount, ...alerts, reminders }
 }
 
 module.exports = { runBackup }
