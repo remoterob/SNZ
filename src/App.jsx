@@ -56,6 +56,8 @@ import BingoDiverPage from './pages/bingo/BingoDiverPage'
 import WFSCApp from './wfsc/WFSCApp'
 import AGMPage from './pages/AGMPage'
 import AGMAdmin from './pages/AGMAdmin'
+import DevSquadPage from './pages/DevSquadPage'
+import DevSquadAdmin from './pages/DevSquadAdmin'
 import NearMissReport from './pages/NearMissReport'
 import NearMissThanks from './pages/NearMissThanks'
 import NearMissResults from './pages/NearMissResults'
@@ -942,6 +944,14 @@ function SNZHub() {
       summary: 'Registrations open now',
     },
     {
+      title: 'Diver Development Squad',
+      desc: 'Identifying and developing the divers who will represent New Zealand on the world stage. Six months of focused training, a boot camp into the 2027 Nationals, and a pathway to the World Champs. Applications are open — you don\'t need to be a current top diver to apply.',
+      onClick: () => navigate('/dev-squad'),
+      icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={SNZ_BLUE} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v6"/><path d="m15.5 4.5-3.5 3.5-3.5-3.5"/><circle cx="12" cy="14" r="4"/><path d="M12 18v4"/><path d="M8 22h8"/></svg>,
+      status: 'live',
+      summary: 'Applications open — trials November 2026',
+    },
+    {
       title: 'Mudgeway Trophy',
       desc: 'The inter-club challenge trophy. Any affiliated club can challenge the current holder — the holder sets the date, venue and fish list, and has to be beaten on the day to give it up.',
       onClick: () => navigate('/mudgeway'),
@@ -1170,6 +1180,8 @@ export default function App() {
       <Route path="/catfish"        element={<CatfishCullPage />} />
       <Route path="/catfish/register" element={<CatfishCullRegister />} />
       <Route path="/catfish/confirm"  element={<CatfishConfirm />} />
+      <Route path="/dev-squad"         element={<DevSquadPage />} />
+      <Route path="/admin/dev-squad"   element={<ProtectedRoute><DevSquadAdmin /></ProtectedRoute>} />
       <Route path="/near-miss"         element={<NearMissReport />} />
       <Route path="/near-miss/thanks"  element={<NearMissThanks />} />
       <Route path="/near-miss/results" element={<NearMissResults />} />
