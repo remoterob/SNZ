@@ -886,6 +886,13 @@ function SNZHub() {
       .eq('is_active', true).maybeSingle()
       .then(({ data }) => setBingoCfg(data || null))
   }, [])
+  // Dev Squad visibility switch (migration 038) — 'hidden' removes the tile.
+  const [devSquadCfg, setDevSquadCfg] = useState(null)
+  useEffect(() => {
+    supabase.from('dev_squad_config').select('status').eq('id', 1).maybeSingle()
+      .then(({ data }) => setDevSquadCfg(data || { status: 'hidden' }))
+  }, [])
+
   const bingoWindow = useMemo(() => {
     if (!bingoCfg) return null
     if (bingoCfg.status) return bingoCfg.status === 'active' ? 'open' : bingoCfg.status === 'upcoming' ? 'before' : 'after'
@@ -948,8 +955,13 @@ function SNZHub() {
       desc: 'Identifying and developing the divers who will represent New Zealand on the world stage. Six months of focused training, a boot camp into the 2027 Nationals, and a pathway to the World Champs. Applications are open — you don\'t need to be a current top diver to apply.',
       onClick: () => navigate('/dev-squad'),
       icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={SNZ_BLUE} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v6"/><path d="m15.5 4.5-3.5 3.5-3.5-3.5"/><circle cx="12" cy="14" r="4"/><path d="M12 18v4"/><path d="M8 22h8"/></svg>,
-      status: 'live',
-      summary: 'Applications open — trials November 2026',
+      status: devSquadCfg?.status === 'closed' ? 'soon' : 'live',
+      statusLabel: devSquadCfg?.status === 'closed' ? 'Applications Closed' : undefined,
+      summary: devSquadCfg?.status === 'closed'
+        ? 'Applications closed — trials November 2026'
+        : 'Applications open — trials November 2026',
+      // Tile disappears entirely until an admin switches the area on.
+      hidden: devSquadCfg?.status !== 'live' && devSquadCfg?.status !== 'closed',
     },
     {
       title: 'Mudgeway Trophy',

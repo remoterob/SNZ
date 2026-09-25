@@ -12,6 +12,8 @@
 //   updateStatus — move an application through the panel workflow.
 //   export       — full rows for CSV, health_disclosure included. The admin
 //                  page turns these into a CSV with src/lib/csvExport.js.
+//   setConfig    — flips the area between live / closed / hidden. Reads are
+//                  public (see migration 038); only writes come through here.
 
 const { createClient } = require('@supabase/supabase-js')
 
@@ -27,6 +29,7 @@ const json = (statusCode, body) => ({
 })
 
 const STATUSES = ['submitted', 'shortlisted', 'interviewed', 'trialling', 'selected', 'declined']
+const AREA_STATUSES = ['live', 'closed', 'hidden']
 
 // Everything except the sensitive health field.
 const LIST_COLUMNS = `
@@ -83,6 +86,21 @@ exports.handler = async (event) => {
         .order('created_at', { ascending: false })
       if (error) throw error
       return json(200, { rows: data || [] })
+    }
+
+    if (body.action === 'setConfig') {
+      const { status, closed_message } = body
+      if (status !== undefined && !AREA_STATUSES.includes(status)) {
+        return json(400, { error: 'Invalid area status' })
+      }
+      const updates = {}
+      if (status !== undefined) updates.status = status
+      if (closed_message !== undefined) updates.closed_message = closed_message || null
+      if (!Object.keys(updates).length) return json(400, { error: 'Nothing to update' })
+      const { data, error } = await supabase
+        .from('dev_squad_config').update(updates).eq('id', 1).select('*').single()
+      if (error) throw error
+      return json(200, { config: data })
     }
 
     return json(400, { error: 'Unknown action' })

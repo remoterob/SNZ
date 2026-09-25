@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { clearAdminSession } from '../lib/supabase'
+import { supabase, clearAdminSession } from '../lib/supabase'
 import { toCSV, downloadCSV } from '../lib/csvExport'
 
 const SNZ_BLUE = '#2B6CB0'
@@ -15,6 +15,16 @@ const STATUSES = [
   { value: 'declined',    label: 'Declined',    cls: 'bg-red-50 text-red-600 border-red-200' },
 ]
 const statusMeta = v => STATUSES.find(s => s.value === v) || STATUSES[0]
+
+// Area visibility switch — see migration 038.
+const AREA_STATES = [
+  { value: 'live',   label: 'Live',   pill: 'bg-green-50 text-green-700 border-green-200',
+    desc: 'Shown on the SNZ Hub, and accepting applications.' },
+  { value: 'closed', label: 'Closed', pill: 'bg-amber-50 text-amber-700 border-amber-200',
+    desc: 'Still shown on the Hub so people can read about it, but applications are closed.' },
+  { value: 'hidden', label: 'Hidden', pill: 'bg-gray-100 text-gray-600 border-gray-200',
+    desc: 'No tile on the Hub, and the page says it isn\'t available.' },
+]
 
 const ageFrom = (dob) => {
   if (!dob) return ''
@@ -68,6 +78,8 @@ export default function DevSquadAdmin() {
   const navigate = useNavigate()
   const pw = import.meta.env.VITE_ADMIN_PASSWORD
 
+  const [cfg, setCfg] = useState(null)
+  const [savingCfg, setSavingCfg] = useState(false)
   const [rows, setRows] = useState(null)
   const [filter, setFilter] = useState('')
   const [search, setSearch] = useState('')
@@ -81,7 +93,16 @@ export default function DevSquadAdmin() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ adminPassword: pw, ...payload }),
     })
-    const data = await res.json()
+    // A platform-level failure (cold start, 502, or running under vite where
+    // the function isn't served) returns HTML or nothing, so don't assume JSON
+    // — otherwise the admin sees a parser error instead of what went wrong.
+    const text = await res.text()
+    let data
+    try { data = JSON.parse(text) } catch {
+      throw new Error(res.status === 404
+        ? 'Admin service not reachable. Netlify Functions don\'t run under the local dev server — try the deployed site.'
+        : `Admin service error (${res.status}). Please try again.`)
+    }
     if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`)
     return data
   }
@@ -98,6 +119,22 @@ export default function DevSquadAdmin() {
   }
 
   useEffect(() => { load() }, [filter]) // eslint-disable-line
+
+  // Config reads are public (migration 038); only the write goes through the
+  // admin function.
+  useEffect(() => {
+    supabase.from('dev_squad_config').select('status, closed_message').eq('id', 1).maybeSingle()
+      .then(({ data }) => setCfg(data || { status: 'hidden' }))
+  }, [])
+
+  const setAreaStatus = async (status) => {
+    setSavingCfg(true)
+    setError('')
+    try {
+      const { config } = await call({ action: 'setConfig', status })
+      setCfg(config)
+    } catch (e) { setError(e.message) } finally { setSavingCfg(false) }
+  }
 
   const shown = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -176,6 +213,42 @@ export default function DevSquadAdmin() {
         </div>
 
         {error && <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-sm text-red-700">{error}</div>}
+
+        <div className="bg-white border border-gray-200 rounded-2xl p-5">
+          <div className="flex items-start justify-between gap-3 flex-wrap mb-3">
+            <div>
+              <h2 className="font-black text-gray-900">Area visibility</h2>
+              <p className="text-xs text-gray-400 mt-0.5">
+                Controls the hub tile and the public page at /dev-squad.
+              </p>
+            </div>
+            {cfg && (
+              <span className={`text-xs font-bold px-3 py-1 rounded-full border ${AREA_STATES.find(s => s.value === cfg.status)?.pill}`}>
+                Currently {AREA_STATES.find(s => s.value === cfg.status)?.label}
+              </span>
+            )}
+          </div>
+          {!cfg ? (
+            <p className="text-sm text-gray-400">Loading…</p>
+          ) : (
+            <div className="grid sm:grid-cols-3 gap-2.5">
+              {AREA_STATES.map(s => {
+                const on = cfg.status === s.value
+                return (
+                  <button key={s.value} onClick={() => setAreaStatus(s.value)} disabled={savingCfg || on}
+                    className={`text-left p-3.5 rounded-xl border-2 transition disabled:cursor-default ${
+                      on ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'}`}>
+                    <p className={`text-sm font-black ${on ? 'text-blue-700' : 'text-gray-700'}`}>
+                      {on ? '● ' : ''}{s.label}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1 leading-relaxed">{s.desc}</p>
+                  </button>
+                )
+              })}
+            </div>
+          )}
+          {savingCfg && <p className="text-xs text-gray-400 mt-2">Saving…</p>}
+        </div>
 
         <div className="flex items-center gap-2 flex-wrap">
           <button onClick={() => setFilter('')}

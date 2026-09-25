@@ -53,7 +53,7 @@ const inputCls =
 
 // ── Info content ──────────────────────────────────────────────────────────────
 
-function Intro({ onApply }) {
+function Intro({ onApply, closed, closedMessage }) {
   return (
     <>
       <div style={{ background: `linear-gradient(135deg, ${SNZ_DARK} 0%, ${SNZ_BLUE} 100%)` }}
@@ -64,13 +64,22 @@ function Intro({ onApply }) {
         </h1>
         <p className="text-blue-100 text-base leading-relaxed max-w-xl mx-auto">
           Identifying and developing the divers who will represent New Zealand on the world stage.
-          Applications are open now.
+          {closed ? '' : ' Applications are open now.'}
         </p>
-        <button onClick={onApply}
-          className="mt-7 px-6 py-3 rounded-xl font-black text-sm bg-white hover:opacity-90 transition"
-          style={{ color: SNZ_DARK }}>
-          Apply for the Squad →
-        </button>
+        {closed ? (
+          <div className="mt-7 inline-block bg-white/15 border border-white/25 rounded-xl px-5 py-4 max-w-md">
+            <p className="text-white font-black text-sm mb-1">Applications are closed</p>
+            <p className="text-blue-100 text-sm leading-relaxed">
+              {closedMessage || 'Applications for this intake have closed. Everything below still applies — keep an eye out for the next round.'}
+            </p>
+          </div>
+        ) : (
+          <button onClick={onApply}
+            className="mt-7 px-6 py-3 rounded-xl font-black text-sm bg-white hover:opacity-90 transition"
+            style={{ color: SNZ_DARK }}>
+            Apply for the Squad →
+          </button>
+        )}
       </div>
 
       <Section title="Why we're doing this">
@@ -203,6 +212,7 @@ export default function DevSquadPage() {
   const { session, member } = useMemberSession()
 
   const [species, setSpecies] = useState([])
+  const [cfg, setCfg] = useState(undefined)   // undefined = still loading
   const [showForm, setShowForm] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [done, setDone] = useState(false)
@@ -227,6 +237,13 @@ export default function DevSquadPage() {
     supabase.from('bingo_species').select('name, slug, display_order')
       .eq('is_active', true).order('display_order')
       .then(({ data }) => setSpecies((data || []).filter(s => !NON_SPECIES_SLUGS.includes(s.slug))))
+  }, [])
+
+  // Visibility / intake switch (migration 038). Read is public. Defaults to
+  // hidden if the row is somehow missing, so the area fails closed.
+  useEffect(() => {
+    supabase.from('dev_squad_config').select('status, closed_message').eq('id', 1).maybeSingle()
+      .then(({ data }) => setCfg(data || { status: 'hidden' }))
   }, [])
 
   // Sign-in is optional — when we do have a member, save them retyping what
@@ -335,7 +352,24 @@ export default function DevSquadPage() {
       </div>
 
       <div className="max-w-3xl mx-auto px-4 py-6 space-y-4">
-        {done ? (
+        {cfg === undefined ? (
+          <div className="text-center py-20 text-gray-400 text-sm">Loading…</div>
+        ) : cfg.status === 'hidden' ? (
+          <div className="bg-white border border-gray-200 rounded-2xl p-8 sm:p-12 text-center">
+            <div className="w-14 h-14 rounded-2xl bg-gray-100 flex items-center justify-center mx-auto mb-5">
+              <span className="text-2xl">🤿</span>
+            </div>
+            <h1 className="text-2xl font-black text-gray-900 mb-2">Not currently available</h1>
+            <p className="text-gray-500 text-sm leading-relaxed max-w-sm mx-auto mb-6">
+              The NZ Diver Development Squad isn't open at the moment. Keep an eye on the SNZ Hub
+              and our channels for news.
+            </p>
+            <button onClick={() => navigate('/')}
+              className="px-5 py-2.5 rounded-xl font-bold text-sm text-white" style={{ background: SNZ_BLUE }}>
+              Back to SNZ Hub
+            </button>
+          </div>
+        ) : done ? (
           <div className="bg-white border border-gray-200 rounded-2xl p-8 sm:p-10 text-center">
             <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-5">
               <span className="text-green-600 text-3xl">✓</span>
@@ -354,9 +388,10 @@ export default function DevSquadPage() {
           </div>
         ) : (
           <>
-            {!showForm && <Intro onApply={() => setShowForm(true)} />}
+            {!showForm && <Intro onApply={() => setShowForm(true)} closed={cfg.status === 'closed'}
+              closedMessage={cfg.closed_message} />}
 
-            {showForm && (
+            {showForm && cfg.status === 'live' && (
               <form onSubmit={submit} className="space-y-4">
                 <div style={{ background: `linear-gradient(135deg, ${SNZ_DARK} 0%, ${SNZ_BLUE} 100%)` }}
                   className="rounded-2xl px-6 py-7">
