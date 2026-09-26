@@ -26,6 +26,12 @@ export default function BingoAdmin() {
       path: '/bingo/admin/bonuses',
     },
     {
+      title: 'Registrations',
+      desc: 'Who has signed up to play this season — with their club, region, experience, claim count and score. Export the list to CSV.',
+      icon: '👥',
+      path: '/bingo/admin/registrations',
+    },
+    {
       title: 'Photo Export',
       desc: 'Every uploaded catch photo, stamped with the SNZ logo and the diver\'s name and club. Select the ones you want and download them ready to post.',
       icon: '📸',
