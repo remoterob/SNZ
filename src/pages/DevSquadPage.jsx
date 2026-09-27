@@ -95,10 +95,15 @@ function Intro({ onApply, closed, closedMessage }) {
             tradition Spearfishing New Zealand is passionate about continuing and supporting.
           </p>
           <p>
-            The NZ Diver Development Squad exists to identify the best up-and-coming divers from
-            across New Zealand, and to develop and support those already performing at the highest
-            level. Over the next six months the squad will undertake focused training and development
-            to help each diver reach their full potential.
+            To help build on this success, Spearfishing New Zealand is creating the NZ Diver
+            Development Squad — with the goal of identifying the best up-and-coming divers from
+            across New Zealand, as well as developing and supporting those top divers already
+            performing at the highest level.
+          </p>
+          <p>
+            Over the next six months the squad will undertake focused training and development to
+            help each diver reach their full potential, with the ultimate goal of developing
+            excellent divers capable of representing New Zealand on the world stage.
           </p>
         </div>
       </Section>
@@ -195,11 +200,17 @@ function Intro({ onApply, closed, closedMessage }) {
             </li>
           ))}
         </ol>
-        <p className="text-sm text-gray-500 leading-relaxed mt-4">
-          All stages are assessed by the selection panel, which includes representatives from the
-          Spearfishing New Zealand Committee. The panel will consider competition results, diving
-          ability, experience, potential and performance throughout the process.
-        </p>
+        <div className="text-sm text-gray-500 leading-relaxed mt-4 space-y-3">
+          <p>
+            All stages are assessed by the selection panel, which will consider competition results,
+            diving ability, experience, potential and performance throughout the process.
+          </p>
+          <p>
+            The Spearfishing Selection Panel is a sub-committee of Spearfishing New Zealand. It
+            comprises SNZ committee members and squad coaches, and may also include individuals
+            seconded on the basis of relevant expertise and/or experience.
+          </p>
+        </div>
       </Section>
     </>
   )
