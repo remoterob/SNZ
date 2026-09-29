@@ -465,7 +465,7 @@ export default function DevSquadPage() {
                       <input type="number" min="0" step="0.5" className={inputCls} value={f.comfortable_depth_m}
                         onChange={e => set('comfortable_depth_m', e.target.value)} />
                     </Field>
-                    <Field label="Max breath-hold (seconds)">
+                    <Field label="Spearing Max breathhold (seconds)">
                       <input type="number" min="0" className={inputCls} value={f.max_breath_hold_sec}
                         onChange={e => set('max_breath_hold_sec', e.target.value)} />
                     </Field>
