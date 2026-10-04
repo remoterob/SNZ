@@ -21,6 +21,17 @@ const COMMITMENT_OPTIONS = [
   { value: 'no',      label: 'Not right now — but I\'d like to be considered in future' },
 ]
 
+// Keys are stored in dev_squad_applications.squad_questions (migration 040)
+// and must stay in step with the export columns in DevSquadAdmin.jsx.
+const SQUAD_QUESTIONS = [
+  { key: 'spearfishing_ability', label: 'Describe in your own words your spearfishing ability?' },
+  { key: 'strengths',            label: 'What are your spearfishing strengths?' },
+  { key: 'weaknesses',           label: 'What are your spearfishing weaknesses?' },
+  { key: 'training_process',     label: 'What is your current spearfishing training process?' },
+  { key: 'two_year_goal',        label: 'What is your spearfishing competition goal over the next 2 years?' },
+  { key: 'panel_consideration',  label: 'Why should the panel consider you for the Development Squad?' },
+]
+
 const blankComp = () => ({ name: '', year: '', placing: '', partner: '' })
 const blankTrip = () => ({ location: '', when: '', duration: '' })
 
@@ -241,8 +252,10 @@ export default function DevSquadPage() {
   const [comps, setComps] = useState([blankComp()])
   const [trips, setTrips] = useState([blankTrip()])
   const [picked, setPicked] = useState(() => new Set())
+  const [answers, setAnswers] = useState({})
 
   const set = (k, v) => setF(prev => ({ ...prev, [k]: v }))
+  const setAnswer = (k, v) => setAnswers(prev => ({ ...prev, [k]: v }))
 
   useEffect(() => {
     supabase.from('bingo_species').select('name, slug, display_order')
@@ -297,6 +310,7 @@ export default function DevSquadPage() {
   if (!f.email.trim()) missing.push('Email')
   if (!f.phone.trim()) missing.push('Contact number')
   if (!f.suburb_city.trim()) missing.push('Suburb & city')
+  if (SQUAD_QUESTIONS.some(q => !(answers[q.key] || '').trim())) missing.push('Squad questions')
   if (!f.commitment_level) missing.push('Commitment to the squad')
   if (!f.medically_fit) missing.push('Medical fitness declaration')
   const tooYoung = age != null && age < 16
@@ -332,6 +346,7 @@ export default function DevSquadPage() {
         nz_locations: f.nz_locations.trim() || null,
         overseas_experience: trips.filter(t => t.location.trim() || t.when.trim() || t.duration.trim()),
         species_shot: [...picked],
+        squad_questions: Object.fromEntries(SQUAD_QUESTIONS.map(q => [q.key, answers[q.key].trim()])),
         commitment_level: f.commitment_level,
         commitment_notes: f.commitment_notes.trim() || null,
         medically_fit: f.medically_fit,
@@ -606,6 +621,18 @@ export default function DevSquadPage() {
                       </div>
                     </>
                   )}
+                </Section>
+
+                <Section title="Your spearfishing"
+                  hint="The goal of this squad is to help develop the next top divers in NZ to represent us all.">
+                  <div className="space-y-4">
+                    {SQUAD_QUESTIONS.map((q, i) => (
+                      <Field key={q.key} label={`${i + 1}. ${q.label}`} required>
+                        <textarea className={`${inputCls} min-h-[90px] resize-y`} value={answers[q.key] || ''}
+                          onChange={e => setAnswer(q.key, e.target.value)} />
+                      </Field>
+                    ))}
+                  </div>
                 </Section>
 
                 <Section title="Commitment to the squad"
