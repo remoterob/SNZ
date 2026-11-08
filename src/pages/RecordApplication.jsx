@@ -215,6 +215,7 @@ export default function RecordApplication() {
           length_cm: parseFloat(form.length_cm) || null,
           girth_cm: parseFloat(form.girth_cm) || null,
           height_cm: parseFloat(form.height_cm) || null,
+          weighmaster_weight_kg: parseFloat(form.weighmaster_weight_kg) || null,
           status: 'draft',
         }
         delete payload.app_types
@@ -274,6 +275,7 @@ export default function RecordApplication() {
         length_cm: parseFloat(form.length_cm) || null,
         girth_cm: parseFloat(form.girth_cm) || null,
         height_cm: parseFloat(form.height_cm) || null,
+        weighmaster_weight_kg: parseFloat(form.weighmaster_weight_kg) || null,
         status: 'submitted',
         ...photoUrls,
       }
