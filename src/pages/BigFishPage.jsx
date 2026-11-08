@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useMemberSession } from '../components/MemberAuthGate'
 import { notify } from '../utils/toasts'
+import { compressImage } from '../lib/compressImage'
 
 const SNZ_BLUE = '#2B6CB0'
 const BUCKET   = 'snz-media'
@@ -28,10 +29,11 @@ const RANK_STYLE = {
 }
 
 async function uploadPhoto(file, path) {
-  const ext = file.name.split('.').pop().toLowerCase()
+  const small = await compressImage(file)
+  const ext = small.name.split('.').pop().toLowerCase()
   const fullPath = `${path}.${ext}`
   const { error } = await supabase.storage.from(BUCKET)
-    .upload(fullPath, file, { contentType: file.type, upsert: true })
+    .upload(fullPath, small, { contentType: small.type, upsert: true })
   if (error) throw error
   const { data } = supabase.storage.from(BUCKET).getPublicUrl(fullPath)
   return data.publicUrl
@@ -666,6 +668,41 @@ function EntryModal({ comp, species, existingEntries, allEntries, session, membe
   const scalesRef = useRef(null)
   const lengthRef = useRef(null)
 
+  // Photos upload in the background as soon as they're picked (compressed
+  // first), so Submit usually only has to write the DB row.
+  const uploadBase = useRef(null)
+  const uploads    = useRef({})               // key -> { file, promise }
+  const [upStatus, setUpStatus] = useState({}) // key -> 'uploading' | 'done' | 'error'
+
+  const startUpload = (key, file) => {
+    if (!uploadBase.current) {
+      const uid = session?.user?.id || 'anon'
+      uploadBase.current = `bigfish/${comp.id}/${uid}/${species.replace(/\s+/g, '-').toLowerCase()}/${Date.now()}`
+    }
+    const promise = uploadPhoto(file, `${uploadBase.current}/${key}`)
+    const entry = { file, promise }
+    uploads.current[key] = entry
+    setUpStatus(s => ({ ...s, [key]: 'uploading' }))
+    promise.then(
+      () => { if (uploads.current[key] === entry) setUpStatus(s => ({ ...s, [key]: 'done' })) },
+      () => { if (uploads.current[key] === entry) setUpStatus(s => ({ ...s, [key]: 'error' })) },
+    )
+    return entry
+  }
+
+  const pickPhoto = (key, setFile) => (file) => {
+    setFile(file)
+    if (file) startUpload(key, file)
+  }
+
+  // Resolve a photo's URL, (re)starting its upload if missing or failed — one retry.
+  const photoUrl = async (key, file) => {
+    let entry = uploads.current[key]
+    if (!entry || entry.file !== file) entry = startUpload(key, file)
+    try { return await entry.promise }
+    catch { return await startUpload(key, file).promise }
+  }
+
   // Build preview URLs once per file (not on every render/keystroke) and revoke
   // them when the file changes or the modal unmounts, to avoid blob-URL leaks.
   const gloryUrl  = useMemo(() => (gloryFile  ? URL.createObjectURL(gloryFile)  : null), [gloryFile])
@@ -692,6 +729,9 @@ function EntryModal({ comp, species, existingEntries, allEntries, session, membe
     setGloryFile(null)
     setScalesFile(null)
     setLengthFile(null)
+    uploads.current = {}
+    uploadBase.current = null
+    setUpStatus({})
     setError(null)
     setMode('form')
   }
@@ -708,13 +748,12 @@ function EntryModal({ comp, species, existingEntries, allEntries, session, membe
     setBusy(true)
     setError(null)
     try {
-      const uid  = session.user.id
-      const ts   = Date.now()
-      const base = `bigfish/${comp.id}/${uid}/${species.replace(/\s+/g, '-').toLowerCase()}/${ts}`
-
-      const gloryUrl  = await uploadPhoto(gloryFile,  `${base}/glory`)
-      const scalesUrl = await uploadPhoto(scalesFile, `${base}/scales`)
-      const lengthUrl = await uploadPhoto(lengthFile, `${base}/length`)
+      const uid = session.user.id
+      const [gloryUrl, scalesUrl, lengthUrl] = await Promise.all([
+        photoUrl('glory',  gloryFile),
+        photoUrl('scales', scalesFile),
+        photoUrl('length', lengthFile),
+      ])
 
       const payload = {
         comp_id:          comp.id,
@@ -865,10 +904,10 @@ function EntryModal({ comp, species, existingEntries, allEntries, session, membe
             </label>
             <div className="grid grid-cols-3 gap-2">
               {[
-                { label: 'Competitor Photo', hint: 'You + fish',  ref: gloryRef,  file: gloryFile,  set: setGloryFile,  url: gloryUrl },
-                { label: 'Scales',      hint: 'Weight shown',   ref: scalesRef, file: scalesFile, set: setScalesFile, url: scalesUrl },
-                { label: 'Length',      hint: 'Measure shown',  ref: lengthRef, file: lengthFile, set: setLengthFile, url: lengthUrl },
-              ].map(({ label, hint, ref, file, set, url }) => (
+                { key: 'glory',  label: 'Competitor Photo', hint: 'You + fish',    ref: gloryRef,  file: gloryFile,  set: pickPhoto('glory',  setGloryFile),  url: gloryUrl },
+                { key: 'scales', label: 'Scales',           hint: 'Weight shown',  ref: scalesRef, file: scalesFile, set: pickPhoto('scales', setScalesFile), url: scalesUrl },
+                { key: 'length', label: 'Length',           hint: 'Measure shown', ref: lengthRef, file: lengthFile, set: pickPhoto('length', setLengthFile), url: lengthUrl },
+              ].map(({ key, label, hint, ref, file, set, url }) => (
                 <div key={label} className="flex flex-col items-center gap-1">
                   <button type="button" onClick={() => ref.current?.click()}
                     className="w-full relative overflow-hidden rounded-2xl border-2 transition active:scale-95"
@@ -882,7 +921,17 @@ function EntryModal({ comp, species, existingEntries, allEntries, session, membe
                         <img src={url} alt={label}
                           className="absolute inset-0 w-full h-full object-cover" />
                         <div className="absolute inset-0 flex items-end justify-end p-1.5">
-                          <span className="bg-green-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-black">✓</span>
+                          {upStatus[key] === 'uploading' && (
+                            <span className="bg-white/90 rounded-full w-6 h-6 flex items-center justify-center">
+                              <span className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                            </span>
+                          )}
+                          {upStatus[key] === 'done' && (
+                            <span className="bg-green-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-black">✓</span>
+                          )}
+                          {upStatus[key] === 'error' && (
+                            <span className="bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-black" title="Upload failed — will retry on submit">!</span>
+                          )}
                         </div>
                       </>
                     ) : (
@@ -897,7 +946,7 @@ function EntryModal({ comp, species, existingEntries, allEntries, session, membe
                   </button>
                   <span className="text-xs font-bold text-gray-500">{label}</span>
                   <input ref={ref} type="file" accept="image/*" className="hidden"
-                    onChange={e => set(e.target.files?.[0] || null)} />
+                    onChange={e => { set(e.target.files?.[0] || null); e.target.value = '' }} />
                 </div>
               ))}
             </div>
@@ -919,7 +968,9 @@ function EntryModal({ comp, species, existingEntries, allEntries, session, membe
             <button type="submit" disabled={busy}
               className="flex-1 py-3.5 rounded-xl font-black text-base text-white disabled:opacity-50 transition active:scale-95"
               style={{ background: SNZ_BLUE }}>
-              {busy ? 'Submitting…' : replaceTarget ? 'Replace Entry' : 'Submit Entry'}
+              {busy
+                ? (['glory', 'scales', 'length'].some(k => upStatus[k] !== 'done') ? 'Uploading photos…' : 'Saving…')
+                : replaceTarget ? 'Replace Entry' : 'Submit Entry'}
             </button>
             <button type="button"
               onClick={existingEntries.length > 0 ? () => setMode('list') : onClose}

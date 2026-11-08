@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useMemberSession, MemberAuthGate } from '../components/MemberAuthGate'
+import { compressImage } from '../lib/compressImage'
 
 const SNZ_BLUE = '#2B6CB0'
 const SNZ_LOGO = import.meta.env.VITE_SNZ_LOGO_URL || null
@@ -229,7 +230,8 @@ export default function RecordApplication() {
         setAppId(id)
       }
 
-      // Upload to storage
+      // Upload to storage (shrink first — record photos stay large enough to verify detail)
+      file = await compressImage(file, { maxDim: 2400, quality: 0.85 })
       const ext = file.name.split('.').pop().toLowerCase().replace('heic', 'jpg')
       const path = `applications/${id}/${photoKey}.${ext}`
       const { error: upErr } = await supabase.storage
