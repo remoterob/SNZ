@@ -1,7 +1,7 @@
 // Membership landing, signup, login, dashboard, password reset
 import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { supabase } from '../lib/supabase'
+import { supabase, isAdmin } from '../lib/supabase'
 import { useStripeCheckout } from '../hooks/useStripeCheckout'
 
 const SNZ_BLUE = '#2B6CB0'
@@ -63,8 +63,8 @@ function newMemberFeeFields(waived) {
 // ── Shared header ─────────────────────────────────────────────────────────────
 function MemberHeader({ session, onSignOut }) {
   const navigate = useNavigate()
-  // Check if SNZ admin is logged in (stored in sessionStorage by AdminLogin)
-  const isSnzAdmin = !!sessionStorage.getItem('snz_admin_session')
+  // Check if SNZ admin is logged in (token from AdminLogin)
+  const isSnzAdmin = isAdmin()
   return (
     <div style={{ background: SNZ_BLUE }} className="px-3 sm:px-6 py-3 flex items-center justify-between gap-2 border-b border-blue-700">
       <div className="flex items-center gap-2 sm:gap-3 min-w-0">

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { supabase } from '../lib/supabase'
+import { supabase, adminToken } from '../lib/supabase'
 import CompCopilotFAB from './CompCopilotFAB'
 import { teamLeaderboard, openTeamLeaderboard, photographyLeaderboard, finSwimLeaderboard, superDiverLeaderboard, medalFor } from '../lib/nationalsScoring'
 import { toCSV, downloadCSV } from '../lib/csvExport'
@@ -206,7 +206,7 @@ function TeamModal({ team, compId, onClose, onSaved }) {
       // Chase anyone who still owes us something: joining SNZ, or their entry
       // fee. A diver who is an active member with a settled fee gets nothing,
       // so re-saving a complete team doesn't spam people.
-      const adminPassword = sessionStorage.getItem('snz_admin_session') || import.meta.env.VITE_ADMIN_PASSWORD
+      const token = adminToken()
       const invites = [
         { slot: 1, email: form.diver1_email.trim().toLowerCase(), lookup: d1, pay: form.payment_status },
         { slot: 2, email: form.diver2_email.trim().toLowerCase(), lookup: d2, pay: form.diver2_payment_status },
@@ -225,7 +225,7 @@ function TeamModal({ team, compId, onClose, onSaved }) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               email: d.email,
-              adminPassword,
+              adminToken: token,
               invitedBy: 'Spearfishing New Zealand',
               compName: 'SNZ Nationals 2027',
               teamName: form.team_name.trim(),
@@ -594,7 +594,7 @@ function RegistrationsTab({ teams, comp, loading, onRefresh }) {
 
   const refundTeam = async (team, e) => {
     e.stopPropagation()
-    const adminPassword = sessionStorage.getItem('snz_admin_session') || import.meta.env.VITE_ADMIN_PASSWORD
+    const token = adminToken()
     setSaving(`${team.id}-refund`)
     try {
       // Find the refundable Stripe payment(s) — nationals teams can have two
@@ -602,7 +602,7 @@ function RegistrationsTab({ teams, comp, loading, onRefresh }) {
       let res = await fetch('/.netlify/functions/refund-payment', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ adminPassword, type: 'comp_entry', teamId: team.id, listOnly: true }),
+        body: JSON.stringify({ adminToken: token, type: 'comp_entry', teamId: team.id, listOnly: true }),
       })
       let data = await res.json()
       if (!res.ok) { window.alert(data.error || 'No refundable payment found'); return }
@@ -632,7 +632,7 @@ function RegistrationsTab({ teams, comp, loading, onRefresh }) {
       res = await fetch('/.netlify/functions/refund-payment', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ adminPassword, type: 'comp_entry', teamId: team.id, paymentIntentId: pick.id, amountCents }),
+        body: JSON.stringify({ adminToken: token, type: 'comp_entry', teamId: team.id, paymentIntentId: pick.id, amountCents }),
       })
       data = await res.json()
       if (!res.ok) window.alert(data.error || 'Refund failed')

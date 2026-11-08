@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { supabase, setAdminSession, isMudgewayAdmin } from '../lib/supabase'
+import { supabase, adminLogin, isMudgewayAdmin } from '../lib/supabase'
 import { scoreTeam, determineOutcome } from '../lib/mudgewayScoring'
 
 const SNZ_BLUE = '#2B6CB0'
@@ -21,10 +21,15 @@ const PENALTY_REASONS = [
 function Gate({ onOk }) {
   const [pwd, setPwd] = useState('')
   const [err, setErr] = useState('')
-  const submit = (e) => {
+  const submit = async (e) => {
     e.preventDefault()
-    if (setAdminSession(pwd) && isMudgewayAdmin()) { onOk(); return }
-    setErr('That password does not open Mudgeway admin.')
+    try {
+      await adminLogin(pwd)
+      if (isMudgewayAdmin()) { onOk(); return }
+      setErr('That password does not open Mudgeway admin.')
+    } catch {
+      setErr('Could not reach the server — try again.')
+    }
   }
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">

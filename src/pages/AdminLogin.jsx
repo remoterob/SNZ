@@ -1,22 +1,29 @@
 import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { setAdminSession } from '../lib/supabase'
+import { adminLogin } from '../lib/supabase'
 
 const SNZ_LOGO = import.meta.env.VITE_SNZ_LOGO_URL || '/api/placeholder/200/80'
 
 export default function AdminLogin() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
   const navigate = useNavigate()
   const location = useLocation()
   const from = location.state?.from || '/admin'
 
-  const handleLogin = () => {
-    if (setAdminSession(password)) {
-      navigate(from)
-    } else {
+  const handleLogin = async () => {
+    setBusy(true)
+    setError('')
+    try {
+      const scopes = await adminLogin(password)
+      if (scopes.length) { navigate(from); return }
       setError('Invalid password')
       setPassword('')
+    } catch {
+      setError('Could not reach the server — try again')
+    } finally {
+      setBusy(false)
     }
   }
 
@@ -55,9 +62,10 @@ export default function AdminLogin() {
           />
           <button
             type="submit"
-            className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition"
+            disabled={busy}
+            className="w-full disabled:opacity-60 bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition"
           >
-            Login
+            {busy ? 'Checking…' : 'Login'}
           </button>
           <button
             type="button"

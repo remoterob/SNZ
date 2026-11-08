@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { supabase, clearAdminSession } from '../lib/supabase'
+import { supabase, clearAdminSession, adminToken } from '../lib/supabase'
 import { toCSV, downloadCSV } from '../lib/csvExport'
 import { pointsMapFromSpecies, pointsForSlug, isBonusSlug } from '../lib/bingo/helpers'
 
@@ -49,7 +49,6 @@ const EXPORT_COLUMNS = [
 
 export default function BingoRegistrationsAdmin() {
   const navigate = useNavigate()
-  const pw = import.meta.env.VITE_BINGO_ADMIN_PASSWORD || import.meta.env.VITE_ADMIN_PASSWORD
 
   const [seasons, setSeasons] = useState([])
   const [season, setSeason] = useState('')
@@ -87,7 +86,7 @@ export default function BingoRegistrationsAdmin() {
         const res = await fetch(API, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ adminPassword: pw, season }),
+          body: JSON.stringify({ adminToken: adminToken(), season }),
         })
         const text = await res.text()
         let data

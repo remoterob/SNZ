@@ -12,6 +12,7 @@
 // this function duplicating the scoring rules in CommonJS.
 
 const { createClient } = require('@supabase/supabase-js')
+const { requireAdmin } = require('./lib/adminAuth')
 
 const supabase = createClient(
   process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL,
@@ -30,12 +31,7 @@ exports.handler = async (event) => {
   let body
   try { body = JSON.parse(event.body || '{}') } catch { return json(400, { error: 'Bad request' }) }
 
-  const pw = body.adminPassword
-  const ok = !!pw && (
-    pw === process.env.VITE_ADMIN_PASSWORD ||
-    (process.env.VITE_BINGO_ADMIN_PASSWORD && pw === process.env.VITE_BINGO_ADMIN_PASSWORD)
-  )
-  if (!ok) return json(401, { error: 'Unauthorised' })
+  if (!requireAdmin(event, body, ['bingo'])) return json(401, { error: 'Unauthorised' })
 
   try {
     let q = supabase

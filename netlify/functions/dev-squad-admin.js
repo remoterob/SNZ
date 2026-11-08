@@ -3,7 +3,7 @@
 // dev_squad_applications has no admin-exception RLS policy (see migration
 // 037) — this function is the only way to list, update or export them. Gated
 // the same way every other privileged action in this app is: a shared password
-// compared server-side against VITE_ADMIN_PASSWORD (see refund-payment.js and
+// checked server-side via an admin token, lib/adminAuth.js (see refund-payment.js and
 // near-miss-admin.js), then the service-role key bypasses RLS.
 //
 // Actions (all POST, dispatched via `action`):
@@ -16,6 +16,7 @@
 //                  public (see migration 038); only writes come through here.
 
 const { createClient } = require('@supabase/supabase-js')
+const { requireAdmin } = require('./lib/adminAuth')
 
 const supabase = createClient(
   process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL,
@@ -48,7 +49,7 @@ exports.handler = async (event) => {
   let body
   try { body = JSON.parse(event.body || '{}') } catch { return json(400, { error: 'Bad request' }) }
 
-  if (!body.adminPassword || body.adminPassword !== process.env.VITE_ADMIN_PASSWORD) {
+  if (!requireAdmin(event, body)) {
     return json(401, { error: 'Unauthorised' })
   }
 

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase, clearAdminSession } from '../lib/supabase'
+import { recordAppsAdmin } from '../lib/recordApplicationsAdmin'
 
 const SNZ_BLUE = '#2B6CB0'
 const DIVISIONS = ['Open', "Women's", 'Junior U18', 'Meritorious', 'Natural History']
@@ -60,7 +61,8 @@ function AdminNotes({ appId, existing, onSave }) {
 
   const save = async () => {
     setSaving(true)
-    await supabase.from('record_applications').update({ admin_notes: notes }).eq('id', appId)
+    try { await recordAppsAdmin('update', { id: appId, patch: { admin_notes: notes } }) }
+    catch (err) { setSaving(false); alert('Could not save notes: ' + err.message); return }
     setSaving(false)
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
@@ -141,8 +143,13 @@ export default function RecordsAdmin() {
   }
 
   const fetchApplications = async () => {
-    const { data } = await supabase.from('record_applications').select('*').order('submitted_at', { ascending: false })
-    setApplications(data || [])
+    try {
+      const { rows } = await recordAppsAdmin('list')
+      setApplications(rows || [])
+    } catch (err) {
+      console.error('Could not load applications:', err)
+      setApplications([])
+    }
   }
 
   useEffect(() => { fetchRecords(); fetchApplications() }, [])
@@ -255,34 +262,8 @@ export default function RecordsAdmin() {
     if (!confirm(`Delete application from ${name}?\n\nThis will permanently remove the application and all uploaded photos. This cannot be undone.`)) return
     setDeleting(id)
     try {
-      // First fetch the application to get photo URLs
-      const { data: app } = await supabase.from('record_applications').select('*').eq('id', id).single()
-
-      // Delete all uploaded photos from storage
-      if (app) {
-        const photoKeys = [
-          'photo_applicant_with_fish', 'photo_applicant_on_scales', 'photo_fish_on_scales',
-          'photo_species_diagnostic', 'photo_length_under', 'photo_height',
-          'photo_length_over', 'photo_girth', 'photo_scales_sticker'
-        ]
-        const paths = photoKeys
-          .filter(k => app[k])
-          .map(k => {
-            // Extract storage path from full URL: .../snz-media/applications/123/photo_key.jpg
-            const url = app[k]
-            const match = url.match(/snz-media\/(.+?)(\?|$)/)
-            return match ? match[1] : null
-          })
-          .filter(Boolean)
-
-        if (paths.length > 0) {
-          await supabase.storage.from('snz-media').remove(paths)
-        }
-      }
-
-      // Delete the DB row
-      const { error } = await supabase.from('record_applications').delete().eq('id', id)
-      if (error) throw error
+      // Deletes the row and its uploaded photos server-side
+      await recordAppsAdmin('delete', { id })
       showToast('Application deleted')
       fetchApplications()
     } catch (err) {
@@ -294,9 +275,12 @@ export default function RecordsAdmin() {
 
   // ── Update application status ─────────────────────────────────────────────
   const updateAppStatus = async (id, status) => {
-    const { error } = await supabase.from('record_applications').update({ status }).eq('id', id)
-    if (error) showToast(error.message, 'error')
-    else { showToast(`Status → ${status}`); fetchApplications() }
+    try {
+      await recordAppsAdmin('update', { id, patch: { status } })
+      showToast(`Status → ${status}`); fetchApplications()
+    } catch (err) {
+      showToast(err.message, 'error')
+    }
   }
 
   const setField = (key) => (val) => setModal(m => ({ ...m, record: { ...m.record, [key]: val } }))

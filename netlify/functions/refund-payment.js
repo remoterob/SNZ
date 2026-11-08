@@ -1,7 +1,7 @@
 // Netlify Function: refund a Stripe payment for a membership or comp entry.
 // Admin-only (password-checked POST), called from the admin pages.
 //
-// Request: { adminPassword, type: 'membership' | 'comp_entry',
+// Request: { adminToken, type: 'membership' | 'comp_entry',
 //            memberId? , teamId?, paymentIntentId?, amountCents?, listOnly? }
 //
 // Payment resolution order: the intent id stored on the DB row, then a Stripe
@@ -15,6 +15,7 @@
 // untouched — they're recorded in Stripe only.
 
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY)
+const { requireAdmin } = require('./lib/adminAuth')
 const { createClient } = require('@supabase/supabase-js')
 
 const supabase = createClient(
@@ -82,7 +83,9 @@ exports.handler = async (event) => {
   } catch (e) {
     return json(400, { error: 'Bad request' })
   }
-  if (body.adminPassword !== process.env.VITE_ADMIN_PASSWORD) {
+  // Comp-entry refunds are also open to the Nationals / Catfish scoped admins,
+  // whose admin pages issue them. Membership refunds need full admin.
+  if (!requireAdmin(event, body, body.type === 'comp_entry' ? ['nationals', 'catfish'] : ['admin'])) {
     return json(401, { error: 'Unauthorised' })
   }
 

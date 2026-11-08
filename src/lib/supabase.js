@@ -20,62 +20,66 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   }
 })
 
-// Admin password check (simple version - in production use Supabase Auth)
-export const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD || 'admin123'
-// Scoped password: unlocks Fish Bingo admin only, not the rest of /admin/*.
-export const BINGO_ADMIN_PASSWORD = import.meta.env.VITE_BINGO_ADMIN_PASSWORD || null
-// Scoped password: unlocks Nationals admin only, not the rest of /admin/*.
-export const NATIONALS_ADMIN_PASSWORD = import.meta.env.VITE_NATIONALS_ADMIN_PASSWORD || null
-// Scoped password: unlocks the Catfish Cull's competition admin only. Comp
-// admin is per-competition (/competitions/:id/admin), so this is checked
-// against the catfish comp alone — it must not open other clubs' comps.
-export const CATFISH_ADMIN_PASSWORD = import.meta.env.VITE_CATFISH_ADMIN_PASSWORD || null
-// Scoped password: unlocks Mudgeway Trophy admin only (/admin/mudgeway), not
-// the rest of /admin/*.
-export const MUDGEWAY_ADMIN_PASSWORD = import.meta.env.VITE_MUDGEWAY_ADMIN_PASSWORD || null
+// ── Admin session ────────────────────────────────────────────────────────────
+// Admin passwords are checked server-side only (netlify/functions/admin-login.js)
+// and never shipped in this bundle. A successful login returns a signed,
+// 12-hour token listing the scopes that password unlocks; it is kept in
+// sessionStorage and sent to admin functions as `adminToken`.
+//
+// Scopes: admin (full), bingo, nationals, catfish, mudgeway, wfsc.
+// 'admin' implies every other scope except wfsc.
+const TOKEN_KEY = 'snz_admin_token'
 
-export const isAdmin = () => {
-  return sessionStorage.getItem('isAdmin') === 'true'
+function readToken(key = TOKEN_KEY) {
+  try {
+    const token = sessionStorage.getItem(key)
+    if (!token) return null
+    const payload = JSON.parse(atob(token.split('.')[0].replace(/-/g, '+').replace(/_/g, '/')))
+    if (!Array.isArray(payload.s) || payload.exp < Date.now()) {
+      sessionStorage.removeItem(key)
+      return null
+    }
+    return { token, scopes: payload.s }
+  } catch {
+    return null
+  }
 }
 
-// Full sys admin also has Bingo access; the scoped password only grants this.
-export const isBingoAdmin = () => {
-  return isAdmin() || sessionStorage.getItem('isBingoAdmin') === 'true'
+// The current admin token, or null if not logged in / expired.
+export const adminToken = () => readToken()?.token || null
+
+const hasScope = (scope) => {
+  const t = readToken()
+  return !!t && (t.scopes.includes(scope) || (scope !== 'wfsc' && t.scopes.includes('admin')))
 }
 
-// Same deal for Nationals — full sys admin, or the scoped Nationals password.
-export const isNationalsAdmin = () => {
-  return isAdmin() || sessionStorage.getItem('isNationalsAdmin') === 'true'
+export const isAdmin          = () => hasScope('admin')
+export const isBingoAdmin     = () => hasScope('bingo')
+export const isNationalsAdmin = () => hasScope('nationals')
+export const isCatfishAdmin   = () => hasScope('catfish')
+export const isMudgewayAdmin  = () => hasScope('mudgeway')
+
+// Exchange a password for a token. Returns the scopes it unlocked ([] if wrong).
+// Pass storageKey to keep a separate session (the WFSC app does).
+export async function adminLogin(password, { storageKey = TOKEN_KEY } = {}) {
+  const res = await fetch('/.netlify/functions/admin-login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ password }),
+  })
+  if (!res.ok) return []
+  const { token, scopes } = await res.json()
+  sessionStorage.setItem(storageKey, token)
+  return scopes || []
 }
 
-// Same deal for the Mudgeway Trophy.
-export const isMudgewayAdmin = () => {
-  return isAdmin() || sessionStorage.getItem('isMudgewayAdmin') === 'true'
-}
-
-export const setAdminSession = (password) => {
-  if (password === ADMIN_PASSWORD) {
-    sessionStorage.setItem('isAdmin', 'true')
-    return true
-  }
-  if (BINGO_ADMIN_PASSWORD && password === BINGO_ADMIN_PASSWORD) {
-    sessionStorage.setItem('isBingoAdmin', 'true')
-    return true
-  }
-  if (NATIONALS_ADMIN_PASSWORD && password === NATIONALS_ADMIN_PASSWORD) {
-    sessionStorage.setItem('isNationalsAdmin', 'true')
-    return true
-  }
-  if (MUDGEWAY_ADMIN_PASSWORD && password === MUDGEWAY_ADMIN_PASSWORD) {
-    sessionStorage.setItem('isMudgewayAdmin', 'true')
-    return true
-  }
-  return false
+export const hasStoredScope = (scope, storageKey) => {
+  const t = readToken(storageKey)
+  return !!t && t.scopes.includes(scope)
 }
 
 export const clearAdminSession = () => {
-  sessionStorage.removeItem('isAdmin')
-  sessionStorage.removeItem('isBingoAdmin')
-  sessionStorage.removeItem('isNationalsAdmin')
-  sessionStorage.removeItem('isMudgewayAdmin')
+  sessionStorage.removeItem(TOKEN_KEY)
+  // Flags from the old client-side password check.
+  ;['isAdmin', 'isBingoAdmin', 'isNationalsAdmin', 'isMudgewayAdmin'].forEach(k => sessionStorage.removeItem(k))
 }

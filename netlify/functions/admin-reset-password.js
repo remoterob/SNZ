@@ -1,6 +1,7 @@
 // Admin function: set a temporary password for a member
 // Protected by the SNZ admin password
 const { createClient } = require('@supabase/supabase-js')
+const { requireAdmin } = require('./lib/adminAuth')
 
 const supabase = createClient(
   process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL,
@@ -13,10 +14,11 @@ exports.handler = async (event) => {
   }
 
   try {
-    const { adminPassword, memberId, tempPassword } = JSON.parse(event.body)
+    const body = JSON.parse(event.body)
+    const { memberId, tempPassword } = body
 
-    // Verify admin password
-    if (adminPassword !== process.env.VITE_ADMIN_PASSWORD) {
+    // Verify admin token (see lib/adminAuth.js)
+    if (!requireAdmin(event, body)) {
       return { statusCode: 401, body: JSON.stringify({ error: 'Unauthorised' }) }
     }
 

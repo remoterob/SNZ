@@ -204,6 +204,9 @@ export default function RecordApplication() {
 
   // Upload a single photo — creates the DB row first if needed
   const handlePhotoUpload = async (photoKey, file) => {
+    // The draft row belongs to the signed-in member (RLS: user_id = auth.uid()),
+    // so photos can only be saved once they're signed in.
+    if (!session) { setShowAuthGate(true); return }
     setUploading(u => ({ ...u, [photoKey]: true }))
     try {
       // Create the application row on first photo upload if not yet inserted
@@ -518,6 +521,11 @@ export default function RecordApplication() {
             Upload each photo directly — they are saved immediately as you go. Label files with your surname, fish name, and year
             (e.g. <span className="font-mono bg-gray-100 px-1 rounded">Harrison_Kingfish_2025.jpg</span>).
           </p>
+          {!sessionLoading && !session && (
+            <div className="mb-5">
+              <MemberAuthGate message="Sign in (or join free) before uploading photos — they're saved to your application as you go." />
+            </div>
+          )}
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             {REQUIRED_PHOTOS.map(({ key, label }) => (
               <PhotoSlot

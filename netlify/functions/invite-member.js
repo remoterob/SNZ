@@ -1,6 +1,7 @@
 // Netlify Function: send nationals partner invite / membership invite email
 const { createClient } = require('@supabase/supabase-js')
 const { getAuthenticatedUserId } = require('./lib/auth')
+const { requireAdmin } = require('./lib/adminAuth')
 
 const supabase = createClient(
   process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL,
@@ -17,6 +18,7 @@ exports.handler = async (event) => {
   }
 
   try {
+    const body = JSON.parse(event.body)
     const {
       email,
       name,
@@ -27,8 +29,7 @@ exports.handler = async (event) => {
       nationals,
       isExistingMember,
       confirmUrl,
-      adminPassword,
-    } = JSON.parse(event.body)
+    } = body
 
     if (!email) {
       return { statusCode: 400, body: JSON.stringify({ error: 'Email required' }) }
@@ -45,7 +46,7 @@ exports.handler = async (event) => {
     // Competition admins invite divers for teams they don't dive in (phone and
     // paper entries), so they authenticate with the admin password instead of
     // being the team's Diver 1. Same gate the other admin functions use.
-    const isAdminCaller = !!adminPassword && adminPassword === process.env.VITE_ADMIN_PASSWORD
+    const isAdminCaller = !!requireAdmin(event, body, ['nationals', 'catfish'])
 
     const callerUserId = isAdminCaller ? null : await getAuthenticatedUserId(event)
     if (!isAdminCaller && !callerUserId) {

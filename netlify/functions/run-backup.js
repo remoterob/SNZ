@@ -3,6 +3,7 @@
 // invoked over HTTP, so the manual path needs its own endpoint).
 
 const { runBackup } = require('./lib/backup')
+const { requireAdmin } = require('./lib/adminAuth')
 
 exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') {
@@ -11,7 +12,7 @@ exports.handler = async (event) => {
 
   try {
     const body = JSON.parse(event.body || '{}')
-    if (body.adminPassword !== process.env.VITE_ADMIN_PASSWORD) {
+    if (!requireAdmin(event, body)) {
       return { statusCode: 401, body: 'Unauthorised' }
     }
   } catch (e) {

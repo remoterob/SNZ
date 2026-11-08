@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { supabase } from '../lib/supabase'
+import { recordAppsAdmin } from '../lib/recordApplicationsAdmin'
 
 const SNZ_BLUE = '#2B6CB0'
 const SNZ_LOGO = import.meta.env.VITE_SNZ_LOGO_URL || null
@@ -45,12 +45,10 @@ export default function ApplicationArchive() {
   const [printing, setPrinting] = useState(false)
 
   useEffect(() => {
-    supabase.from('record_applications').select('*').eq('id', id).single()
-      .then(({ data, error }) => {
-        if (error) console.error(error)
-        else setApp(data)
-        setLoading(false)
-      })
+    recordAppsAdmin('get', { id })
+      .then(({ row }) => setApp(row))
+      .catch(err => console.error(err))
+      .finally(() => setLoading(false))
   }, [id])
 
   const handlePrint = () => {

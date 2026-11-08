@@ -3,10 +3,11 @@
 // (see migration 002_bingo_tables.sql), so this is the only write path —
 // mirrors the shared-password pattern used by every other privileged action
 // in this app (see refund-payment.js / near-miss-admin.js), but also accepts
-// the Fish-Bingo-scoped VITE_BINGO_ADMIN_PASSWORD so a bingo-only login can
+// the Fish-Bingo-scoped admin token (lib/adminAuth.js) so a bingo-only login can
 // manage this without full sys admin access.
 
 const { createClient } = require('@supabase/supabase-js')
+const { requireAdmin } = require('./lib/adminAuth')
 
 const supabase = createClient(
   process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL,
@@ -31,11 +32,7 @@ exports.handler = async (event) => {
     return json(400, { error: 'Bad request' })
   }
 
-  const okPassword = !!body.adminPassword && (
-    body.adminPassword === process.env.VITE_ADMIN_PASSWORD ||
-    (process.env.VITE_BINGO_ADMIN_PASSWORD && body.adminPassword === process.env.VITE_BINGO_ADMIN_PASSWORD)
-  )
-  if (!okPassword) return json(401, { error: 'Unauthorised' })
+  if (!requireAdmin(event, body, ['bingo'])) return json(401, { error: 'Unauthorised' })
 
   const { id, season, comp_start, comp_end, status, rules_sections } = body
   if (!id) return json(400, { error: 'id is required' })

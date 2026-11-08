@@ -4,7 +4,7 @@
 // — this function is the ONLY way to list, moderate, or export raw
 // submissions. Gated the same way every other privileged action in this
 // app is: a shared password compared server-side against
-// VITE_ADMIN_PASSWORD (see refund-payment.js), then the service-role key
+// admin token (lib/adminAuth.js), then the service-role key
 // bypasses RLS. There's no real per-user admin role anywhere in this app
 // to check instead — see the plan notes for why.
 //
@@ -18,6 +18,7 @@
 //                  CSV with the existing src/lib/csvExport.js helper.
 
 const { createClient } = require('@supabase/supabase-js')
+const { requireAdmin } = require('./lib/adminAuth')
 
 const supabase = createClient(
   process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL,
@@ -64,7 +65,7 @@ exports.handler = async (event) => {
     return json(400, { error: 'Bad request' })
   }
 
-  if (body.adminPassword !== process.env.VITE_ADMIN_PASSWORD) {
+  if (!requireAdmin(event, body)) {
     return json(401, { error: 'Unauthorised' })
   }
 

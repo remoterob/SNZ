@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useLocation, Navigate } from 'react-router-dom'
-import { supabase, isAdmin, setAdminSession, ADMIN_PASSWORD } from '../lib/supabase'
+import { supabase, isAdmin, adminToken } from '../lib/supabase'
 
 const SNZ_BLUE = '#2B6CB0'
 const SNZ_LOGO = import.meta.env.VITE_SNZ_LOGO_URL || null
@@ -90,7 +90,7 @@ function MemberAdminInner() {
       const res = await fetch('/.netlify/functions/admin-activate-member', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ adminPassword: ADMIN_PASSWORD, memberId: m.id }),
+        body: JSON.stringify({ adminToken: adminToken(), memberId: m.id }),
       })
       const data = await res.json()
       if (!res.ok) showToast(data.error || 'Activation failed', 'error')
@@ -106,7 +106,7 @@ function MemberAdminInner() {
       const res = await fetch('/.netlify/functions/refund-payment', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ adminPassword: ADMIN_PASSWORD, type: 'membership', memberId: m.id }),
+        body: JSON.stringify({ adminToken: adminToken(), type: 'membership', memberId: m.id }),
       })
       const data = await res.json()
       if (!res.ok) showToast(data.error || 'Refund failed', 'error')
@@ -123,13 +123,10 @@ function MemberAdminInner() {
     if (!resetTarget || tempPwd.length < 8) return
     setResetting(true)
     try {
-      const adminPassword = sessionStorage.getItem('snz_admin_session') ||
-                           sessionStorage.getItem('admin_password') ||
-                           import.meta.env.VITE_ADMIN_PASSWORD
       const res = await fetch('/.netlify/functions/admin-reset-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ adminPassword, memberId: resetTarget.id, tempPassword: tempPwd })
+        body: JSON.stringify({ adminToken: adminToken(), memberId: resetTarget.id, tempPassword: tempPwd })
       })
       const result = await res.json()
       if (!res.ok) throw new Error(result.error)
@@ -732,7 +729,7 @@ function RunBackupButton({ showToast }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          adminPassword: sessionStorage.getItem('snz_admin_session') || import.meta.env.VITE_ADMIN_PASSWORD
+          adminToken: adminToken()
         })
       })
       const text = await res.text()

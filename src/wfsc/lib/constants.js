@@ -1,4 +1,3 @@
-export const ADMIN_PASSWORD = import.meta.env.VITE_WFSC_ADMIN_PASSWORD || 'wfsc2026'
 
 export const DIVISIONS = ['Mens', 'Womens', 'Masters', 'Junior', 'Mixed']
 

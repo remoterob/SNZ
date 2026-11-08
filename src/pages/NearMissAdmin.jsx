@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toCSV, downloadCSV } from '../lib/csvExport'
+import { adminToken } from '../lib/supabase'
 
 const SNZ_BLUE = '#2B6CB0'
 const SNZ_DARK = '#1e3a5f'
@@ -13,12 +14,7 @@ const STATUS_COLORS = {
   removed: 'bg-red-100 text-red-700',
 }
 
-// Matches the pattern used across CompAdmin.jsx / NationalsAdmin.jsx —
-// nothing in this app currently sets snz_admin_session, so this always
-// falls through to the client-bundled VITE_ADMIN_PASSWORD, same as
-// everywhere else. Access itself is already gated by <ProtectedRoute> in
-// App.jsx before this page ever renders.
-const adminPassword = () => sessionStorage.getItem('snz_admin_session') || import.meta.env.VITE_ADMIN_PASSWORD
+// Admin token from the server-side login (see src/lib/supabase.js).
 
 const EXPORT_COLUMNS = [
   { label: 'ID', key: 'id' },
@@ -117,7 +113,7 @@ export default function NearMissAdmin() {
     const res = await fetch('/.netlify/functions/near-miss-admin', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ adminPassword: adminPassword(), action: 'list', filters }),
+      body: JSON.stringify({ adminToken: adminToken(), action: 'list', filters }),
     })
     const data = await res.json()
     if (!res.ok) { setError(data.error || 'Failed to load reports'); return }
@@ -133,7 +129,7 @@ export default function NearMissAdmin() {
     const res = await fetch('/.netlify/functions/near-miss-admin', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ adminPassword: adminPassword(), action: 'updateStatus', id, status, moderation_note }),
+      body: JSON.stringify({ adminToken: adminToken(), action: 'updateStatus', id, status, moderation_note }),
     })
     if (res.ok) load()
   }
@@ -142,7 +138,7 @@ export default function NearMissAdmin() {
     const res = await fetch('/.netlify/functions/near-miss-admin', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ adminPassword: adminPassword(), action: 'export', mode, filters }),
+      body: JSON.stringify({ adminToken: adminToken(), action: 'export', mode, filters }),
     })
     const data = await res.json()
     if (!res.ok) { setError(data.error || 'Export failed'); return }

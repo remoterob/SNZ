@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { supabase, isAdmin } from '../lib/supabase'
+import { supabase, isAdmin, adminToken } from '../lib/supabase'
 
 const SNZ_BLUE = '#2B6CB0'
 const SNZ_LOGO = import.meta.env.VITE_SNZ_LOGO_URL || null
@@ -338,7 +338,7 @@ function CreateCompModal({ onClose, onCreated }) {
 // ── Main ────────────────────────────────────────────────────────────────────
 
 // ── Member Password Reset ────────────────────────────────────────────────────
-function MemberPasswordReset({ adminPassword }) {
+function MemberPasswordReset() {
   const [search, setSearch] = useState('')
   const [members, setMembers] = useState([])
   const [loading, setLoading] = useState(false)
@@ -367,7 +367,7 @@ function MemberPasswordReset({ adminPassword }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          adminPassword,
+          adminToken: adminToken(),
           memberId: selected.id,
           tempPassword: tempPwd,
         })
@@ -580,7 +580,7 @@ export default function CompSuperAdmin() {
         )}
 
         {tab === 'species' && <SpeciesLibrary showToast={showToast} />}
-      {tab === 'members' && <MemberPasswordReset adminPassword={adminPassword} />}
+      {tab === 'members' && <MemberPasswordReset />}
       </div>
     </div>
   )

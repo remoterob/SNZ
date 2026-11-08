@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from './lib/supabase'
+import { adminLogin } from '../lib/supabase'
 import { Flag } from './components/Flag'
 import { usePairs, useWeighins, useProtests, buildLeaderboard, specialAwards } from './lib/hooks'
-import { ADMIN_PASSWORD, DIVISIONS, DIVISION_COLORS, COUNTRIES, countryByName, calcRawScore } from './lib/constants'
+import { DIVISIONS, DIVISION_COLORS, COUNTRIES, countryByName, calcRawScore } from './lib/constants'
 import { WETTIE_LOGO, DESOLVE_LOGO, SNZ_LOGO } from './lib/logos'
 
 // User tracking utilities
@@ -447,8 +448,12 @@ function LoginScreen({ onLogin }) {
   const [pw, setPw] = useState('')
   const [shake, setShake] = useState(false)
   const [err, setErr] = useState('')
-  const attempt = () => {
-    if (pw===ADMIN_PASSWORD) { onLogin() }
+  // Checked server-side (netlify/functions/admin-login.js) — the WFSC password
+  // is no longer bundled into this page.
+  const attempt = async () => {
+    let scopes = []
+    try { scopes = await adminLogin(pw, { storageKey: 'wfsc_admin_token' }) } catch { /* treated as wrong */ }
+    if (scopes.includes('wfsc')) { onLogin() }
     else { setShake(true); setErr('Incorrect password'); setTimeout(()=>setShake(false),400) }
   }
   return (

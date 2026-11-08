@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { supabase, clearAdminSession } from '../lib/supabase'
+import { supabase, clearAdminSession, adminToken } from '../lib/supabase'
 import { RuleBody } from './bingo/BingoRulesPage'
 
 const SNZ_BLUE = '#2B6CB0'
@@ -74,7 +74,7 @@ export default function BingoConfigAdmin() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          adminPassword: import.meta.env.VITE_ADMIN_PASSWORD,
+          adminToken: adminToken(),
           id: config.id,
           season: form.season.trim(),
           status: form.status,

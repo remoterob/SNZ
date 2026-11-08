@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom'
-import { supabase, isAdmin, isBingoAdmin, setAdminSession, isNationalsAdmin } from './lib/supabase'
+import { supabase, isAdmin, isBingoAdmin, isNationalsAdmin } from './lib/supabase'
 import { useAnalytics } from './lib/useAnalytics'
 import PWAInstallPrompt from './components/PWAInstallPrompt'
 import { useMemberSession } from './components/MemberAuthGate'

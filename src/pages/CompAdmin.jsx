@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, Fragment } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { supabase, CATFISH_ADMIN_PASSWORD } from '../lib/supabase'
+import { supabase, adminLogin, adminToken, isAdmin, isCatfishAdmin } from '../lib/supabase'
 import CompCopilotFAB from './CompCopilotFAB'
 import CheckInRollCall from '../components/CheckInRollCall'
 import SocialCardExporter from '../components/SocialCardExporter'
@@ -276,14 +276,16 @@ function ComplianceGate({ comp, onAccepted, showToast }) {
 function AuthGate({ comp, onAuth }) {
   const [pwd, setPwd] = useState('')
   const [err, setErr] = useState('')
-  // The scoped Catfish password unlocks the Catfish Cull only — gated on the
-  // comp's own scoring mode so it can never open another club's competition.
-  const catfishScoped = CATFISH_ADMIN_PASSWORD
-    && comp.scoring_mode === 'catfish_count'
-    && pwd === CATFISH_ADMIN_PASSWORD
-
-  const check = () => {
-    if (btoa(pwd) === comp.club_password || pwd === import.meta.env.VITE_ADMIN_PASSWORD || catfishScoped) {
+  // SNZ admin / scoped Catfish passwords are checked server-side. The Catfish
+  // scope unlocks the Catfish Cull only — gated on the comp's own scoring mode
+  // so it can never open another club's competition.
+  const check = async () => {
+    let serverOk = false
+    if (btoa(pwd) !== comp.club_password) {
+      try { await adminLogin(pwd) } catch { /* fall through to error */ }
+      serverOk = isAdmin() || (comp.scoring_mode === 'catfish_count' && isCatfishAdmin())
+    }
+    if (btoa(pwd) === comp.club_password || serverOk) {
       sessionStorage.setItem(`comp_admin_${comp.id}`, '1')
       onAuth()
     } else {
@@ -1791,12 +1793,12 @@ function TeamsTab({ teams, members, pendingDivers, weighins, comp, onRefresh, sh
   }
 
   const refundTeam = async (t) => {
-    const adminPassword = sessionStorage.getItem('snz_admin_session') || import.meta.env.VITE_ADMIN_PASSWORD
+    const token = adminToken()
     try {
       let res = await fetch('/.netlify/functions/refund-payment', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ adminPassword, type: 'comp_entry', teamId: t.id, listOnly: true }),
+        body: JSON.stringify({ adminToken: token, type: 'comp_entry', teamId: t.id, listOnly: true }),
       })
       let data = await res.json()
       const payments = res.ok ? (data.payments || []) : []
@@ -1823,7 +1825,7 @@ function TeamsTab({ teams, members, pendingDivers, weighins, comp, onRefresh, sh
       res = await fetch('/.netlify/functions/refund-payment', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ adminPassword, type: 'comp_entry', teamId: t.id, paymentIntentId: pick.id, amountCents }),
+        body: JSON.stringify({ adminToken: token, type: 'comp_entry', teamId: t.id, paymentIntentId: pick.id, amountCents }),
       })
       data = await res.json()
       if (!res.ok) showToast(data.error || 'Refund failed', 'error')

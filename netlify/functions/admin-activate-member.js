@@ -1,5 +1,6 @@
 // Admin function: mark a member as active/paid using service role key (bypasses RLS)
 const { createClient } = require('@supabase/supabase-js')
+const { requireAdmin } = require('./lib/adminAuth')
 
 const supabase = createClient(
   process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL,
@@ -11,9 +12,10 @@ exports.handler = async (event) => {
     return { statusCode: 405, body: 'Method Not Allowed' }
   }
   try {
-    const { adminPassword, memberId } = JSON.parse(event.body)
+    const body = JSON.parse(event.body)
+    const { memberId } = body
 
-    if (adminPassword !== process.env.VITE_ADMIN_PASSWORD) {
+    if (!requireAdmin(event, body)) {
       return { statusCode: 401, body: JSON.stringify({ error: 'Unauthorised' }) }
     }
     if (!memberId) {

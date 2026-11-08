@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { supabase, clearAdminSession } from '../lib/supabase'
+import { supabase, clearAdminSession, adminToken } from '../lib/supabase'
 import { toCSV, downloadCSV } from '../lib/csvExport'
 
 const SNZ_BLUE = '#2B6CB0'
@@ -82,7 +82,6 @@ const EXPORT_COLUMNS = [
 
 export default function DevSquadAdmin() {
   const navigate = useNavigate()
-  const pw = import.meta.env.VITE_ADMIN_PASSWORD
 
   const [cfg, setCfg] = useState(null)
   const [savingCfg, setSavingCfg] = useState(false)
@@ -97,7 +96,7 @@ export default function DevSquadAdmin() {
     const res = await fetch(API, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ adminPassword: pw, ...payload }),
+      body: JSON.stringify({ adminToken: adminToken(), ...payload }),
     })
     // A platform-level failure (cold start, 502, or running under vite where
     // the function isn't served) returns HTML or nothing, so don't assume JSON
