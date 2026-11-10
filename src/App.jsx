@@ -505,41 +505,42 @@ function NZRecordsPage() {
             {/* Mobile cards */}
             <div className="md:hidden space-y-2 mb-6">
               {filtered.map((r) => (
-                <div key={r.id} data-deeplink={`record-${r.id}`} className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm flex items-center gap-3 p-3">
-                  {/* Thumbnail */}
-                  <div className="flex-shrink-0">
-                    {r.photo_url ? (
-                      <button
-                        onClick={() => setLightbox({ url: r.photo_url, caption: `${r.species} — ${r.diver} · ${r.weight_kg} kg · ${r.location}` })}
-                        className="relative group block w-16 h-16"
-                      >
-                        <img
-                          src={r.photo_url}
-                          alt={r.species}
-                          className="w-16 h-16 object-cover rounded-lg border border-gray-200 group-active:brightness-75 transition"
-                        />
-                        <span className="absolute inset-0 flex items-center justify-center rounded-lg opacity-0 group-active:opacity-100 bg-black/30 transition text-white text-xl">🔍</span>
-                      </button>
-                    ) : (
-                      <div className="w-16 h-16 rounded-lg bg-gray-50 border border-gray-100 flex items-center justify-center text-2xl text-gray-200">🐟</div>
+                <div key={r.id} data-deeplink={`record-${r.id}`} className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+                  {/* Large photo on top (tap for full screen) */}
+                  {r.photo_url && (
+                    <button
+                      onClick={() => setLightbox({ url: r.photo_url, caption: `${r.species} — ${r.diver} · ${r.weight_kg} kg · ${r.location}` })}
+                      className="relative group block w-full"
+                      title="View photo"
+                    >
+                      <img
+                        src={r.photo_url}
+                        alt={r.species}
+                        loading="lazy"
+                        className="w-full h-64 object-cover bg-gray-100 group-active:brightness-75 transition"
+                      />
+                      <span className="absolute bottom-2 right-2 bg-black/50 text-white text-xs font-bold px-2 py-1 rounded-md">🔍 Tap to enlarge</span>
+                    </button>
+                  )}
+                  <div className="flex items-start gap-3 p-3">
+                    {!r.photo_url && (
+                      <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-gray-50 border border-gray-100 flex items-center justify-center text-xl text-gray-200">🐟</div>
                     )}
-                  </div>
-                  {/* Details */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-2 mb-0.5">
-                      <div className="flex items-center gap-1.5 flex-wrap min-w-0">
-                        <span className="font-bold text-gray-900 text-sm leading-tight truncate">{r.species}</span>
+                    {/* Details */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap min-w-0 mb-1">
+                        <span className="font-bold text-gray-900 text-base leading-tight">{r.species}</span>
                         {r.provisional && (
-                          <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200 whitespace-nowrap flex-shrink-0">Provisional</span>
+                          <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200 whitespace-nowrap">Provisional</span>
                         )}
                       </div>
-                      <div className="flex flex-wrap justify-end gap-1 flex-shrink-0">{divsOf(r).map(d => <span key={d} className={`text-xs px-2 py-0.5 rounded-full font-bold whitespace-nowrap ${divBadgeClass(d)}`}>{d}</span>)}</div>
+                      <div className="flex flex-wrap gap-1 mb-1">{divsOf(r).map(d => <span key={d} className={`text-xs px-2 py-0.5 rounded-full font-bold whitespace-nowrap ${divBadgeClass(d)}`}>{d}</span>)}</div>
+                      <div className="text-lg font-black leading-tight" style={{ color: SNZ_BLUE }}>{fmtWeight(r.weight_kg)}</div>
+                      <div className="text-xs font-semibold text-gray-700 truncate">{r.diver}</div>
+                      <div className="text-xs text-gray-400 truncate">{r.location} · {r.date_caught}</div>
                     </div>
-                    <div className="text-lg font-black leading-tight" style={{ color: SNZ_BLUE }}>{fmtWeight(r.weight_kg)}</div>
-                    <div className="text-xs font-semibold text-gray-700 truncate">{r.diver}</div>
-                    <div className="text-xs text-gray-400 truncate">{r.location} · {r.date_caught}</div>
+                    <div className="flex-shrink-0"><ShareButton id={r.id} prefix="record" small /></div>
                   </div>
-                  <div className="flex-shrink-0 self-start"><ShareButton id={r.id} prefix="record" small /></div>
                 </div>
               ))}
             </div>
