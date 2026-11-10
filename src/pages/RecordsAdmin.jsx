@@ -102,10 +102,10 @@ function PublishPanel({ app, records, onChanged, showToast }) {
     club: '',
     date_caught: toRecordDate(app.date_speared),
     location: app.location || '',
-    provisional: false,
   }))
   const set = (k) => (v) => setForm(f => ({ ...f, [k]: v }))
-  const approved = app.status === 'approved'
+  const approved = app.status === 'approved' || app.status === 'provisional'
+  const provisional = app.status === 'provisional'
 
   const publish = async () => {
     setBusy(true)
@@ -143,6 +143,7 @@ function PublishPanel({ app, records, onChanged, showToast }) {
           <input type="checkbox" checked disabled={busy} onChange={unpublish} className="w-4 h-4 accent-green-600" />
           Published to NZ Records
         </label>
+        {publishedRec?.provisional && <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200">Provisional</span>}
         {publishedRec ? <DivisionBadges record={publishedRec} /> : <span className="text-xs text-green-700">record #{published}</span>}
         <a href={`/records#record-${published}`} target="_blank" rel="noopener noreferrer" className="text-xs font-bold text-green-700 hover:underline ml-auto">View on records page ↗</a>
       </div>
@@ -154,7 +155,8 @@ function PublishPanel({ app, records, onChanged, showToast }) {
       <label className={`flex items-center gap-2 text-sm font-bold ${approved ? 'text-gray-800 cursor-pointer' : 'text-gray-400'}`}>
         <input type="checkbox" checked={open} disabled={!approved || busy} onChange={e => setOpen(e.target.checked)} className="w-4 h-4" />
         Publish to NZ Records
-        {!approved && <span className="text-xs font-normal">— approve the application first</span>}
+        {!approved && <span className="text-xs font-normal">— set the application to approved or provisional first</span>}
+        {provisional && <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200">will publish as Provisional</span>}
       </label>
 
       {open && approved && (
@@ -168,10 +170,11 @@ function PublishPanel({ app, records, onChanged, showToast }) {
             <div className="sm:col-span-2"><Input label="Location" value={form.location} onChange={set('location')} /></div>
           </div>
           <DivisionPicker value={form.divisions} onChange={set('divisions')} />
-          <label className="flex items-center gap-2 text-sm text-gray-700">
-            <input type="checkbox" checked={form.provisional} onChange={e => set('provisional')(e.target.checked)} className="w-4 h-4" />
-            Provisional <span className="text-xs text-gray-400">(30-day dispute period, shows a badge publicly)</span>
-          </label>
+          <p className="text-xs text-gray-500">
+            {provisional
+              ? 'Publishes as a Provisional record (30-day dispute period, badge shown publicly). Changing the application to Approved later removes the badge.'
+              : 'Publishes as a full record. Setting the application back to Provisional later re-adds the badge.'}
+          </p>
 
           {holders.length > 0 && (
             <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 text-xs text-amber-800 space-y-1">
@@ -423,7 +426,7 @@ export default function RecordsAdmin() {
   const updateAppStatus = async (id, status) => {
     try {
       await recordAppsAdmin('update', { id, patch: { status } })
-      showToast(`Status → ${status}`); fetchApplications()
+      showToast(`Status → ${status}`); fetchApplications(); fetchRecords()
     } catch (err) {
       showToast(err.message, 'error')
     }

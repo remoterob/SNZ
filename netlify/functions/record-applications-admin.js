@@ -10,7 +10,10 @@
 //          { adminToken, action: 'update', id, patch: { status?, admin_notes? } }
 //          { adminToken, action: 'delete', id }   — also removes its photos
 //          { adminToken, action: 'publish', id, record: { species, weight_kg,
-//              divisions[], diver, club, date_caught, location, provisional } }
+//              divisions[], diver, club, date_caught, location } }
+//              — approved or provisional applications only; a provisional
+//                application publishes a provisional record. Later status
+//                changes (provisional <-> approved) carry over to the record.
 //              — creates the nz_records row, copies the "applicant with fish"
 //                photo to records/<recordId>.jpg (so it survives the
 //                application being deleted) and links it to the application.
@@ -86,8 +89,18 @@ exports.handler = async (event) => {
           Object.entries(body.patch || {}).filter(([k]) => PATCHABLE.includes(k))
         )
         if (!body.id || !Object.keys(patch).length) return json(400, { error: 'Nothing to update' })
+        const { data: before } = await table().select('status,published_record_id').eq('id', body.id).maybeSingle()
         const { error } = await table().update(patch).eq('id', body.id)
         if (error) throw error
+        // Keep a published record's provisional flag in step with the application.
+        if (patch.status && before?.published_record_id && patch.status !== before.status
+            && ['approved', 'provisional'].includes(patch.status)) {
+          const prov = patch.status === 'provisional'
+          const { error: recErr } = await supabase.from('nz_records')
+            .update({ provisional: prov, provisional_since: prov ? new Date().toISOString() : null })
+            .eq('id', before.published_record_id)
+          if (recErr) console.error('record-applications-admin: provisional sync failed:', recErr.message)
+        }
         return json(200, { ok: true })
       }
 
@@ -120,7 +133,10 @@ exports.handler = async (event) => {
           .select('id,status,published_record_id,photo_applicant_with_fish').eq('id', body.id).maybeSingle()
         if (getErr) throw getErr
         if (!app) return json(404, { error: 'Application not found' })
-        if (app.status !== 'approved') return json(400, { error: 'Only approved applications can be published' })
+        if (!['approved', 'provisional'].includes(app.status)) {
+          return json(400, { error: 'Only approved or provisional applications can be published' })
+        }
+        const provisional = app.status === 'provisional'
         if (app.published_record_id) return json(409, { error: 'Already published' })
 
         const r = body.record || {}
@@ -143,8 +159,8 @@ exports.handler = async (event) => {
           date_caught: str(r.date_caught),
           location: str(r.location),
           verified: true,
-          provisional: !!r.provisional,
-          provisional_since: r.provisional ? new Date().toISOString() : null,
+          provisional,
+          provisional_since: provisional ? new Date().toISOString() : null,
         }).select('id').single()
         if (insErr) throw insErr
 
