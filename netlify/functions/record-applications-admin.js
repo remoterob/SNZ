@@ -9,6 +9,12 @@
 //          { adminToken, action: 'get',    id }
 //          { adminToken, action: 'update', id, patch: { status?, admin_notes? } }
 //          { adminToken, action: 'delete', id }   — also removes its photos
+//          { adminToken, action: 'publish', id, record: { species, weight_kg,
+//              divisions[], diver, club, date_caught, location, provisional } }
+//              — creates the nz_records row, copies the "applicant with fish"
+//                photo to records/<recordId>.jpg (so it survives the
+//                application being deleted) and links it to the application.
+//          { adminToken, action: 'unpublish', id } — deletes that record again
 
 const { createClient } = require('@supabase/supabase-js')
 const { requireAdmin } = require('./lib/adminAuth')
@@ -30,6 +36,25 @@ const PHOTO_KEYS = [
   'photo_length_over', 'photo_girth', 'photo_scales_sticker',
 ]
 const PATCHABLE = ['status', 'admin_notes']
+
+// Categories a record can stand in. Open / Women's / Junior U18 can be combined
+// (one fish can hold all three); Meritorious and Natural History stand alone.
+const COMBINABLE = ['Open', "Women's", 'Junior U18']
+const SOLO = ['Meritorious', 'Natural History']
+
+function cleanDivisions(list) {
+  const picked = [...new Set((list || []).filter(d => COMBINABLE.includes(d) || SOLO.includes(d)))]
+  const solo = picked.filter(d => SOLO.includes(d))
+  if (solo.length) return solo.length === 1 && picked.length === 1 ? solo : null
+  return COMBINABLE.filter(d => picked.includes(d))   // canonical order
+}
+
+const storagePath = (url) => url && (String(url).match(/snz-media\/(.+?)(\?|$)/) || [])[1]
+
+async function removeRecordPhotos(recordId) {
+  const exts = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'heic']
+  await supabase.storage.from('snz-media').remove(exts.map(e => `records/${recordId}.${e}`))
+}
 
 exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') return { statusCode: 405, body: 'Method Not Allowed' }
@@ -86,6 +111,83 @@ exports.handler = async (event) => {
         }
         const { error } = await table().delete().eq('id', body.id)
         if (error) throw error
+        return json(200, { ok: true })
+      }
+
+      case 'publish': {
+        if (!body.id) return json(400, { error: 'id required' })
+        const { data: app, error: getErr } = await table()
+          .select('id,status,published_record_id,photo_applicant_with_fish').eq('id', body.id).maybeSingle()
+        if (getErr) throw getErr
+        if (!app) return json(404, { error: 'Application not found' })
+        if (app.status !== 'approved') return json(400, { error: 'Only approved applications can be published' })
+        if (app.published_record_id) return json(409, { error: 'Already published' })
+
+        const r = body.record || {}
+        const divisions = cleanDivisions(r.divisions)
+        if (!divisions || !divisions.length) {
+          return json(400, { error: "Pick one or more of Open / Women's / Junior U18, or Meritorious or Natural History on its own" })
+        }
+        const weight = parseFloat(r.weight_kg)
+        if (!String(r.species || '').trim()) return json(400, { error: 'Species is required' })
+        if (!(weight > 0)) return json(400, { error: 'Weight is required' })
+
+        const str = (v) => (v == null ? '' : String(v)).trim() || null
+        const { data: rec, error: insErr } = await supabase.from('nz_records').insert({
+          species: str(r.species),
+          weight_kg: weight,
+          divisions,
+          division: divisions[0],
+          diver: str(r.diver),
+          club: str(r.club),
+          date_caught: str(r.date_caught),
+          location: str(r.location),
+          verified: true,
+          provisional: !!r.provisional,
+          provisional_since: r.provisional ? new Date().toISOString() : null,
+        }).select('id').single()
+        if (insErr) throw insErr
+
+        // Copy the hero photo into records/ so it doesn't depend on the application.
+        let photoWarning = null
+        const src = storagePath(app.photo_applicant_with_fish)
+        if (src) {
+          const dest = `records/${rec.id}.jpg`
+          await removeRecordPhotos(rec.id)
+          const { error: cpErr } = await supabase.storage.from('snz-media').copy(src, dest)
+          if (cpErr) {
+            photoWarning = 'Record published, but the photo could not be copied: ' + cpErr.message
+            console.error('record-applications-admin publish: photo copy failed:', cpErr.message)
+          } else {
+            const { data: { publicUrl } } = supabase.storage.from('snz-media').getPublicUrl(dest)
+            await supabase.from('nz_records').update({ photo_url: `${publicUrl}?t=${Date.now()}` }).eq('id', rec.id)
+          }
+        } else {
+          photoWarning = 'Record published without a photo (no "applicant with fish" photo on the application).'
+        }
+
+        const { error: linkErr } = await table().update({ published_record_id: rec.id }).eq('id', body.id)
+        if (linkErr) {
+          // Roll back so we never leave an unlinked duplicate behind.
+          await supabase.from('nz_records').delete().eq('id', rec.id)
+          await removeRecordPhotos(rec.id)
+          throw linkErr
+        }
+        return json(200, { ok: true, recordId: rec.id, warning: photoWarning })
+      }
+
+      case 'unpublish': {
+        if (!body.id) return json(400, { error: 'id required' })
+        const { data: app, error: getErr } = await table().select('published_record_id').eq('id', body.id).maybeSingle()
+        if (getErr) throw getErr
+        if (!app) return json(404, { error: 'Application not found' })
+        if (app.published_record_id) {
+          const recId = app.published_record_id
+          const { error: delErr } = await supabase.from('nz_records').delete().eq('id', recId)
+          if (delErr) throw delErr
+          await removeRecordPhotos(recId)
+        }
+        await table().update({ published_record_id: null }).eq('id', body.id)
         return json(200, { ok: true })
       }
 

@@ -2,14 +2,14 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase, clearAdminSession } from '../lib/supabase'
 import { recordAppsAdmin } from '../lib/recordApplicationsAdmin'
+import { DIVISIONS, COMBINABLE, SOLO, divsOf, inDivision, toggleDivision, appTypeToDivisions, divBadgeClass as divBadge, toRecordDate } from '../lib/recordDivisions'
 
 const SNZ_BLUE = '#2B6CB0'
-const DIVISIONS = ['Open', "Women's", 'Junior U18', 'Meritorious', 'Natural History']
 const BUCKET = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/snz-media/records`
 
 const empty = {
   species: '', weight_kg: '', diver: '', club: '',
-  date_caught: '', location: '', division: 'Open',
+  date_caught: '', location: '', divisions: ['Open'],
   verified: true, provisional: false, provisional_since: null, photo_url: ''
 }
 
@@ -47,11 +47,153 @@ function Select({ label, value, onChange, options }) {
   )
 }
 
-function divBadge(d) {
-  if (d === 'Open') return 'bg-blue-50 text-blue-700 border border-blue-200'
-  if (d === "Women's") return 'bg-pink-50 text-pink-700 border border-pink-200'
-  if (d === 'Meritorious') return 'bg-amber-50 text-amber-700 border border-amber-200'
-  return 'bg-purple-50 text-purple-700 border border-purple-200'
+// Category picker: Open / Women's / Junior U18 can be combined; Meritorious and
+// Natural History are single-category.
+function DivisionPicker({ value, onChange }) {
+  const chip = (d) => {
+    const on = value.includes(d)
+    return (
+      <button key={d} type="button" onClick={() => onChange(toggleDivision(value, d))}
+        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border-2 transition ${on ? '' : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'}`}
+        style={on ? { background: '#eff6ff', color: SNZ_BLUE, borderColor: SNZ_BLUE } : undefined}
+      >
+        <span className="w-3.5 h-3.5 rounded border-2 flex items-center justify-center text-[9px] leading-none"
+          style={on ? { background: SNZ_BLUE, borderColor: SNZ_BLUE, color: '#fff' } : { borderColor: '#d1d5db' }}>{on ? '✓' : ''}</span>
+        {d}
+      </button>
+    )
+  }
+  return (
+    <div>
+      <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Categories<span className="text-red-400 ml-1">*</span></label>
+      <p className="text-xs text-gray-400 mb-2">Tick every record this fish holds, e.g. a junior woman's snapper can be Open + Women's + Junior.</p>
+      <div className="flex flex-wrap gap-2">
+        {COMBINABLE.map(chip)}
+        <span className="text-gray-300 self-center text-xs px-1">or</span>
+        {SOLO.map(chip)}
+      </div>
+    </div>
+  )
+}
+
+function DivisionBadges({ record }) {
+  return (
+    <div className="flex flex-wrap gap-1">
+      {divsOf(record).map(d => (
+        <span key={d} className={`text-xs px-2 py-0.5 rounded-full font-bold whitespace-nowrap ${divBadge(d)}`}>{d}</span>
+      ))}
+    </div>
+  )
+}
+
+// Approved application → "Publish to NZ Records" tick box. Ticking opens a
+// prefilled form; Publish creates the record (with the "applicant with fish"
+// photo) via the admin function. Unticking a published one removes it again.
+function PublishPanel({ app, records, onChanged, showToast }) {
+  const published = app.published_record_id
+  const publishedRec = published ? records.find(r => r.id === published) : null
+  const [open, setOpen] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [form, setForm] = useState(() => ({
+    species: app.common_name || '',
+    weight_kg: app.weighmaster_weight_kg ?? app.weight_kg ?? '',
+    divisions: appTypeToDivisions(app.app_type),
+    diver: app.full_name || '',
+    club: '',
+    date_caught: toRecordDate(app.date_speared),
+    location: app.location || '',
+    provisional: false,
+  }))
+  const set = (k) => (v) => setForm(f => ({ ...f, [k]: v }))
+  const approved = app.status === 'approved'
+
+  const publish = async () => {
+    setBusy(true)
+    try {
+      const res = await recordAppsAdmin('publish', { id: app.id, record: form })
+      showToast(res.warning || 'Published to NZ Records', res.warning ? 'error' : 'success')
+      setOpen(false)
+      onChanged()
+    } catch (err) { showToast(err.message, 'error') }
+    finally { setBusy(false) }
+  }
+
+  const unpublish = async () => {
+    if (!confirm('Remove this fish from the NZ Records table?\n\nThe application itself is kept.')) return
+    setBusy(true)
+    try {
+      await recordAppsAdmin('unpublish', { id: app.id })
+      showToast('Removed from NZ Records')
+      onChanged()
+    } catch (err) { showToast(err.message, 'error') }
+    finally { setBusy(false) }
+  }
+
+  // Current holders for this species in each selected category.
+  const sp = form.species.trim().toLowerCase()
+  const holders = form.divisions.flatMap(d =>
+    records.filter(r => r.id !== published && r.species?.trim().toLowerCase() === sp && inDivision(r, d))
+      .map(r => ({ d, r })))
+  const w = parseFloat(form.weight_kg)
+
+  if (published) {
+    return (
+      <div className="rounded-xl border-2 border-green-300 bg-green-50 p-4 flex flex-wrap items-center gap-3">
+        <label className="flex items-center gap-2 text-sm font-bold text-green-800 cursor-pointer">
+          <input type="checkbox" checked disabled={busy} onChange={unpublish} className="w-4 h-4 accent-green-600" />
+          Published to NZ Records
+        </label>
+        {publishedRec ? <DivisionBadges record={publishedRec} /> : <span className="text-xs text-green-700">record #{published}</span>}
+        <a href={`/records#record-${published}`} target="_blank" rel="noopener noreferrer" className="text-xs font-bold text-green-700 hover:underline ml-auto">View on records page ↗</a>
+      </div>
+    )
+  }
+
+  return (
+    <div className={`rounded-xl border-2 p-4 ${approved ? 'border-blue-200 bg-blue-50/40' : 'border-gray-200 bg-gray-50'}`}>
+      <label className={`flex items-center gap-2 text-sm font-bold ${approved ? 'text-gray-800 cursor-pointer' : 'text-gray-400'}`}>
+        <input type="checkbox" checked={open} disabled={!approved || busy} onChange={e => setOpen(e.target.checked)} className="w-4 h-4" />
+        Publish to NZ Records
+        {!approved && <span className="text-xs font-normal">— approve the application first</span>}
+      </label>
+
+      {open && approved && (
+        <div className="mt-4 space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="sm:col-span-2"><Input label="Species (as shown on the records table)" required value={form.species} onChange={set('species')} /></div>
+            <Input label="Weight (kg)" required value={form.weight_kg} onChange={set('weight_kg')} hint={app.weighmaster_weight_kg ? 'From the weighmaster' : undefined} />
+            <Input label="Diver" value={form.diver} onChange={set('diver')} />
+            <Input label="Club" value={form.club} onChange={set('club')} placeholder="Club name" />
+            <Input label="Date caught" value={form.date_caught} onChange={set('date_caught')} placeholder="DD.MM.YY" />
+            <div className="sm:col-span-2"><Input label="Location" value={form.location} onChange={set('location')} /></div>
+          </div>
+          <DivisionPicker value={form.divisions} onChange={set('divisions')} />
+          <label className="flex items-center gap-2 text-sm text-gray-700">
+            <input type="checkbox" checked={form.provisional} onChange={e => set('provisional')(e.target.checked)} className="w-4 h-4" />
+            Provisional <span className="text-xs text-gray-400">(30-day dispute period, shows a badge publicly)</span>
+          </label>
+
+          {holders.length > 0 && (
+            <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 text-xs text-amber-800 space-y-1">
+              <p className="font-bold">Existing records for {form.species}:</p>
+              {holders.map(({ d, r }) => (
+                <p key={d + r.id}>{d}: {r.weight_kg} kg — {r.diver}{w > 0 && r.weight_kg ? (w > r.weight_kg ? '  (new fish is heavier)' : '  (new fish is NOT heavier)') : ''}</p>
+              ))}
+              <p className="text-amber-700">These stay on the table. Edit or delete the old record afterwards if it's been beaten.</p>
+            </div>
+          )}
+
+          <p className="text-xs text-gray-500">The "applicant with fish" photo becomes the record photo.</p>
+          <div className="flex gap-2">
+            <button type="button" onClick={publish} disabled={busy || !form.divisions.length}
+              className="px-4 py-2 rounded-lg text-sm font-bold text-white disabled:opacity-50" style={{ background: SNZ_BLUE }}
+            >{busy ? 'Publishing…' : 'Publish record'}</button>
+            <button type="button" onClick={() => setOpen(false)} className="px-4 py-2 rounded-lg text-sm font-bold border border-gray-300 text-gray-600 hover:bg-gray-50">Cancel</button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
 }
 
 function AdminNotes({ appId, existing, onSave }) {
@@ -109,8 +251,8 @@ export default function RecordsAdmin() {
   }
 
   const exportToCSV = () => {
-    const cols = ['id','species','weight_kg','division','diver','club','date_caught','location','verified','photo_url','created_at']
-    const headers = ['ID','Species','Weight (kg)','Division','Diver','Club','Date Caught','Location','Verified','Photo URL','Created At']
+    const cols = ['id','species','weight_kg','divisions','diver','club','date_caught','location','verified','photo_url','created_at']
+    const headers = ['ID','Species','Weight (kg)','Categories','Diver','Club','Date Caught','Location','Verified','Photo URL','Created At']
 
     const escape = (v) => {
       if (v == null) return ''
@@ -121,7 +263,7 @@ export default function RecordsAdmin() {
 
     const rows = [
       headers.join(','),
-      ...records.map(r => cols.map(c => escape(r[c])).join(','))
+      ...records.map(r => cols.map(c => escape(c === 'divisions' ? divsOf(r).join(' + ') : r[c])).join(','))
     ]
 
     const blob = new Blob([rows.join('\n')], { type: 'text/csv;charset=utf-8;' })
@@ -155,7 +297,7 @@ export default function RecordsAdmin() {
   useEffect(() => { fetchRecords(); fetchApplications() }, [])
 
   const filtered = records.filter(r =>
-    (filterDiv === 'All' || r.division === filterDiv) &&
+    (filterDiv === 'All' || inDivision(r, filterDiv)) &&
     (search === '' ||
       r.species.toLowerCase().includes(search.toLowerCase()) ||
       (r.diver || '').toLowerCase().includes(search.toLowerCase()))
@@ -168,8 +310,12 @@ export default function RecordsAdmin() {
     try {
       // Only send writable columns — never send id or created_at
       const { id, created_at, ...rest } = modal.record
+      const divisions = divsOf(rest)
+      if (!divisions.length) throw new Error('Pick at least one category')
       const payload = {
         ...rest,
+        divisions,
+        division: divisions[0],
         weight_kg: parseFloat(rest.weight_kg) || null,
       }
       if (modal.mode === 'add') {
@@ -388,7 +534,7 @@ export default function RecordsAdmin() {
                       <th className="px-3 py-3 w-12 text-left text-xs font-bold tracking-wider text-gray-400 uppercase">Photo</th>
                       <th className="px-4 py-3 text-left text-xs font-bold tracking-wider text-gray-400 uppercase">Species</th>
                       <th className="px-4 py-3 text-left text-xs font-bold tracking-wider text-gray-400 uppercase">Weight</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold tracking-wider text-gray-400 uppercase">Division</th>
+                      <th className="px-4 py-3 text-left text-xs font-bold tracking-wider text-gray-400 uppercase">Categories</th>
                       <th className="px-4 py-3 text-left text-xs font-bold tracking-wider text-gray-400 uppercase">Diver</th>
                       <th className="px-4 py-3 text-left text-xs font-bold tracking-wider text-gray-400 uppercase hidden md:table-cell">Location</th>
                       <th className="px-4 py-3 text-left text-xs font-bold tracking-wider text-gray-400 uppercase hidden md:table-cell">Date</th>
@@ -435,7 +581,7 @@ export default function RecordsAdmin() {
                       </td>
                         <td className="px-4 py-3 font-bold" style={{ color: SNZ_BLUE }}>{r.weight_kg ? `${r.weight_kg} kg` : '—'}</td>
                         <td className="px-4 py-3">
-                          <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${divBadge(r.division)}`}>{r.division}</span>
+                          <DivisionBadges record={r} />
                         </td>
                         <td className="px-4 py-3 text-gray-700">{r.diver}</td>
                         <td className="px-4 py-3 text-gray-400 text-xs hidden md:table-cell">{r.location}</td>
@@ -452,7 +598,7 @@ export default function RecordsAdmin() {
                               title={r.provisional ? 'Remove provisional status' : 'Mark as provisional'}
                             >{r.provisional ? '⚠ Provisional' : 'Set Provisional'}</button>
                             <button
-                              onClick={() => setModal({ mode: 'edit', record: { ...r } })}
+                              onClick={() => setModal({ mode: 'edit', record: { ...r, divisions: divsOf(r) } })}
                               className="px-3 py-1 rounded-lg text-xs font-bold border border-gray-300 hover:border-blue-400 hover:text-blue-600 transition"
                             >Edit</button>
                             <button
@@ -665,29 +811,17 @@ export default function RecordsAdmin() {
                       <AdminNotes appId={a.id} existing={a.admin_notes} onSave={fetchApplications} />
                     </div>
 
+                    {/* Publish to NZ Records */}
+                    <PublishPanel
+                      key={`${a.id}-${a.published_record_id || 0}-${a.status}`}
+                      app={a}
+                      records={records}
+                      showToast={showToast}
+                      onChanged={() => { fetchApplications(); fetchRecords() }}
+                    />
+
                     {/* Action footer */}
                     <div className="pt-3 border-t border-gray-100 flex flex-wrap gap-3 items-center">
-                      {a.status === 'approved' && (
-                        <button
-                          onClick={() => {
-                            setTab('records')
-                            setModal({
-                              mode: 'add',
-                              record: {
-                                ...empty,
-                                species: a.common_name,
-                                weight_kg: a.weight_kg,
-                                diver: a.full_name,
-                                date_caught: a.date_speared,
-                                location: a.location,
-                                division: a.app_type === "Women's" ? "Women's" : a.app_type === 'Junior' ? 'Junior U18' : 'Open',
-                              }
-                            })
-                          }}
-                          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold text-white"
-                          style={{ background: SNZ_BLUE }}
-                        >✓ Add to Records Table</button>
-                      )}
                       <a
                         href={`mailto:${a.email}?subject=Your NZ Spearfishing Record Application — ${a.common_name}&body=Kia ora ${a.full_name},%0A%0AThank you for your record application.%0A%0A`}
                         className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold border border-gray-300 text-gray-700 hover:bg-gray-50 transition"
@@ -768,12 +902,14 @@ export default function RecordsAdmin() {
                   <Input label="Species" required value={modal.record.species} onChange={setField('species')} placeholder="e.g. Kingfish" />
                 </div>
                 <Input label="Weight (kg)" required value={modal.record.weight_kg} onChange={setField('weight_kg')} placeholder="e.g. 36.9" hint="Numeric value only" />
-                <Select label="Division" value={modal.record.division} onChange={setField('division')} options={DIVISIONS} />
                 <Input label="Diver" value={modal.record.diver} onChange={setField('diver')} placeholder="Full name" />
                 <Input label="Club" value={modal.record.club} onChange={setField('club')} placeholder="Club name" />
                 <Input label="Date caught" value={modal.record.date_caught} onChange={setField('date_caught')} placeholder="DD.MM.YY" />
                 <div className="col-span-2">
                   <Input label="Location" value={modal.record.location} onChange={setField('location')} placeholder="e.g. Three Kings Islands" />
+                </div>
+                <div className="col-span-2">
+                  <DivisionPicker value={divsOf(modal.record)} onChange={setField('divisions')} />
                 </div>
                 <div className="col-span-2 flex items-center gap-3">
                   <input

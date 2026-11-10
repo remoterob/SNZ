@@ -63,6 +63,7 @@ import NearMissReport from './pages/NearMissReport'
 import NearMissThanks from './pages/NearMissThanks'
 import NearMissResults from './pages/NearMissResults'
 import NearMissAdmin from './pages/NearMissAdmin'
+import { divsOf, inDivision } from './lib/recordDivisions'
 
 function ProtectedRoute({ children }) {
   const location = useLocation()
@@ -356,7 +357,7 @@ function NZRecordsPage() {
   const filtered = records
     .filter(r =>
       r.division !== 'Meritorious' &&
-      (filter === 'All' || r.division === filter) &&
+      (filter === 'All' || inDivision(r, filter)) &&
       (search === '' ||
         r.species.toLowerCase().includes(search.toLowerCase()) ||
         (r.diver && r.diver.toLowerCase().includes(search.toLowerCase())))
@@ -485,7 +486,7 @@ function NZRecordsPage() {
                         </div>
                       </td>
                       <td className="px-4 py-3 text-xl font-black" style={{ color: SNZ_BLUE }}>{fmtWeight(r.weight_kg)}</td>
-                      <td className="px-4 py-3"><span className={`text-xs px-2 py-0.5 rounded-full font-bold ${divBadgeClass(r.division)}`}>{r.division}</span></td>
+                      <td className="px-4 py-3"><div className="flex flex-wrap gap-1">{divsOf(r).map(d => <span key={d} className={`text-xs px-2 py-0.5 rounded-full font-bold whitespace-nowrap ${divBadgeClass(d)}`}>{d}</span>)}</div></td>
                       <td className="px-4 py-3 text-gray-700">{r.diver}</td>
                       <td className="px-4 py-3 text-gray-400 text-sm">{r.club}</td>
                       <td className="px-4 py-3 text-gray-400 text-sm">{r.location}</td>
@@ -532,7 +533,7 @@ function NZRecordsPage() {
                           <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200 whitespace-nowrap flex-shrink-0">Provisional</span>
                         )}
                       </div>
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-bold flex-shrink-0 ${divBadgeClass(r.division)}`}>{r.division}</span>
+                      <div className="flex flex-wrap justify-end gap-1 flex-shrink-0">{divsOf(r).map(d => <span key={d} className={`text-xs px-2 py-0.5 rounded-full font-bold whitespace-nowrap ${divBadgeClass(d)}`}>{d}</span>)}</div>
                     </div>
                     <div className="text-lg font-black leading-tight" style={{ color: SNZ_BLUE }}>{fmtWeight(r.weight_kg)}</div>
                     <div className="text-xs font-semibold text-gray-700 truncate">{r.diver}</div>
