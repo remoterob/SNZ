@@ -9,6 +9,33 @@
 //   team    = { id, team_name, nationals_event, _d1:{name}, _d2:{name}|null, ... }
 //   weighin = { team_id, division, points_awarded, instance, is_bulk }
 
+// Silver Oldie: an Open pair where at least one diver is this age or older on
+// the first day of Open.
+export const SILVER_OLDIE_AGE = 50
+
+export function ageOn(dob, onDate) {
+  if (!dob) return null
+  const b = new Date(dob), d = onDate ? new Date(onDate) : new Date()
+  if (isNaN(b) || isNaN(d)) return null
+  let age = d.getUTCFullYear() - b.getUTCFullYear()
+  const m = d.getUTCMonth() - b.getUTCMonth()
+  if (m < 0 || (m === 0 && d.getUTCDate() < b.getUTCDate())) age--
+  return age
+}
+
+// Women's / Silver Oldie are sub-boards of Open. The stored flags are only a
+// snapshot from registration (and Silver Oldie is never set there), so derive
+// them from the divers' current profiles. A stored true flag (admin override)
+// is always kept. d1/d2 = { gender, dob } (d2 may be null).
+export function deriveOpenSubFlags(nationalsEvent, d1, d2, openStartDate) {
+  const ev = { ...(nationalsEvent || {}) }
+  if (!ev.open) return ev
+  if (d1 && d2 && d1.gender === 'Female' && d2.gender === 'Female') ev.womens = true
+  const oldEnough = [d1, d2].some(d => (ageOn(d?.dob, openStartDate) ?? -1) >= SILVER_OLDIE_AGE)
+  if (oldEnough) ev.silveroldie = true
+  return ev
+}
+
 export function isInDiv(team, divId) {
   const ev = team.nationals_event || {}
   if (divId === 'under23') return !!(ev.under23_d1 || ev.under23_d2)

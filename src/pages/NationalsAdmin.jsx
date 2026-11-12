@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase, adminToken } from '../lib/supabase'
 import CompCopilotFAB from './CompCopilotFAB'
-import { teamLeaderboard, openTeamLeaderboard, photographyLeaderboard, finSwimLeaderboard, superDiverLeaderboard, medalFor } from '../lib/nationalsScoring'
+import { teamLeaderboard, openTeamLeaderboard, photographyLeaderboard, finSwimLeaderboard, superDiverLeaderboard, medalFor, deriveOpenSubFlags } from '../lib/nationalsScoring'
 import { toCSV, downloadCSV } from '../lib/csvExport'
 import CheckInRollCall, { NATIONALS_CHECKIN_EVENTS, teamInNationalsEvent } from '../components/CheckInRollCall'
 import SponsorBar, { SponsorUploadSlot } from '../components/SponsorBar'
@@ -2270,11 +2270,13 @@ export default function NationalsAdmin() {
         .from('comp_teams').select('*').eq('competition_id', compData.id)
 
       const enriched = await Promise.all((teamData || []).map(async team => {
-        const { data: d1 } = await supabase.from('members').select('name, email').eq('id', team.diver1_member_id).maybeSingle()
+        const { data: d1 } = await supabase.from('members').select('name, email, gender, dob').eq('id', team.diver1_member_id).maybeSingle()
         const d2 = team.diver2_member_id
-          ? (await supabase.from('members').select('name, email').eq('id', team.diver2_member_id).maybeSingle()).data
+          ? (await supabase.from('members').select('name, email, gender, dob').eq('id', team.diver2_member_id).maybeSingle()).data
           : null
-        return { ...team, _d1: d1, _d2: d2 }
+        // Women's / Silver Oldie derived from current profiles (same rule as the public board)
+        const nationals_event = deriveOpenSubFlags(team.nationals_event, d1, d2, compData.event_dates?.open?.start)
+        return { ...team, nationals_event, _d1: d1, _d2: d2 }
       }))
       setTeams(enriched)
 

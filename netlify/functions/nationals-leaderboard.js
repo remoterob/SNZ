@@ -11,6 +11,25 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 )
 
+// Mirrors ageOn / deriveOpenSubFlags in src/lib/nationalsScoring.js — keep in sync.
+const SILVER_OLDIE_AGE = 50
+function ageOn(dob, onDate) {
+  if (!dob) return null
+  const b = new Date(dob), d = onDate ? new Date(onDate) : new Date()
+  if (isNaN(b) || isNaN(d)) return null
+  let age = d.getUTCFullYear() - b.getUTCFullYear()
+  const m = d.getUTCMonth() - b.getUTCMonth()
+  if (m < 0 || (m === 0 && d.getUTCDate() < b.getUTCDate())) age--
+  return age
+}
+function deriveOpenSubFlags(nationalsEvent, d1, d2, openStartDate) {
+  const ev = { ...(nationalsEvent || {}) }
+  if (!ev.open) return ev
+  if (d1 && d2 && d1.gender === 'Female' && d2.gender === 'Female') ev.womens = true
+  if ([d1, d2].some(d => (ageOn(d?.dob, openStartDate) ?? -1) >= SILVER_OLDIE_AGE)) ev.silveroldie = true
+  return ev
+}
+
 const json = (statusCode, body) => ({
   statusCode,
   headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=30' },
@@ -35,26 +54,23 @@ exports.handler = async () => {
 
     const ids = [...new Set(teams.flatMap(t => [t.diver1_member_id, t.diver2_member_id]).filter(Boolean))]
     const { data: members } = ids.length
-      ? await supabase.from('members').select('id, name, gender').in('id', ids)
+      ? await supabase.from('members').select('id, name, gender, dob').in('id', ids)
       : { data: [] }
+    const memberById = new Map((members || []).map(m => [m.id, m]))
     const nameById = new Map((members || []).map(m => [m.id, m.name]))
-    const genderById = new Map((members || []).map(m => [m.id, m.gender]))
+    const openStart = comp.event_dates?.open?.start || null
 
-    // The stored `womens` flag is resolved once at registration from member
-    // gender — if a diver's gender was blank then, the team never shows on the
-    // Women's board. Re-derive it from current profiles so fixing a gender
-    // later flows through. An admin-set true flag is always kept.
-    const isWomensPair = (t) => !!t.diver2_member_id
-      && genderById.get(t.diver1_member_id) === 'Female'
-      && genderById.get(t.diver2_member_id) === 'Female'
-
+    // Women's / Silver Oldie derived from current gender + DOB (never sent to
+    // the client — only the resulting flags are).
     const teamsOut = teams.map(t => ({
       id: t.id,
       team_name: t.team_name,
-      nationals_event: {
-        ...(t.nationals_event || {}),
-        ...(t.nationals_event?.open && isWomensPair(t) ? { womens: true } : {}),
-      },
+      nationals_event: deriveOpenSubFlags(
+        t.nationals_event,
+        memberById.get(t.diver1_member_id) || null,
+        t.diver2_member_id ? memberById.get(t.diver2_member_id) || null : null,
+        openStart,
+      ),
       team_photo_url: t.team_photo_url || null,
       _d1: { name: nameById.get(t.diver1_member_id) || null },
       _d2: t.diver2_member_id ? { name: nameById.get(t.diver2_member_id) || null } : null,
