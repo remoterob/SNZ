@@ -35,14 +35,26 @@ exports.handler = async () => {
 
     const ids = [...new Set(teams.flatMap(t => [t.diver1_member_id, t.diver2_member_id]).filter(Boolean))]
     const { data: members } = ids.length
-      ? await supabase.from('members').select('id, name').in('id', ids)
+      ? await supabase.from('members').select('id, name, gender').in('id', ids)
       : { data: [] }
     const nameById = new Map((members || []).map(m => [m.id, m.name]))
+    const genderById = new Map((members || []).map(m => [m.id, m.gender]))
+
+    // The stored `womens` flag is resolved once at registration from member
+    // gender — if a diver's gender was blank then, the team never shows on the
+    // Women's board. Re-derive it from current profiles so fixing a gender
+    // later flows through. An admin-set true flag is always kept.
+    const isWomensPair = (t) => !!t.diver2_member_id
+      && genderById.get(t.diver1_member_id) === 'Female'
+      && genderById.get(t.diver2_member_id) === 'Female'
 
     const teamsOut = teams.map(t => ({
       id: t.id,
       team_name: t.team_name,
-      nationals_event: t.nationals_event || {},
+      nationals_event: {
+        ...(t.nationals_event || {}),
+        ...(t.nationals_event?.open && isWomensPair(t) ? { womens: true } : {}),
+      },
       team_photo_url: t.team_photo_url || null,
       _d1: { name: nameById.get(t.diver1_member_id) || null },
       _d2: t.diver2_member_id ? { name: nameById.get(t.diver2_member_id) || null } : null,
