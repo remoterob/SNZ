@@ -9,14 +9,18 @@
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:seed": "node tests/e2e/fixtures/seed.js",
-    "test:e2e:sync-schema": "supabase db dump --schema public -f tests/e2e/fixtures/schema-snapshot.sql --linked"
+    "test:e2e:sync-schema": "supabase db dump --schema public -f tests/e2e/fixtures/schema-snapshot.sql --linked",
+    "test:mudgeway": "node --test tests/mudgewayScoring.test.mjs"
   },
   "dependencies": {
     "@netlify/functions": "^2.8.2",
     "@supabase/supabase-js": "^2.39.0",
+    "leaflet": "^1.9.4",
     "lucide-react": "^0.294.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "react-leaflet": "^4.2.1",
+    "react-leaflet-cluster": "^2.1.0",
     "react-router-dom": "^6.20.0",
     "stripe": "^22.0.2"
   },
