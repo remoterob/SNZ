@@ -27,7 +27,7 @@ export const youtubeThumb = (id) => `https://i.ytimg.com/vi/${id}/hqdefault.jpg`
 export const youtubeEmbed = (id) => `https://www.youtube-nocookie.com/embed/${id}?rel=0`
 
 const PUBLIC_CLUB_COLS =
-  'id, name, slug, is_affiliated, active, contact_email, region, town, latitude, longitude, about, website, facebook_url, instagram_url, logo_url, show_on_map'
+  'id, name, slug, is_affiliated, active, contact_email, region, town, latitude, longitude, about, website, facebook_url, instagram_url, logo_url, show_on_map, episode_coming_soon'
 
 // Public data for the map: active clubs flagged for the map, plus published episodes.
 export async function loadGrassrootsPublic() {

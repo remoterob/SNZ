@@ -29,7 +29,7 @@ const json = (statusCode, body) => ({
 
 const CLUB_FIELDS = [
   'name', 'is_affiliated', 'active', 'contact_email', 'region', 'town', 'latitude', 'longitude',
-  'about', 'website', 'facebook_url', 'instagram_url', 'logo_url', 'show_on_map',
+  'about', 'website', 'facebook_url', 'instagram_url', 'logo_url', 'show_on_map', 'episode_coming_soon',
 ]
 const SUBMISSION_STATUSES = ['new', 'in_review', 'editing', 'published', 'declined']
 

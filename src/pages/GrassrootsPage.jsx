@@ -8,6 +8,7 @@ import { NZ_REGIONS, loadGrassrootsPublic, youtubeEmbed, youtubeThumb } from '..
 
 const SNZ_BLUE = '#2B6CB0'
 const SNZ_DARK = '#1e3a5f'
+const COMING_SOON = '#D97706'
 
 export function GrassrootsShell({ children, wide = false }) {
   const navigate = useNavigate()
@@ -119,7 +120,12 @@ function ClubPanel({ club, episodes, onClose }) {
           <ExtLink href={club.instagram_url}>Instagram</ExtLink>
         </div>
 
-        {!current && (
+        {!current && club.episode_coming_soon && (
+          <p className="text-sm font-bold rounded-lg p-3 bg-amber-50 text-amber-800">
+            🎬 Grassroots episode coming soon. Watch this space.
+          </p>
+        )}
+        {!current && !club.episode_coming_soon && (
           <p className="text-xs text-gray-500 bg-gray-50 rounded-lg p-3">
             No Grassroots episode for this club yet. Are you part of it?{' '}
             <a href="/grassroots/submit" className="font-bold" style={{ color: SNZ_BLUE }}>Get your club up here →</a>
@@ -155,11 +161,15 @@ export default function GrassrootsPage() {
     return m
   }, [episodes])
   const episodeClubIds = useMemo(() => new Set(episodesByClub.keys()), [episodesByClub])
+  const comingSoonIds = useMemo(
+    () => new Set(clubs.filter(c => c.episode_coming_soon && !episodeClubIds.has(c.id)).map(c => c.id)),
+    [clubs, episodeClubIds]
+  )
   const clubById = useMemo(() => new Map(clubs.map(c => [c.id, c])), [clubs])
 
   const filtered = useMemo(() => clubs.filter(c =>
-    (!region || c.region === region) && (!episodesOnly || episodeClubIds.has(c.id))
-  ), [clubs, region, episodesOnly, episodeClubIds])
+    (!region || c.region === region) && (!episodesOnly || episodeClubIds.has(c.id) || comingSoonIds.has(c.id))
+  ), [clubs, region, episodesOnly, episodeClubIds, comingSoonIds])
 
   const regionsInUse = useMemo(
     () => NZ_REGIONS.filter(r => clubs.some(c => c.region === r)),
@@ -240,7 +250,7 @@ export default function GrassrootsPage() {
           </select>
           <label className="flex items-center gap-1.5 text-sm text-gray-600 px-1">
             <input type="checkbox" checked={episodesOnly} onChange={e => setEpisodesOnly(e.target.checked)} />
-            With an episode
+            Episodes and coming soon
           </label>
           <div className="flex rounded-lg border border-gray-300 overflow-hidden text-sm font-bold">
             {['map', 'list'].map(v => (
@@ -253,8 +263,9 @@ export default function GrassrootsPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-4 px-4 sm:px-5 py-2 text-xs text-gray-500 border-b border-gray-100">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 sm:px-5 py-2 text-xs text-gray-500 border-b border-gray-100">
           <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full" style={{ background: SNZ_BLUE }} /> Grassroots episode</span>
+          <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full" style={{ background: COMING_SOON }} /> Episode coming soon</span>
           <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-slate-500" /> Club</span>
           <span className="ml-auto">{filtered.length} club{filtered.length === 1 ? '' : 's'}</span>
         </div>
@@ -267,6 +278,7 @@ export default function GrassrootsPage() {
             <GrassrootsMap
               clubs={filtered}
               episodeClubIds={episodeClubIds}
+              comingSoonIds={comingSoonIds}
               selectedId={selected?.id}
               onSelect={select}
               className="h-[62vh] lg:h-[620px] w-full"
@@ -291,12 +303,13 @@ export default function GrassrootsPage() {
                 <button onClick={() => { setView('map'); openFromList(c.id) }}
                   className="w-full text-left px-4 sm:px-5 py-3 hover:bg-gray-50 flex items-center gap-3">
                   <span className="w-2.5 h-2.5 rounded-full shrink-0"
-                    style={{ background: episodeClubIds.has(c.id) ? SNZ_BLUE : '#64748b' }} />
+                    style={{ background: episodeClubIds.has(c.id) ? SNZ_BLUE : comingSoonIds.has(c.id) ? COMING_SOON : '#64748b' }} />
                   <span className="flex-1 min-w-0">
                     <span className="block font-bold text-sm text-gray-900">{c.name}</span>
                     <span className="block text-xs text-gray-500">{[c.town, c.region].filter(Boolean).join(', ') || 'Location to come'}</span>
                   </span>
                   {episodeClubIds.has(c.id) && <span className="text-xs font-bold" style={{ color: SNZ_BLUE }}>▶ Episode</span>}
+                  {comingSoonIds.has(c.id) && <span className="text-xs font-bold" style={{ color: COMING_SOON }}>Coming soon</span>}
                 </button>
               </li>
             ))}

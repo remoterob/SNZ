@@ -45,7 +45,7 @@ function ClickToPlace({ onPick }) {
 // ── Club editor ────────────────────────────────────────────────────────────────
 
 const BLANK_CLUB = {
-  name: '', is_affiliated: false, active: true, show_on_map: true, region: '', town: '',
+  name: '', is_affiliated: false, active: true, show_on_map: true, episode_coming_soon: false, region: '', town: '',
   latitude: '', longitude: '', about: '', website: '', facebook_url: '', instagram_url: '',
   logo_url: '', contact_email: '',
 }
@@ -107,6 +107,7 @@ function ClubEditor({ club, contact, onClose, onSaved }) {
             <label className="flex items-center gap-1.5"><input type="checkbox" checked={!!c.is_affiliated} onChange={set('is_affiliated')} /> SNZ affiliated</label>
             <label className="flex items-center gap-1.5"><input type="checkbox" checked={!!c.active} onChange={set('active')} /> Active</label>
             <label className="flex items-center gap-1.5"><input type="checkbox" checked={!!c.show_on_map} onChange={set('show_on_map')} /> Show on Grassroots map</label>
+            <label className="flex items-center gap-1.5"><input type="checkbox" checked={!!c.episode_coming_soon} onChange={set('episode_coming_soon')} /> Episode coming soon (amber pin)</label>
           </div>
           <p className="text-xs text-gray-400 -mt-3">Affiliated and Active also drive Mudgeway and the membership club list.</p>
 
@@ -386,6 +387,7 @@ export default function GrassrootsAdmin() {
                     </span>
                     {c.is_affiliated && <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-blue-50 text-blue-700">Affiliated</span>}
                     {!c.active && <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">Inactive</span>}
+                    {c.episode_coming_soon && !(epCount.get(c.id) > 0) && <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-amber-50 text-amber-700">Coming soon</span>}
                     {epCount.get(c.id) > 0 && <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-purple-50 text-purple-700">▶ {epCount.get(c.id)}</span>}
                     <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${onMap ? 'bg-green-50 text-green-700' : 'bg-amber-50 text-amber-700'}`}>
                       {onMap ? 'On map' : c.latitude == null ? 'Needs location' : 'Hidden'}

@@ -8,13 +8,16 @@ import 'leaflet/dist/leaflet.css'
 import { OSM_TILES, NZ_CENTER } from '../lib/grassroots'
 
 const SNZ_BLUE = '#2B6CB0'
+const COMING_SOON = '#D97706'
 
-function pinIcon({ hasEpisode, selected }) {
-  const fill = hasEpisode ? SNZ_BLUE : '#64748b'
+function pinIcon({ hasEpisode, comingSoon, selected }) {
+  const fill = hasEpisode ? SNZ_BLUE : comingSoon ? COMING_SOON : '#64748b'
   const size = selected ? 40 : 32
   const inner = hasEpisode
     ? '<path d="M13 10.5v9l7.5-4.5z" fill="#fff"/>'
-    : '<circle cx="16" cy="15" r="4.5" fill="#fff"/>'
+    : comingSoon
+      ? '<circle cx="16" cy="14.5" r="5.5" fill="none" stroke="#fff" stroke-width="1.8"/><path d="M16 11.3v3.4l2.2 1.4" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/>'
+      : '<circle cx="16" cy="15" r="4.5" fill="#fff"/>'
   return L.divIcon({
     className: '',
     iconSize: [size, size],
@@ -36,7 +39,7 @@ function FlyTo({ club }) {
   return null
 }
 
-export default function GrassrootsMap({ clubs, episodeClubIds, selectedId, onSelect, className = '' }) {
+export default function GrassrootsMap({ clubs, episodeClubIds, comingSoonIds = new Set(), selectedId, onSelect, className = '' }) {
   const placed = useMemo(
     () => clubs.filter(c => c.latitude != null && c.longitude != null),
     [clubs]
@@ -61,7 +64,7 @@ export default function GrassrootsMap({ clubs, episodeClubIds, selectedId, onSel
           <Marker
             key={c.id}
             position={[c.latitude, c.longitude]}
-            icon={pinIcon({ hasEpisode: episodeClubIds.has(c.id), selected: c.id === selectedId })}
+            icon={pinIcon({ hasEpisode: episodeClubIds.has(c.id), comingSoon: comingSoonIds.has(c.id), selected: c.id === selectedId })}
             eventHandlers={{ click: () => onSelect(c.id) }}
           >
             <Tooltip direction="top">{c.name}</Tooltip>
