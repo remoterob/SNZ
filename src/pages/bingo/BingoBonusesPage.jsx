@@ -4,7 +4,9 @@ import { imgFor } from '../../lib/bingo/helpers'
 
 const SNZ_BLUE = '#2B6CB0'
 const BINGO_CLAIM_API = '/.netlify/functions/bingo-claim'
-const normalize = (s = '') => s.toString().trim().toLowerCase()
+// gray/grey treated as the same so a spelling difference between a bonus's
+// species list and the species name can't silently drop a fish from the row.
+const normalize = (s = '') => s.toString().trim().toLowerCase().replace(/\bgray\b/g, 'grey')
 
 function resolveSlugByName(speciesArray, name) {
   if (!Array.isArray(speciesArray)) return null
