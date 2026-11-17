@@ -12,8 +12,10 @@ export const EXPERIENCE_LEVELS = ['Beginner', 'Intermediate', 'Experienced', 'El
 
 export const isBonusSlug = (slug) => typeof slug === 'string' && slug.startsWith('bonus-')
 
-export const pointsMapFromSpecies = (species) =>
-  new Map((species || []).map(s => [s.slug, s.points]))
+// Bonus claims are stored by their bingo_bonuses slug, so their points come
+// from that table — pass the bonus rows in too or bonus claims score 0.
+export const pointsMapFromSpecies = (species, bonuses = []) =>
+  new Map([...(species || []), ...(bonuses || [])].map(s => [s.slug, s.points]))
 
 export const pointsForSlug = (slug, pMap) => {
   if (!slug) return 0

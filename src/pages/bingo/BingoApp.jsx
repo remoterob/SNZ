@@ -48,6 +48,7 @@ export default function BingoApp() {
 
   // ── Data ──────────────────────────────────────────────────────────────────
   const [species,   setSpecies]   = useState(null)
+  const [bonuses,   setBonuses]   = useState([])
   const [compCfg,   setCompCfg]   = useState(null)
   const [allClaims, setAllClaims] = useState([])
   const [myClaims,  setMyClaims]  = useState([])
@@ -76,6 +77,12 @@ export default function BingoApp() {
       .eq('is_active', true)
       .order('display_order', { ascending: true })
       .then(({ data }) => setSpecies(data || []))
+  }, [])
+
+  // Bonus points (all rows, so a claimed monthly bonus still scores once it's switched off)
+  useEffect(() => {
+    supabase.from('bingo_bonuses').select('slug, points')
+      .then(({ data }) => setBonuses(data || []))
   }, [])
 
   // Comp config (active season)
@@ -145,7 +152,7 @@ export default function BingoApp() {
   useEffect(() => { reloadRegistration() }, [reloadRegistration])
 
   // ── Derived ───────────────────────────────────────────────────────────────
-  const pMap    = useMemo(() => pointsMapFromSpecies(species || []), [species])
+  const pMap    = useMemo(() => pointsMapFromSpecies(species || [], bonuses), [species, bonuses])
   const infoMap = useMemo(() => buildInfoMap(species || []),         [species])
   const myScore = useMemo(() => scoreForClaims(myClaims, pMap),     [myClaims, pMap])
 

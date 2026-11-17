@@ -73,8 +73,10 @@ export default function BingoRegistrationsAdmin() {
   // Species points — public read, scored with the app's own helpers so the
   // numbers here match what divers see on the leaderboard.
   useEffect(() => {
-    supabase.from('bingo_species').select('slug, points')
-      .then(({ data }) => setPMap(pointsMapFromSpecies(data || [])))
+    Promise.all([
+      supabase.from('bingo_species').select('slug, points'),
+      supabase.from('bingo_bonuses').select('slug, points'),
+    ]).then(([sp, bo]) => setPMap(pointsMapFromSpecies(sp.data || [], bo.data || [])))
   }, [])
 
   useEffect(() => {
