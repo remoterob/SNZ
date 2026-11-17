@@ -188,6 +188,9 @@ export default function GrassrootsPage() {
       {/* Hero */}
       <div style={{ background: `linear-gradient(135deg, ${SNZ_DARK} 0%, ${SNZ_BLUE} 100%)` }}
         className="rounded-2xl px-6 py-10 sm:py-12 text-center">
+        <img src="/grassroots/grassroots-spearo-logo.jpg" alt="Grassroots Spearo logo"
+          width="1254" height="1254"
+          className="w-36 h-36 sm:w-44 sm:h-44 mx-auto mb-5 rounded-full bg-white p-2 shadow-lg object-contain" />
         <p className="text-blue-200 text-xs font-bold tracking-widest uppercase mb-3">Spearfishing New Zealand</p>
         <h1 className="text-3xl sm:text-4xl font-black text-white leading-tight mb-4">Grassroots Spearo</h1>
         <p className="text-blue-100 text-base leading-relaxed max-w-2xl mx-auto">
