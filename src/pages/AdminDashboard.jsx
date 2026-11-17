@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { clearAdminSession } from '../lib/supabase'
-import { Users, Scale, FileText, Trophy, BarChart2, Image } from 'lucide-react'
+import { Users, Scale, FileText, Trophy, BarChart2, Image, MapPin } from 'lucide-react'
 
 const SNZ_LOGO = import.meta.env.VITE_SNZ_LOGO_URL || '/api/placeholder/200/80'
 
@@ -68,6 +68,13 @@ export default function AdminDashboard() {
       icon: Trophy,
       path: '/admin/big-fish',
       color: 'bg-amber-500'
+    },
+    {
+      title: 'Grassroots Spearo',
+      description: 'Club map details, episodes and club submissions for the Grassroots series',
+      icon: MapPin,
+      path: '/admin/grassroots',
+      color: 'bg-teal-500'
     }
   ]
 

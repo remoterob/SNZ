@@ -63,6 +63,12 @@ import NearMissReport from './pages/NearMissReport'
 import NearMissThanks from './pages/NearMissThanks'
 import NearMissResults from './pages/NearMissResults'
 import NearMissAdmin from './pages/NearMissAdmin'
+// Grassroots pages pull in Leaflet — lazy-loaded so the rest of the hub doesn't pay for it.
+const GrassrootsPage = React.lazy(() => import('./pages/GrassrootsPage'))
+const Grassroots101 = React.lazy(() => import('./pages/Grassroots101'))
+const GrassrootsSubmit = React.lazy(() => import('./pages/GrassrootsSubmit'))
+const GrassrootsAdmin = React.lazy(() => import('./pages/GrassrootsAdmin'))
+const lazyPage = (el) => <React.Suspense fallback={<div className="p-8 text-center text-sm text-gray-400">Loading…</div>}>{el}</React.Suspense>
 import { divsOf, inDivision } from './lib/recordDivisions'
 
 function ProtectedRoute({ children }) {
@@ -977,6 +983,16 @@ function SNZHub() {
         : 'Current holder, challenge queue and history',
     },
     {
+      title: 'Grassroots Spearo',
+      desc: 'Our video series profiling the clubs that make NZ spearfishing. Watch the episodes, find a club near you on the map, or put your own club forward.',
+      onClick: () => navigate('/grassroots'),
+      icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={SNZ_BLUE} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><path d="m10 7.5 4 2.5-4 2.5z"/></svg>,
+      status: 'live',
+      summary: 'Club map and episodes',
+      // Hidden until clubs have map positions entered in /admin/grassroots.
+      hidden: true,
+    },
+    {
       title: 'Big Fish',
       desc: 'Season-long biggest fish competition across six species — Butterfish, Blue Moki, Kingfish, Snapper, Warehou and Bluefin. Submit up to 3 fish per species with three verification photos. Live leaderboard per species.',
       onClick: () => navigate('/big-fish'),
@@ -1201,6 +1217,10 @@ export default function App() {
       <Route path="/near-miss/thanks"  element={<NearMissThanks />} />
       <Route path="/near-miss/results" element={<NearMissResults />} />
       <Route path="/admin/near-miss"   element={<ProtectedRoute><NearMissAdmin /></ProtectedRoute>} />
+      <Route path="/grassroots"          element={lazyPage(<GrassrootsPage />)} />
+      <Route path="/grassroots/101"      element={lazyPage(<Grassroots101 />)} />
+      <Route path="/grassroots/submit"   element={lazyPage(<GrassrootsSubmit />)} />
+      <Route path="/admin/grassroots"    element={<ProtectedRoute>{lazyPage(<GrassrootsAdmin />)}</ProtectedRoute>} />
       <Route path="/membership/admin"       element={<MembershipAdmin />} />
       <Route path="/membership/*"           element={<MembershipRouter />} />
       <Route path="/membership/invited"       element={<MembershipRouter />} />
