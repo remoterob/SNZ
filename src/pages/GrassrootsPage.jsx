@@ -226,15 +226,15 @@ export default function GrassrootsPage() {
           <p>
             Grassroots Spearo is an ongoing SNZ series. Every episode stands on its own and profiles one
             New Zealand spearfishing club through interviews and diving. We sit down with presidents,
-            long-standing members and newcomers, then get in the water with them.
+            long-standing members and newcomers, then ideally get in the water with them.
           </p>
           <p>
-            The 2026 road trip is taking us to 12–13 clubs around the country. Episodes go up on YouTube,
-            Facebook and in the SNZ newsletter, and every club we visit lands on the map below.
+            We've just finished a road trip that took us to 13 clubs around the country. Episodes go up on
+            YouTube, Facebook and in the SNZ newsletter, and every club we visit lands on the map below.
           </p>
           <p>
-            Can't wait for the road trip to reach you? Clubs can film their own interviews and footage
-            and we'll edit it into an episode. <a href="/grassroots/101" className="font-bold" style={{ color: SNZ_BLUE }}>See the Grassroots 101 guide →</a>
+            Road trip didn't reach you, or we couldn't find a time to stop in your neighbourhood? Clubs can
+            film their own interviews and footage and we'll edit it into an episode. <a href="/grassroots/101" className="font-bold" style={{ color: SNZ_BLUE }}>See the Grassroots 101 guide →</a>
           </p>
         </div>
       </section>
