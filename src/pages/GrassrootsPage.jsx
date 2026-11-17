@@ -81,6 +81,9 @@ function ClubPanel({ club, episodes, onClose }) {
                 allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                 allowFullScreen
                 loading="lazy"
+                // Site-wide Referrer-Policy is no-referrer; YouTube refuses embeds
+                // without one (Error 153), so send just our origin here.
+                referrerPolicy="strict-origin-when-cross-origin"
               />
             </div>
             <p className="text-sm font-bold text-gray-900 mt-2">{current.title}</p>
