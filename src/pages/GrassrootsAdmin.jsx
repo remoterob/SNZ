@@ -6,7 +6,7 @@ import { useNavigate } from 'react-router-dom'
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-import { NZ_CENTER, NZ_REGIONS, geocodeTown, grassrootsAdmin, youtubeId, youtubeThumb } from '../lib/grassroots'
+import { OSM_TILES, NZ_CENTER, NZ_REGIONS, geocodeTown, grassrootsAdmin, youtubeId, youtubeThumb } from '../lib/grassroots'
 
 const SNZ_BLUE = '#2B6CB0'
 const SNZ_DARK = '#1e3a5f'
@@ -135,7 +135,7 @@ function ClubEditor({ club, contact, onClose, onSaved }) {
                 key={hasPos ? `${c.latitude},${c.longitude}` : 'none'}
                 className="h-full w-full"
               >
-                <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="&copy; OpenStreetMap contributors" />
+                <TileLayer url={OSM_TILES} referrerPolicy="strict-origin-when-cross-origin" attribution="&copy; OpenStreetMap contributors" />
                 <ClickToPlace onPick={(lat, lng) => setC(x => ({ ...x, latitude: lat, longitude: lng }))} />
                 {hasPos && <Marker position={[Number(c.latitude), Number(c.longitude)]} icon={pin} />}
               </MapContainer>

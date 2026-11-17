@@ -5,7 +5,7 @@ import { MapContainer, TileLayer, Marker, Tooltip, useMap } from 'react-leaflet'
 import MarkerClusterGroup from 'react-leaflet-cluster'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-import { NZ_CENTER } from '../lib/grassroots'
+import { OSM_TILES, NZ_CENTER } from '../lib/grassroots'
 
 const SNZ_BLUE = '#2B6CB0'
 
@@ -54,7 +54,7 @@ export default function GrassrootsMap({ clubs, episodeClubIds, selectedId, onSel
     >
       <TileLayer
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        url={OSM_TILES} referrerPolicy="strict-origin-when-cross-origin"
       />
       <MarkerClusterGroup chunkedLoading showCoverageOnHover={false} maxClusterRadius={45}>
         {placed.map(c => (

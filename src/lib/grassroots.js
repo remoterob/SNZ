@@ -9,6 +9,12 @@ export const NZ_REGIONS = [
 
 export const NZ_CENTER = [-41.0, 173.5]
 
+// OSM tile policy: use the single tile host (no a/b/c subdomains) and send a
+// Referer. The site sets Referrer-Policy: no-referrer (netlify.toml), which OSM
+// blocks with a 403 "Access blocked" tile — so every TileLayer must pass
+// referrerPolicy="strict-origin-when-cross-origin" (sends only our origin).
+export const OSM_TILES = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
+
 // Bare 11-char ID or any common YouTube URL shape → video ID (or null).
 export function youtubeId(input) {
   const s = String(input || '').trim()
