@@ -983,16 +983,6 @@ function SNZHub() {
         : 'Current holder, challenge queue and history',
     },
     {
-      title: 'Grassroots Spearo',
-      desc: 'Our video series profiling the clubs that make NZ spearfishing. Watch the episodes, find a club near you on the map, or put your own club forward.',
-      onClick: () => navigate('/grassroots'),
-      icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={SNZ_BLUE} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><path d="m10 7.5 4 2.5-4 2.5z"/></svg>,
-      status: 'live',
-      summary: 'Club map and episodes',
-      // Hidden until clubs have map positions entered in /admin/grassroots.
-      hidden: true,
-    },
-    {
       title: 'Big Fish',
       desc: 'Season-long biggest fish competition across six species — Butterfish, Blue Moki, Kingfish, Snapper, Warehou and Bluefin. Submit up to 3 fish per species with three verification photos. Live leaderboard per species.',
       onClick: () => navigate('/big-fish'),
@@ -1040,6 +1030,15 @@ function SNZHub() {
       icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={SNZ_BLUE} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M15 11h.01M11 15h.01M16 16H8a4 4 0 0 1-4-4V7a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v5a4 4 0 0 1-4 4Z"/><path d="M9 9h.01"/><path d="M8 20h8"/><path d="M12 16v4"/></svg>,
       status: 'live',
       summary: stats.recipes ? `${stats.recipes} recipes available now` : null,
+    },
+    {
+      title: 'Grassroots Spearo',
+      desc: 'Our video series profiling the clubs that make NZ spearfishing. Watch the episodes, find a club near you on the map, or put your own club forward.',
+      onClick: () => navigate('/grassroots'),
+      icon: <img src="/grassroots/grassroots-spearo-logo.jpg" alt="" className="w-full h-full object-contain" />,
+      iconPlain: true,
+      status: 'live',
+      summary: "Club map, episodes and what's coming soon",
     },
     {
       title: 'AGM & SGM',
@@ -1151,7 +1150,7 @@ function SNZHub() {
                       {m.statusLabel || st.label}
                     </span>
                   )}
-                  <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-blue-50 border border-blue-100 flex-shrink-0">
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${m.iconPlain ? 'bg-white border border-gray-200 overflow-hidden p-0.5' : 'bg-blue-50 border border-blue-100'}`}>
                     {m.icon}
                   </div>
                   <div className="flex-1">
