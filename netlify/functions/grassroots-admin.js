@@ -133,6 +133,20 @@ exports.handler = async (event) => {
       return json(200, { ok: true, id: data.id })
     }
 
+    if (action === 'deleteClub') {
+      if (!body.id) return json(400, { error: 'id required' })
+      // Episodes and private contacts cascade; submissions just unlink.
+      // Mudgeway history references clubs with no cascade, so those clubs can't go.
+      const { error } = await supabase.from('clubs').delete().eq('id', body.id)
+      if (error) {
+        if (error.code === '23503') {
+          return json(409, { error: "This club has Mudgeway Trophy history, so it can't be deleted. Untick 'Show on Grassroots map' (or 'Active') instead." })
+        }
+        throw error
+      }
+      return json(200, { ok: true })
+    }
+
     if (action === 'deleteEpisode') {
       if (!body.id) return json(400, { error: 'id required' })
       const { error } = await supabase.from('grassroots_episodes').delete().eq('id', body.id)

@@ -51,7 +51,7 @@ const BLANK_CLUB = {
 }
 const BLANK_CONTACT = { contact_name: '', contact_email: '', contact_phone: '', notes: '' }
 
-function ClubEditor({ club, contact, onClose, onSaved }) {
+function ClubEditor({ club, contact, episodeCount = 0, onClose, onSaved, onDeleted }) {
   const [c, setC] = useState(() => {
     const base = { ...BLANK_CLUB }
     for (const k of Object.keys(base)) if (club?.[k] != null) base[k] = club[k]
@@ -86,6 +86,19 @@ function ClubEditor({ club, contact, onClose, onSaved }) {
         contact: p,
       })
       await onSaved(id)
+    } catch (e) { setMsg(e.message) } finally { setBusy(false) }
+  }
+
+  const remove = async () => {
+    const lines = [`Delete "${club.name}" permanently?`, '']
+    if (episodeCount > 0) lines.push(`Its ${episodeCount} Grassroots episode${episodeCount === 1 ? '' : 's'} will be deleted too.`)
+    lines.push('It will also disappear from the membership club list. Members who already chose it keep it on their profile.')
+    lines.push('', 'To just take it off the map, cancel and untick "Show on Grassroots map" instead.')
+    if (!window.confirm(lines.join('\n'))) return
+    setBusy(true); setMsg(null)
+    try {
+      await grassrootsAdmin('deleteClub', { id: club.id })
+      await onDeleted()
     } catch (e) { setMsg(e.message) } finally { setBusy(false) }
   }
 
@@ -170,6 +183,12 @@ function ClubEditor({ club, contact, onClose, onSaved }) {
 
           {msg && <p className="text-sm text-gray-600">{msg}</p>}
           <div className="flex justify-end gap-2">
+            {club?.id && (
+              <button onClick={remove} disabled={busy}
+                className="mr-auto px-4 py-2 rounded-lg text-sm font-bold text-red-600 border border-red-200 hover:bg-red-50 disabled:opacity-60">
+                Delete club
+              </button>
+            )}
             <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm font-bold text-gray-600 border border-gray-300">Cancel</button>
             <button onClick={save} disabled={busy} className="px-5 py-2 rounded-lg text-sm font-black text-white disabled:opacity-60" style={{ background: SNZ_BLUE }}>
               {busy ? 'Saving…' : 'Save club'}
@@ -439,7 +458,9 @@ export default function GrassrootsAdmin() {
 
       {editClub && (
         <ClubEditor club={editClub.club} contact={editClub.contact}
+          episodeCount={editClub.club ? (epCount.get(editClub.club.id) || 0) : 0}
           onClose={() => setEditClub(null)}
+          onDeleted={() => { setEditClub(null); load() }}
           onSaved={async (id) => {
             // A club created from a submission gets linked back to it.
             if (editClub.fromSubmission && id) {
