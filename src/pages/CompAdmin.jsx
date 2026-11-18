@@ -644,6 +644,14 @@ export default function CompAdmin() {
           <div className="flex items-center gap-2 flex-wrap">
             {['draft','active','closed'].map(s => (
               <button key={s} onClick={async () => {
+                if (s === comp.status) return
+                // Draft/Closed shut registration off for the public — make it a deliberate choice.
+                if (s !== 'active') {
+                  const msg = s === 'draft'
+                    ? `Are you sure you want to set "${comp.name}" back to DRAFT?\n\nRegistration will close and the public page will show "Registration opening soon".`
+                    : `Are you sure you want to CLOSE "${comp.name}"?\n\nNo new registrations will be accepted.`
+                  if (!window.confirm(msg)) return
+                }
                 // Require compliance gate before going active
                 if (s === 'active' && !comp.compliance_accepted) {
                   setShowCompliance(true)
