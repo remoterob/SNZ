@@ -229,8 +229,17 @@ export default function GrassrootsPage() {
             long-standing members and newcomers, then ideally get in the water with them.
           </p>
           <p>
-            We've just finished a road trip that took us to 13 clubs around the country. Episodes go up on
-            YouTube, Facebook and in the SNZ newsletter, and every club we visit lands on the map below.
+            We've just finished a road trip that took us to 15 clubs around the country, interviewing the
+            people who run them and dive with them. Episodes go up on YouTube, Facebook and in the SNZ
+            newsletter, and every club we visit lands on the map below.
+          </p>
+          <p>
+            Why do it? Partly to connect: to meet the clubs that make up SNZ face to face and understand our
+            base better, so we can represent it properly. But it's also about giving clubs a better shop
+            window than a link on a list. If you're new to spearfishing, have just moved town or are
+            planning a trip, you can see who's diving near you, get a feel for the vibe of each club,
+            the water they dive, the species they chase, and whether they're all about comps, family dives
+            or just getting wet, before you ever turn up to a meeting.
           </p>
           <p>
             Road trip didn't reach you, or we couldn't find a time to stop in your neighbourhood? Clubs can
